@@ -426,12 +426,12 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="view-toprow">
       <input type="text" class="search-input" id="search-cal" placeholder="🔍 Buscar campanha..." oninput="renderAll()">
       <div class="filter-wrap">
-        <button class="btn-filtro" id="btn-filtro-cal" onclick="togglePanel('cal')">
+        <button class="btn-filtro" id="btn-open-filtro-cal">
           ⚙ Filtros
           <span class="filtro-count" id="fcnt-cal" style="display:none">0</span>
           <span class="f-arrow">▾</span>
         </button>
-        <div class="filtro-panel" id="fp-cal" onclick="event.stopPropagation()">
+        <div class="filtro-panel" id="fp-cal">
           <div class="fp-section">
             <div class="fp-label">Categoria</div>
             <div class="fp-chips">
@@ -905,22 +905,34 @@ function showToast(msg,type='success'){
 // ── FILTROS ───────────────────────────────────────────────────────
 const fpState={cal:{categorias:[],estrategias:[],canais:[]},res:{categoria:null}};
 
-function togglePanel(ctx){
-  const panel=document.getElementById('fp-'+ctx);
-  const btn=document.getElementById('btn-filtro-'+ctx);
-  const isOpen=panel.classList.contains('fp-open');
-  closeAllPanels();
-  if(!isOpen){panel.classList.add('fp-open');btn.classList.add('fp-open');}
-}
 function closeAllPanels(){
   document.querySelectorAll('.filtro-panel').forEach(p=>p.classList.remove('fp-open'));
   document.querySelectorAll('.btn-filtro').forEach(b=>b.classList.remove('fp-open'));
 }
-// Fecha o painel apenas se o clique for fora de qualquer .filter-wrap ou .filtro-panel
-document.addEventListener('click',function(e){
-  if(!e.target.closest('.filter-wrap') && !e.target.closest('.filtro-panel')){
-    closeAllPanels();
+// Inicializa eventos do filtro após DOM pronto
+window.addEventListener('load', function(){
+  // Botão abrir/fechar filtro calendário
+  var btnFiltro = document.getElementById('btn-open-filtro-cal');
+  var panel = document.getElementById('fp-cal');
+  if(btnFiltro && panel){
+    btnFiltro.addEventListener('click', function(e){
+      e.stopPropagation();
+      var isOpen = panel.classList.contains('fp-open');
+      closeAllPanels();
+      if(!isOpen){
+        panel.classList.add('fp-open');
+        btnFiltro.classList.add('fp-open');
+      }
+    });
+    // Impede que cliques dentro do painel fechem ele
+    panel.addEventListener('click', function(e){
+      e.stopPropagation();
+    });
   }
+  // Fecha ao clicar fora
+  document.addEventListener('click', function(){
+    closeAllPanels();
+  });
 });
 
 function toggleChip(ctx,key,val){
@@ -967,14 +979,14 @@ function syncChips(ctx){
     ['wa','email','sms','instagram','facebook','linkedin','blog','outros','meta_ads','google_ads'].forEach(v=>{const el=document.getElementById('fpc-'+ctx+'-'+v);if(el)el.classList.toggle('fpa',s.canais.includes(v));});
     const n=s.categorias.length+s.estrategias.length+s.canais.length;
     const cnt=document.getElementById('fcnt-'+ctx);
-    const btn=document.getElementById('btn-filtro-'+ctx);
+    const btn=document.getElementById('btn-open-filtro-'+ctx)||document.getElementById('btn-filtro-'+ctx);
     cnt.style.display=n>0?'inline-flex':'none';cnt.textContent=n;
     btn.classList.toggle('has-filter',n>0);
   }else{
     ['COMERCIAL','CONTEUDO','EVENTOS'].forEach(v=>{const el=document.getElementById('fpc-'+ctx+'-'+v);if(el)el.classList.toggle('fpa',s.categoria===v);});
     const n=Object.values(s).filter(v=>v!==null).length;
     const cnt=document.getElementById('fcnt-'+ctx);
-    const btn=document.getElementById('btn-filtro-'+ctx);
+    const btn=document.getElementById('btn-open-filtro-'+ctx)||document.getElementById('btn-filtro-'+ctx);
     if(cnt){cnt.style.display=n>0?'inline-flex':'none';cnt.textContent=n;}
     if(btn)btn.classList.toggle('has-filter',n>0);
   }
