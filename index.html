@@ -319,6 +319,17 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .canal-tag{display:inline-flex;align-items:center;gap:6px;background:var(--gray-100);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--gray-600);}
 .canal-tag .dot{width:7px;height:7px;border-radius:50%;}
 
+/* STATUS BADGES */
+.status-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.status-opt{padding:9px 18px;border-radius:10px;border:1.5px solid var(--gray-200);background:white;font-family:'Sora',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;color:var(--gray-600);display:flex;align-items:center;gap:6px;}
+.status-opt:hover{border-color:var(--gray-400);}
+.status-opt.sel-ativa{background:#F0FFF7;border-color:var(--green);color:var(--green);}
+.status-opt.sel-cancelada{background:#FFF5F5;border-color:var(--red);color:var(--red);}
+.status-opt.sel-adiada{background:#FFF8E8;border-color:#FB8C00;color:#E65100;}
+.adiamento-block{background:#FFF8E8;border:1.5px solid #FFE0B2;border-radius:12px;padding:16px;margin-bottom:18px;display:none;}
+.adiamento-block.visible{display:block;}
+.adiamento-block label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#E65100;display:block;margin-bottom:6px;}
+
 /* Performance date range */
 .perf-date-range{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;padding:10px;background:var(--gray-50);border-radius:10px;border:1px solid var(--gray-200);}
 .perf-date-range label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);display:block;margin-bottom:4px;}
@@ -685,6 +696,34 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     </div>
 
     <hr class="divider">
+    <!-- STATUS DA CAMPANHA -->
+    <div class="form-section" id="status-section" style="display:none;">
+      <label class="form-label">Status da Campanha</label>
+      <div class="status-bar">
+        <button class="status-opt sel-ativa" id="status-ativa" onclick="selectStatus('ativa')">✅ Ativa</button>
+        <button class="status-opt" id="status-adiada" onclick="selectStatus('adiada')">⏳ Adiar</button>
+        <button class="status-opt" id="status-cancelada" onclick="selectStatus('cancelada')">❌ Cancelar</button>
+      </div>
+      <!-- Bloco de adiamento -->
+      <div class="adiamento-block" id="adiamento-block">
+        <div class="form-row2" style="margin-bottom:12px;">
+          <div>
+            <label>Data do Adiamento</label>
+            <input class="form-input" type="date" id="f-data-adiamento">
+          </div>
+          <div>
+            <label>Motivo do Adiamento</label>
+            <input class="form-input" type="text" id="f-motivo-adiamento" placeholder="Ex: aguardando aprovação...">
+          </div>
+        </div>
+        <div>
+          <label>Deslocar Disparos Para</label>
+          <input class="form-input" type="date" id="f-deslocar-disparos" placeholder="Nova data para os disparos">
+          <p style="font-size:11px;color:#E65100;margin-top:5px;">⚠ Todos os disparos desta campanha serão movidos para esta data.</p>
+        </div>
+      </div>
+    </div>
+    <hr class="divider">
     <div class="modal-actions">
       <div class="modal-actions-left"><button class="btn-delete" id="btn-delete-camp" style="display:none" onclick="deleteCampaign()">Excluir</button></div>
       <button class="btn-cancel" onclick="closeFormModal()">Cancelar</button>
@@ -840,7 +879,11 @@ function rowToLocal(r){
       google_ads_inicio:r.performance_google_ads_inicio||'',
       google_ads_fim:r.performance_google_ads_fim||''
     },
-    mes_ref:r.mes_ref
+    mes_ref:r.mes_ref,
+    status:r.status||'ativa',
+    motivo_adiamento:r.motivo_adiamento||'',
+    data_adiamento:r.data_adiamento||'',
+    disparos_deslocados:r.disparos_deslocados||{}
   };
 }
 
@@ -1061,7 +1104,11 @@ async function dbInsert(data){
     performance_google_ads:data.performance_google_ads||[],
     performance_google_ads_inicio:data.performance_google_ads_inicio||'',
     performance_google_ads_fim:data.performance_google_ads_fim||'',
-    mes_ref:getMesRef(data.inicio)
+    mes_ref:getMesRef(data.inicio),
+    status:data.status||'ativa',
+    motivo_adiamento:data.motivo_adiamento||'',
+    data_adiamento:data.data_adiamento||'',
+    disparos_deslocados:data.disparos_deslocados||{}
   };
   const rows=await sbFetch('campaigns','POST',payload);
   return rows&&rows[0]?rowToLocal(rows[0]):null;
@@ -1079,7 +1126,11 @@ async function dbUpdate(id,data){
     performance_google_ads:data.performance_google_ads||[],
     performance_google_ads_inicio:data.performance_google_ads_inicio||'',
     performance_google_ads_fim:data.performance_google_ads_fim||'',
-    mes_ref:getMesRef(data.inicio)
+    mes_ref:getMesRef(data.inicio),
+    status:data.status||'ativa',
+    motivo_adiamento:data.motivo_adiamento||'',
+    data_adiamento:data.data_adiamento||'',
+    disparos_deslocados:data.disparos_deslocados||{}
   };
   await sbFetch('campaigns?id=eq.'+id,'PATCH',payload);
 }
@@ -1242,6 +1293,11 @@ function toDate(s){return new Date(s+'T00:00:00');}
 function toStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function getStatus(c){
   const t=new Date();t.setHours(0,0,0,0);const ts=toStr(t);
+  if(c.status==='cancelada')return{label:'❌ Cancelada',color:'var(--red)'};
+  if(c.status==='adiada'){
+    const motivo=c.motivo_adiamento?' · '+c.motivo_adiamento:'';
+    return{label:'⏳ Adiada'+motivo,color:'#FB8C00'};
+  }
   if(c.fim<ts)return{label:'Encerrada',color:'var(--gray-400)'};
   if(c.inicio>ts)return{label:'Em Breve',color:'var(--purple)'};
   const diff=Math.round((toDate(c.fim)-t)/86400000);
@@ -1299,7 +1355,10 @@ function renderWeekRow(week,filtered,cont,today){
       ].forEach(([dates,lbl,dk])=>{
         if((dates||[]).includes(day.str)){
           const bar=document.createElement('div');bar.className='dispatch-bar';
-          bar.style.background=darken(cp.color,dk);bar.textContent=cp.name+' ['+lbl+']';bar.title=cp.name+' ['+lbl+']';
+          const prefix=cp.status==='cancelada'?'❌ ':cp.status==='adiada'?'⏳ ':'';
+              bar.style.background=cp.status==='cancelada'?'#9E9E9E':cp.status==='adiada'?'#FFB74D':darken(cp.color,dk);
+              bar.textContent=prefix+cp.name+' ['+lbl+']';bar.title=cp.name+' ['+lbl+']';
+              if(cp.status==='cancelada')bar.style.opacity='0.5';
           bar.onclick=()=>openDetailModal(cp.id);cell.appendChild(bar);
         }
       });
@@ -1513,6 +1572,18 @@ function onNativeColor(hex){setPickerColor(hex);document.getElementById('color-s
 function onHexInput(hex){if(/^#[0-9A-F]{6}$/i.test(hex))setPickerColor(hex);}
 
 // ── CATEGORIA ─────────────────────────────────────────────────────
+// ── STATUS ───────────────────────────────────────────────────────
+let selectedStatus='ativa';
+function selectStatus(s){
+  selectedStatus=s;
+  ['ativa','adiada','cancelada'].forEach(v=>{
+    const el=document.getElementById('status-'+v);
+    if(el)el.className='status-opt'+(v===s?' sel-'+v:'');
+  });
+  const block=document.getElementById('adiamento-block');
+  if(block)block.classList.toggle('visible',s==='adiada');
+}
+
 function selectCat(cat){
   const idx=selectedCat.indexOf(cat);
   if(idx>-1){
@@ -1549,6 +1620,7 @@ function openNewModal(){
   document.getElementById('btn-form-save').className='btn-save';
   document.getElementById('btn-delete-camp').style.display='none';
   ['f-nome','f-inicio','f-fim','f-briefing','f-defesa','f-tags'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('status-section').style.display='none';
   clearCanals();buildColorPicker(COLORS[0]);selectedCat=['COMERCIAL'];['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(c==='COMERCIAL'?' sel-COMERCIAL':'');});
   document.getElementById('modal-form').classList.add('open');
 }
@@ -1581,6 +1653,17 @@ function openEditModal(id){
   (c.performance.google_ads||[]).forEach(d=>addCanalDate('performance_google_ads',d));
   document.getElementById('perf-google-inicio').value=c.performance.google_ads_inicio||'';
   document.getElementById('perf-google-fim').value=c.performance.google_ads_fim||'';
+  // Status
+  document.getElementById('status-section').style.display='block';
+  selectedStatus=c.status||'ativa';
+  ['ativa','adiada','cancelada'].forEach(v=>{
+    const el=document.getElementById('status-'+v);
+    if(el)el.className='status-opt'+(v===selectedStatus?' sel-'+v:'');
+  });
+  document.getElementById('adiamento-block').classList.toggle('visible',selectedStatus==='adiada');
+  document.getElementById('f-motivo-adiamento').value=c.motivo_adiamento||'';
+  document.getElementById('f-data-adiamento').value=c.data_adiamento||'';
+  document.getElementById('f-deslocar-disparos').value='';
   buildColorPicker(c.color);
   // Suporta categoria como string (legado) ou array
   selectedCat=Array.isArray(c.categoria)?[...c.categoria]:(c.categoria?[c.categoria]:['COMERCIAL']);
@@ -1596,7 +1679,7 @@ async function saveCampaign(){
   if(!name||!inicio||!fim){showToast('Preencha nome e datas','error');return;}
   if(inicio>fim){showToast('Data início deve ser anterior ao fim','error');return;}
   const data={
-    name:toUpper(name),color:selectedColor,categoria:selectedCat.length===1?selectedCat[0]:selectedCat,inicio,fim,
+    name:toUpper(name),color:selectedColor,categoria:selectedCat.length===1?selectedCat[0]:selectedCat,status:selectedStatus,inicio,fim,
     briefing:document.getElementById('f-briefing').value.trim(),
     defesa:document.getElementById('f-defesa').value.trim(),
     tags:document.getElementById('f-tags').value.trim(),
@@ -1608,6 +1691,9 @@ async function saveCampaign(){
     rede_social_linkedin:getCanalDates('rede_social_linkedin'),
     rede_social_blog:getCanalDates('rede_social_blog'),
     rede_social_outros:getCanalDates('rede_social_outros'),
+    motivo_adiamento:selectedStatus==='adiada'?document.getElementById('f-motivo-adiamento').value:'',
+    data_adiamento:selectedStatus==='adiada'?document.getElementById('f-data-adiamento').value:'',
+    disparos_deslocados:{},
     performance_meta_ads:getCanalDates('performance_meta_ads'),
     performance_meta_ads_inicio:document.getElementById('perf-meta-inicio').value,
     performance_meta_ads_fim:document.getElementById('perf-meta-fim').value,
@@ -1615,6 +1701,17 @@ async function saveCampaign(){
     performance_google_ads_inicio:document.getElementById('perf-google-inicio').value,
     performance_google_ads_fim:document.getElementById('perf-google-fim').value
   };
+  // Deslocamento de disparos
+  const novaDataDisparos=document.getElementById('f-deslocar-disparos')?.value;
+  if(selectedStatus==='adiada'&&novaDataDisparos){
+    ['inbound_wa','inbound_email','inbound_sms',
+     'rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros',
+     'performance_meta_ads','performance_google_ads'].forEach(k=>{
+      if(data[k]&&data[k].length>0) data[k]=data[k].map(()=>novaDataDisparos);
+    });
+    data.disparos_deslocados={data_original:data.inicio,deslocado_para:novaDataDisparos};
+  }
+
   const btn=document.getElementById('btn-form-save');
   btn.disabled=true;btn.textContent='Salvando...';
   showLoading();
