@@ -155,6 +155,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .day-num{font-size:10px;font-weight:700;color:var(--gray-400);margin-bottom:4px;font-family:'DM Mono',monospace;}
 .day-date{font-size:9px;color:var(--gray-400);font-family:'DM Mono',monospace;margin-bottom:5px;}
 .dispatch-bar{font-size:9.5px;font-weight:600;border-radius:4px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:white;transition:opacity .15s;}
+.dispatch-bar.cancelada{background:white!important;color:var(--gray-600)!important;border:1.5px solid;text-decoration:line-through;opacity:0.75!important;}
 .dispatch-bar:hover{opacity:.8;}
 
 /* GANTT */
@@ -167,6 +168,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .gantt-table td.today-col{background:#FAFAFE;}
 .gantt-table tr:hover td{background:var(--gray-50);}
 .gantt-cell-bar{width:100%;height:22px;border-radius:4px;font-size:9px;font-weight:700;color:white;display:flex;align-items:center;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:opacity .15s;box-shadow:0 1px 3px rgba(0,0,0,.15);}
+.gantt-cell-bar.cancelada{background:white!important;color:var(--gray-600)!important;border:2px solid;text-decoration:line-through;box-shadow:none;opacity:0.75;}
 .gantt-cell-bar:hover{opacity:.85;}
 .gantt-empty{font-size:12px;color:var(--gray-400);font-style:italic;padding:8px 0;}
 
@@ -175,6 +177,8 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .sidebar-card h3{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
 .sidebar-card h3 .count{background:var(--purple-pale);color:var(--purple);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;}
 .camp-item{border-left:3px solid var(--orange);padding:9px 10px;border-radius:0 10px 10px 0;background:var(--gray-50);margin-bottom:8px;cursor:pointer;transition:background .15s;}
+.camp-item.cancelada{background:white;opacity:0.7;}
+.camp-item.cancelada .camp-item-name{text-decoration:line-through;color:var(--gray-400);}
 .camp-item:last-child{margin-bottom:0;}
 .camp-item:hover{background:var(--gray-100);}
 .camp-item-name{font-size:11px;font-weight:700;color:var(--gray-800);margin-bottom:4px;}
@@ -926,6 +930,11 @@ loadUsers().then(()=>{
 function toUpper(str){ return str.toLocaleUpperCase('pt-BR'); }
 
 const COLORS=['#E53935','#D81B60','#8E24AA','#5E35B1','#3949AB','#1E88E5','#039BE5','#00ACC1','#00897B','#43A047','#7CB342','#C0CA33','#FDD835','#FFB300','#FB8C00','#F4511E','#6D4C41','#546E7A','#1565C0','#283593','#6A1B9A','#AD1457','#558B2F','#00695C','#FF5C00','#00B2C8','#00C07A','#FF9800','#607D8B','#795548','#009688','#9C27B0'];
+function getUniqueColor(){
+  const used=campaigns.map(c=>c.color);
+  const free=COLORS.filter(c=>!used.includes(c));
+  return free.length>0?free[0]:COLORS[Math.floor(Math.random()*COLORS.length)];
+}
 const MONTHS_PT=['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 const WEEKDAYS=['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
 const CAT_LABELS={COMERCIAL:'Comercial',CONTEUDO:'Conteúdo',EVENTOS:'Eventos'};
@@ -1354,11 +1363,21 @@ function renderWeekRow(week,filtered,cont,today){
         [cp.performance.google_ads,'PERF-GOO',160]
       ].forEach(([dates,lbl,dk])=>{
         if((dates||[]).includes(day.str)){
-          const bar=document.createElement('div');bar.className='dispatch-bar';
-          const prefix=cp.status==='cancelada'?'❌ ':cp.status==='adiada'?'⏳ ':'';
-              bar.style.background=cp.status==='cancelada'?'#9E9E9E':cp.status==='adiada'?'#FFB74D':darken(cp.color,dk);
-              bar.textContent=prefix+cp.name+' ['+lbl+']';bar.title=cp.name+' ['+lbl+']';
-              if(cp.status==='cancelada')bar.style.opacity='0.5';
+          const bar=document.createElement('div');
+          const isCancelada=cp.status==='cancelada';
+          const isAdiada=cp.status==='adiada';
+          bar.className='dispatch-bar'+(isCancelada?' cancelada':'');
+          if(isCancelada){
+            bar.style.borderColor=cp.color;
+            bar.textContent='❌ '+cp.name+' ['+lbl+']';
+          }else if(isAdiada){
+            bar.style.background='#FFB74D';
+            bar.textContent='⏳ '+cp.name+' ['+lbl+']';
+          }else{
+            bar.style.background=darken(cp.color,dk);
+            bar.textContent=cp.name+' ['+lbl+']';
+          }
+          bar.title=cp.name+' ['+lbl+']';
           bar.onclick=()=>openDetailModal(cp.id);cell.appendChild(bar);
         }
       });
@@ -1391,8 +1410,15 @@ function renderGantt(){
       const td2=document.createElement('td');if(d===td)td2.classList.add('today-col');
       if(d===sd){
         td2.colSpan=ed-sd+1;
-        const bar=document.createElement('div');bar.className='gantt-cell-bar';bar.style.background=c.color;
-        bar.textContent=c.name;bar.title=c.name+' · '+fmtFull(c.inicio)+' – '+fmtFull(c.fim);
+        const bar=document.createElement('div');
+        const gCancelada=c.status==='cancelada';
+        const gAdiada=c.status==='adiada';
+        bar.className='gantt-cell-bar'+(gCancelada?' cancelada':'');
+        if(gCancelada){bar.style.borderColor=c.color;bar.style.color='var(--gray-600)';}
+        else if(gAdiada){bar.style.background='#FFB74D';}
+        else{bar.style.background=c.color;}
+        bar.textContent=(gCancelada?'❌ ':gAdiada?'⏳ ':'')+c.name;
+        bar.title=c.name+' · '+fmtFull(c.inicio)+' – '+fmtFull(c.fim);
         bar.onclick=()=>openDetailModal(c.id);td2.appendChild(bar);tr.appendChild(td2);d=ed;
       }else if(d<sd||d>ed){tr.appendChild(td2);}
     }
@@ -1410,8 +1436,13 @@ function renderSidebar(){
   if(!active.length){list.innerHTML='<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';return;}
   active.forEach(c=>{
     const diff=Math.round((toDate(c.fim)-today)/86400000);const urg=diff<=2;
-    const item=document.createElement('div');item.className='camp-item';item.style.borderLeftColor=c.color;
-    item.innerHTML=catBadge(c.categoria)+'<div class="camp-item-name">'+c.name+(urg?' 🔥':'')+'</div><div class="camp-item-vig"><span>VIGÊNCIA</span><span>'+fmt(c.inicio)+' – '+fmt(c.fim)+'</span></div><div class="camp-item-dias '+(urg?'urgent':'normal')+'">'+(diff===0?'Encerra hoje':diff+' dias restantes')+'</div>';
+    const sCancelada=c.status==='cancelada';
+    const sAdiada=c.status==='adiada';
+    const item=document.createElement('div');
+    item.className='camp-item'+(sCancelada?' cancelada':'');
+    item.style.borderLeftColor=c.color;
+    const diasLabel=sCancelada?'❌ Cancelada':sAdiada?'⏳ Adiada':(diff===0?'Encerra hoje':diff+' dias restantes');
+    item.innerHTML=catBadge(c.categoria)+'<div class="camp-item-name">'+c.name+(urg&&!sCancelada?' 🔥':'')+'</div><div class="camp-item-vig"><span>VIGÊNCIA</span><span>'+fmt(c.inicio)+' – '+fmt(c.fim)+'</span></div><div class="camp-item-dias '+(urg&&!sCancelada?'urgent':'normal')+'">'+diasLabel+'</div>';
     item.onclick=()=>openDetailModal(c.id);list.appendChild(item);
   });
 }
@@ -1621,7 +1652,7 @@ function openNewModal(){
   document.getElementById('btn-delete-camp').style.display='none';
   ['f-nome','f-inicio','f-fim','f-briefing','f-defesa','f-tags'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('status-section').style.display='none';
-  clearCanals();buildColorPicker(COLORS[0]);selectedCat=['COMERCIAL'];['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(c==='COMERCIAL'?' sel-COMERCIAL':'');});
+  clearCanals();buildColorPicker(getUniqueColor());selectedCat=['COMERCIAL'];['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(c==='COMERCIAL'?' sel-COMERCIAL':'');});
   document.getElementById('modal-form').classList.add('open');
 }
 function openEditModal(id){
