@@ -145,8 +145,11 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .week-row.header{border-top:none;}
 .week-header-cell{padding:8px 6px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gray-400);text-align:left;border-right:1px solid var(--gray-100);}
 .week-header-cell:last-child{border-right:none;}
-.day-cell{border-right:1px solid var(--gray-100);padding:6px;min-height:90px;vertical-align:top;}
+.day-cell{border-right:1px solid var(--gray-100);padding:6px;height:120px;min-height:120px;overflow-y:auto;overflow-x:hidden;vertical-align:top;box-sizing:border-box;}
 .day-cell:last-child{border-right:none;}
+.day-cell::-webkit-scrollbar{width:3px;}
+.day-cell::-webkit-scrollbar-track{background:transparent;}
+.day-cell::-webkit-scrollbar-thumb{background:var(--gray-200);border-radius:2px;}
 .day-cell.today .day-num{background:var(--purple);color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;}
 .day-cell.empty{background:var(--gray-50);}
 .day-num{font-size:10px;font-weight:700;color:var(--gray-400);margin-bottom:4px;font-family:'DM Mono',monospace;}
@@ -870,6 +873,9 @@ async function dbUserDelete(id){
 
 loadUsers();
 
+// Helper: uppercase preserving Portuguese chars
+function toUpper(str){ return str.toLocaleUpperCase('pt-BR'); }
+
 const COLORS=['#E53935','#D81B60','#8E24AA','#5E35B1','#3949AB','#1E88E5','#039BE5','#00ACC1','#00897B','#43A047','#7CB342','#C0CA33','#FDD835','#FFB300','#FB8C00','#F4511E','#6D4C41','#546E7A','#1565C0','#283593','#6A1B9A','#AD1457','#558B2F','#00695C','#FF5C00','#00B2C8','#00C07A','#FF9800','#607D8B','#795548','#009688','#9C27B0'];
 const MONTHS_PT=['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
 const WEEKDAYS=['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
@@ -968,7 +974,7 @@ function syncChips(ctx){
 function getFiltered(ctx){
   const s=fpState[ctx];
   const searchEl=document.getElementById(ctx==='cal'?'search-cal':'search-res');
-  const q=searchEl?searchEl.value.trim().toLowerCase():'';
+  const q=searchEl?searchEl.value.trim().toLocaleLowerCase('pt-BR'):'';
   const isUser=currentUser&&currentUser.role==='user';
   return campaigns.filter(c=>{
     if(isUser&&c.categoria!=='COMERCIAL')return false;
@@ -995,7 +1001,7 @@ function getFiltered(ctx){
     }else{
       if(s.categoria&&c.categoria!==s.categoria)return false;
     }
-    if(q&&!c.name.toLowerCase().includes(q))return false;
+    if(q&&!c.name.toLocaleLowerCase('pt-BR').includes(q.toLocaleLowerCase('pt-BR')))return false;
     return true;
   });
 }
@@ -1501,7 +1507,7 @@ async function saveCampaign(){
   if(!name||!inicio||!fim){showToast('Preencha nome e datas','error');return;}
   if(inicio>fim){showToast('Data início deve ser anterior ao fim','error');return;}
   const data={
-    name:name.toUpperCase(),color:selectedColor,categoria:selectedCat,inicio,fim,
+    name:toUpper(name),color:selectedColor,categoria:selectedCat,inicio,fim,
     briefing:document.getElementById('f-briefing').value.trim(),
     defesa:document.getElementById('f-defesa').value.trim(),
     tags:document.getElementById('f-tags').value.trim(),
@@ -1665,7 +1671,7 @@ async function saveProfileChanges(){
     const updateData={};
     if(currentUser.role==='admin'){
       const newName=document.getElementById('profile-name-edit').value.trim();
-      if(newName){updateData.nome=newName.toUpperCase();currentUser.nome=newName.toUpperCase();}
+      if(newName){updateData.nome=toUpper(newName);currentUser.nome=toUpper(newName);}
     }
     if(Object.keys(updateData).length>0){await dbUserUpdate(currentUser.id,updateData);}
     updateUserMenu();closeProfileModal();showToast('Perfil atualizado com sucesso!');
@@ -1691,14 +1697,14 @@ async function saveUserChanges(){
       const senha=document.getElementById('edit-user-senha').value.trim()||'senha123';
       if(!email){showToast('E-mail não pode estar vazio','error');hideLoading();return;}
       if(USERS.find(u=>u.email===email)){showToast('E-mail já cadastrado','error');hideLoading();return;}
-      const nome=(document.getElementById('edit-user-name').value.trim()||email.split('@')[0]).toUpperCase();
+      const nome=toUpper(document.getElementById('edit-user-name').value.trim()||email.split('@')[0]);
       const newUser={email,senha,role,nome,foto:null,acessos:[]};
       const created=await dbUserInsert(newUser);
       if(created){USERS.push({id:created.id,email:created.email,senha:created.senha,role:created.role,nome:created.nome,foto:created.foto||null,acessos:created.acessos||[]});}
       showToast('Usuário criado com sucesso!');
     }else{
       const user=USERS.find(u=>u.id===editingUserId);if(!user){hideLoading();return;}
-      const newName=document.getElementById('edit-user-name').value.trim().toUpperCase();
+      const newName=toUpper(document.getElementById('edit-user-name').value.trim());
       const newRole=document.getElementById('edit-user-role').value;
       const newSenha=document.getElementById('edit-user-senha').value.trim();
       if(!newName){showToast('Nome não pode estar vazio','error');hideLoading();return;}
