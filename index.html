@@ -336,6 +336,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 
 /* CANCELAMENTO DE DISPARO INDIVIDUAL */
 .canal-date-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;}
+.canal-date-row .inp-data{flex:1;min-width:110px;}
 .btn-cancel-disparo{background:white;border:1.5px solid var(--gray-200);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;color:var(--gray-400);}
 .btn-cancel-disparo:hover{border-color:var(--red);color:var(--red);}
 .btn-cancel-disparo.ativo{background:#FFF5F5;border-color:var(--red);color:var(--red);}
@@ -564,11 +565,11 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="dash-kpis" id="dash-kpis"></div>
     <div class="dash-row">
       <div class="dash-card"><h3>Campanhas por Categoria</h3><div id="dash-cat-bars"></div></div>
-      <div class="dash-card"><h3>Disparos por Canal</h3><div id="dash-canal-stats"></div></div>
+      <div class="dash-card"><h3>Ações por Canal</h3><div id="dash-canal-stats"></div></div>
     </div>
     <div class="dash-row">
       <div class="dash-card"><h3>Próximas a Encerrar</h3><div id="dash-encerrar"></div></div>
-      <div class="dash-card"><h3>Próximos Disparos</h3><div id="dash-disparos"></div></div>
+      <div class="dash-card"><h3>Próximas Ações</h3><div id="dash-disparos"></div></div>
     </div>
   </div>
 
@@ -635,7 +636,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <input class="form-input" type="text" id="f-tags" placeholder="Classifique a campanha (ex: black friday, promoção)">
     </div>
     <hr class="divider">
-    <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">Estratégia Inbound</h3>
+    <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">CRM — Inbound</h3>
     <div class="canal-block">
       <div class="canal-header"><span class="canal-title">WhatsApp</span><button class="btn-add-canal" onclick="addCanalDate('inbound_wa')">+</button></div>
       <div class="canal-dates" id="canal-inbound_wa"></div>
@@ -649,7 +650,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <div class="canal-dates" id="canal-inbound_sms"></div>
     </div>
     <hr class="divider">
-    <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">Estratégia Rede Social</h3>
+    <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">Rede Social</h3>
     <div class="canal-block">
       <div class="canal-header"><span class="canal-title">Instagram</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_instagram')">+</button></div>
       <div class="canal-dates" id="canal-rede_social_instagram"></div>
@@ -672,7 +673,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     </div>
     <hr class="divider">
     <!-- ═══ ESTRATÉGIA PERFORMANCE ═══ -->
-    <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">Estratégia Performance</h3>
+    <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">Performance</h3>
 
     <!-- Meta Ads (unificado) -->
     <div class="canal-block">
@@ -736,9 +737,9 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
           </div>
         </div>
         <div>
-          <label>Deslocar Disparos Para</label>
+          <label>Deslocar Ações Para</label>
           <input class="form-input" type="date" id="f-deslocar-disparos" placeholder="Nova data para os disparos">
-          <p style="font-size:11px;color:#E65100;margin-top:5px;">⚠ Todos os disparos desta campanha serão movidos para esta data.</p>
+          <p style="font-size:11px;color:#E65100;margin-top:5px;">⚠ Todas as ações desta campanha serão movidas para esta data.</p>
         </div>
       </div>
     </div>
@@ -764,7 +765,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     </div>
     <div class="detail-section"><div class="detail-label">Briefing / Objetivo</div><div class="detail-value" id="detail-briefing"></div></div>
     <div class="detail-section"><div class="detail-label">Defesa / Regras</div><div class="detail-value" id="detail-defesa"></div></div>
-    <div class="detail-section"><div class="detail-label">Canais de Disparo</div><div class="canal-tags" id="detail-canais"></div></div>
+    <div class="detail-section"><div class="detail-label">Ações Programadas</div><div class="canal-tags" id="detail-canais"></div></div>
     <hr class="divider">
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeDetailModal()">Fechar</button>
@@ -1383,16 +1384,16 @@ function renderWeekRow(week,filtered,cont,today){
     cell.innerHTML='<div class="day-num">'+day.d+'</div>';
     filtered.forEach(cp=>{
       [
-        [cp.inbound.wa,'INB-WPP',0],
-        [cp.inbound.email,'INB-EMAIL',18],
-        [cp.inbound.sms,'INB-SMS',35],
-        [cp.rede_social.instagram,'SOC-INST',52],
-        [cp.rede_social.facebook,'SOC-FACE',70],
-        [cp.rede_social.linkedin,'SOC-LINK',88],
-        [cp.rede_social.blog,'SOC-BLOG',106],
-        [cp.rede_social.outros,'SOC-OUT',124],
-        [cp.performance.meta_ads,'PERF-META',142],
-        [cp.performance.google_ads,'PERF-GOO',160]
+        [cp.inbound.wa,'WPP',0],
+        [cp.inbound.email,'EMAIL',18],
+        [cp.inbound.sms,'SMS',35],
+        [cp.rede_social.instagram,'INST',52],
+        [cp.rede_social.facebook,'FACE',70],
+        [cp.rede_social.linkedin,'LINK',88],
+        [cp.rede_social.blog,'BLOG',106],
+        [cp.rede_social.outros,'OUTROS',124],
+        [cp.performance.meta_ads,'META ADS',142],
+        [cp.performance.google_ads,'GOOGLE ADS',160]
       ].forEach(([dates,lbl,dk])=>{
         if((dates||[]).includes(day.str)){
           const bar=document.createElement('div');
@@ -1639,18 +1640,18 @@ function exportarCalendario(){
     (Array.isArray(c.categoria)?c.categoria.map(x=>CAT_LABELS[x]||x):CAT_LABELS[c.categoria]||c.categoria),
     c.status||'ativa',
     c.inicio, c.fim, c.tags||'',
-    (c.inbound?.wa||[]).join(', '),
-    (c.inbound?.email||[]).join(', '),
-    (c.inbound?.sms||[]).join(', '),
-    (c.rede_social?.instagram||[]).join(', '),
-    (c.rede_social?.facebook||[]).join(', '),
-    (c.rede_social?.linkedin||[]).join(', '),
-    (c.rede_social?.blog||[]).join(', '),
-    (c.rede_social?.outros||[]).join(', '),
-    (c.performance?.meta_ads||[]).join(', '),
+    (c.inbound?.wa||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
+    (c.inbound?.email||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
+    (c.inbound?.sms||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
+    (c.rede_social?.instagram||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
+    (c.rede_social?.facebook||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
+    (c.rede_social?.linkedin||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
+    (c.rede_social?.blog||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
+    (c.rede_social?.outros||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
+    (c.performance?.meta_ads||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
     c.performance?.meta_ads_inicio||'',
     c.performance?.meta_ads_fim||'',
-    (c.performance?.google_ads||[]).join(', '),
+    (c.performance?.google_ads||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
     c.performance?.google_ads_inicio||'',
     c.performance?.google_ads_fim||''
   ]);
@@ -1758,26 +1759,31 @@ function selectCat(cat){
 }
 
 // ── CANAL DATES ───────────────────────────────────────────────────
-function addCanalDate(canal,value='',cancelado=false,motivoCancelamento=''){
-  const c=document.getElementById('canal-'+canal);
-  const wrapper=document.createElement('div');wrapper.style.width='100%';
-  const row=document.createElement('div');row.className='canal-date-row';
-  row.dataset.canal=canal;
-  const inp=document.createElement('input');
-  inp.className='form-input'+(cancelado?' canal-date-input-cancelado':'');
-  inp.type='date';inp.value=value;inp.style.flex='1';
+function addCanalDate(canal, value='', cancelado=false, motivoCancelamento=''){
+  const c = document.getElementById('canal-'+canal);
+  const wrapper = document.createElement('div'); wrapper.style.width='100%';
+  const row = document.createElement('div'); row.className='canal-date-row'; row.dataset.canal=canal;
+
+  // Campo: data
+  const inp = document.createElement('input');
+  inp.className='form-input inp-data'+(cancelado?' canal-date-input-cancelado':'');
+  inp.type='date'; inp.value=value;
+
   // Botão cancelar disparo
-  const btnCancel=document.createElement('button');
+  const btnCancel = document.createElement('button');
   btnCancel.className='btn-cancel-disparo'+(cancelado?' ativo':'');
-  btnCancel.type='button';btnCancel.title='Cancelar este disparo';btnCancel.textContent='🚫';
+  btnCancel.type='button'; btnCancel.title='Cancelar esta ação'; btnCancel.textContent='🚫';
+
   // Linha de justificativa
-  const justRow=document.createElement('div');
+  const justRow = document.createElement('div');
   justRow.className='disparo-cancelado-row'+(cancelado?' visible':'');
   justRow.innerHTML='<label>Motivo:</label><input type="text" placeholder="Justifique o cancelamento..." value="'+motivoCancelamento+'">';
+
   // Botão remover
-  const btnRemove=document.createElement('button');
-  btnRemove.className='btn-remove-date';btnRemove.type='button';btnRemove.textContent='✕';
+  const btnRemove = document.createElement('button');
+  btnRemove.className='btn-remove-date'; btnRemove.type='button'; btnRemove.textContent='✕';
   btnRemove.onclick=()=>wrapper.remove();
+
   // Toggle cancelar
   btnCancel.onclick=()=>{
     const isCancel=!justRow.classList.contains('visible');
@@ -1785,21 +1791,22 @@ function addCanalDate(canal,value='',cancelado=false,motivoCancelamento=''){
     btnCancel.classList.toggle('ativo',isCancel);
     inp.classList.toggle('canal-date-input-cancelado',isCancel);
   };
-  row.appendChild(inp);row.appendChild(btnCancel);row.appendChild(btnRemove);
-  wrapper.appendChild(row);wrapper.appendChild(justRow);
+
+  row.appendChild(inp); row.appendChild(btnCancel); row.appendChild(btnRemove);
+  wrapper.appendChild(row); wrapper.appendChild(justRow);
   c.appendChild(wrapper);
 }
 function getCanalDates(canal){
   return [...document.getElementById('canal-'+canal).querySelectorAll('.canal-date-row')].map(row=>{
-    const inp=row.querySelector('input[type=date]');
+    const inp=row.querySelector('.inp-data');
     return inp&&inp.value?inp.value:null;
   }).filter(Boolean);
 }
 function getCanalCancelados(canal){
   const result={};
   [...document.getElementById('canal-'+canal).querySelectorAll('.canal-date-row')].forEach(row=>{
-    const inp=row.querySelector('input[type=date]');
-    const justRow=row.nextElementSibling;
+    const inp=row.querySelector('.inp-data');
+    const justRow=row.parentElement.querySelector('.disparo-cancelado-row');
     const isCancelado=justRow&&justRow.classList.contains('visible');
     if(isCancelado&&inp&&inp.value){
       const motivo=justRow.querySelector('input[type=text]')?.value||'';
