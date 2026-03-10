@@ -465,38 +465,38 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
           <div class="fp-section">
             <div class="fp-label">Categoria</div>
             <div class="fp-chips">
-              <button class="fp-chip cat-com" id="fpc-cal-COMERCIAL" onclick="toggleChip('cal','categoria','COMERCIAL')">Comercial</button>
-              <button class="fp-chip cat-cont" id="fpc-cal-CONTEUDO" onclick="toggleChip('cal','categoria','CONTEUDO')">Conteúdo</button>
-              <button class="fp-chip cat-ev" id="fpc-cal-EVENTOS" onclick="toggleChip('cal','categoria','EVENTOS')">Eventos</button>
+              <button class="fp-chip cat-com" id="fpc-cal-COMERCIAL" data-ctx="cal" data-key="categoria" data-val="COMERCIAL">Comercial</button>
+              <button class="fp-chip cat-cont" id="fpc-cal-CONTEUDO" data-ctx="cal" data-key="categoria" data-val="CONTEUDO">Conteúdo</button>
+              <button class="fp-chip cat-ev" id="fpc-cal-EVENTOS" data-ctx="cal" data-key="categoria" data-val="EVENTOS">Eventos</button>
             </div>
           </div>
           <div class="fp-divider"></div>
           <div class="fp-section">
             <div class="fp-label">Estratégia</div>
             <div class="fp-chips">
-              <button class="fp-chip est-inb" id="fpc-cal-inbound" onclick="toggleChip('cal','estrategia','inbound')">Inbound</button>
-              <button class="fp-chip est-soc" id="fpc-cal-rede_social" onclick="toggleChip('cal','estrategia','rede_social')">Rede Social</button>
-              <button class="fp-chip est-perf" id="fpc-cal-performance" onclick="toggleChip('cal','estrategia','performance')">Performance</button>
+              <button class="fp-chip est-inb" id="fpc-cal-inbound" data-ctx="cal" data-key="estrategia" data-val="inbound">Inbound</button>
+              <button class="fp-chip est-soc" id="fpc-cal-rede_social" data-ctx="cal" data-key="estrategia" data-val="rede_social">Rede Social</button>
+              <button class="fp-chip est-perf" id="fpc-cal-performance" data-ctx="cal" data-key="estrategia" data-val="performance">Performance</button>
             </div>
           </div>
           <div class="fp-divider"></div>
           <div class="fp-section">
             <div class="fp-label">Canais</div>
             <div class="fp-chips">
-              <button class="fp-chip ch-wa" id="fpc-cal-wa" onclick="toggleChip('cal','canal','wa')">WhatsApp</button>
-              <button class="fp-chip ch-email" id="fpc-cal-email" onclick="toggleChip('cal','canal','email')">E-mail</button>
-              <button class="fp-chip ch-sms" id="fpc-cal-sms" onclick="toggleChip('cal','canal','sms')">SMS</button>
-              <button class="fp-chip ch-ig" id="fpc-cal-instagram" onclick="toggleChip('cal','canal','instagram')">Instagram</button>
-              <button class="fp-chip ch-fb" id="fpc-cal-facebook" onclick="toggleChip('cal','canal','facebook')">Facebook</button>
-              <button class="fp-chip ch-li" id="fpc-cal-linkedin" onclick="toggleChip('cal','canal','linkedin')">LinkedIn</button>
-              <button class="fp-chip ch-blog" id="fpc-cal-blog" onclick="toggleChip('cal','canal','blog')">Blog</button>
-              <button class="fp-chip ch-out" id="fpc-cal-outros" onclick="toggleChip('cal','canal','outros')">Outros</button>
-              <button class="fp-chip ch-ma" id="fpc-cal-meta_ads" onclick="toggleChip('cal','canal','meta_ads')">Meta Ads</button>
-              <button class="fp-chip ch-ga" id="fpc-cal-google_ads" onclick="toggleChip('cal','canal','google_ads')">Google Ads</button>
+              <button class="fp-chip ch-wa" id="fpc-cal-wa" data-ctx="cal" data-key="canal" data-val="wa">WhatsApp</button>
+              <button class="fp-chip ch-email" id="fpc-cal-email" data-ctx="cal" data-key="canal" data-val="email">E-mail</button>
+              <button class="fp-chip ch-sms" id="fpc-cal-sms" data-ctx="cal" data-key="canal" data-val="sms">SMS</button>
+              <button class="fp-chip ch-ig" id="fpc-cal-instagram" data-ctx="cal" data-key="canal" data-val="instagram">Instagram</button>
+              <button class="fp-chip ch-fb" id="fpc-cal-facebook" data-ctx="cal" data-key="canal" data-val="facebook">Facebook</button>
+              <button class="fp-chip ch-li" id="fpc-cal-linkedin" data-ctx="cal" data-key="canal" data-val="linkedin">LinkedIn</button>
+              <button class="fp-chip ch-blog" id="fpc-cal-blog" data-ctx="cal" data-key="canal" data-val="blog">Blog</button>
+              <button class="fp-chip ch-out" id="fpc-cal-outros" data-ctx="cal" data-key="canal" data-val="outros">Outros</button>
+              <button class="fp-chip ch-ma" id="fpc-cal-meta_ads" data-ctx="cal" data-key="canal" data-val="meta_ads">Meta Ads</button>
+              <button class="fp-chip ch-ga" id="fpc-cal-google_ads" data-ctx="cal" data-key="canal" data-val="google_ads">Google Ads</button>
             </div>
           </div>
           <div class="fp-divider"></div>
-          <div class="fp-footer"><button class="btn-limpar" onclick="limparFiltros('cal')">Limpar filtros</button></div>
+          <div class="fp-footer"><button class="btn-limpar" id="btn-limpar-cal">Limpar filtros</button></div>
         </div>
       </div>
       <button class="btn-export" onclick="exportarCalendario()">📥 Exportar Calendário</button>
@@ -986,10 +986,11 @@ function closeAllPanels(){
 }
 // Inicializa eventos do filtro após DOM pronto
 window.addEventListener('load', function(){
-  // Botão abrir/fechar filtro calendário
   var btnFiltro = document.getElementById('btn-open-filtro-cal');
   var panel = document.getElementById('fp-cal');
-  if(btnFiltro && panel){
+
+  // Abrir/fechar painel
+  if(btnFiltro){
     btnFiltro.addEventListener('click', function(e){
       e.stopPropagation();
       var isOpen = panel.classList.contains('fp-open');
@@ -999,14 +1000,27 @@ window.addEventListener('load', function(){
         btnFiltro.classList.add('fp-open');
       }
     });
-    // Impede que cliques dentro do painel fechem ele
-    panel.addEventListener('click', function(e){
-      e.stopPropagation();
-    });
   }
-  // Fecha ao clicar fora
-  document.addEventListener('click', function(){
-    closeAllPanels();
+
+  // Chips via data-attributes — NÃO usa stopPropagation no painel
+  document.addEventListener('click', function(e){
+    // Fechar painel ao clicar fora
+    if(!e.target.closest('#fp-cal') && !e.target.closest('#btn-open-filtro-cal')){
+      closeAllPanels();
+      return;
+    }
+    // Chip clicado
+    var chip = e.target.closest('[data-ctx][data-key][data-val]');
+    if(chip){
+      var ctx = chip.dataset.ctx;
+      var key = chip.dataset.key;
+      var val = chip.dataset.val;
+      toggleChip(ctx, key, val);
+    }
+    // Botão limpar
+    if(e.target.id === 'btn-limpar-cal'){
+      limparFiltros('cal');
+    }
   });
 });
 
