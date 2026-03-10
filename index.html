@@ -334,6 +334,18 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .adiamento-block.visible{display:block;}
 .adiamento-block label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#E65100;display:block;margin-bottom:6px;}
 
+/* CANCELAMENTO DE DISPARO INDIVIDUAL */
+.canal-date-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;}
+.btn-cancel-disparo{background:white;border:1.5px solid var(--gray-200);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;color:var(--gray-400);}
+.btn-cancel-disparo:hover{border-color:var(--red);color:var(--red);}
+.btn-cancel-disparo.ativo{background:#FFF5F5;border-color:var(--red);color:var(--red);}
+.disparo-cancelado-row{display:none;width:100%;background:#FFF5F5;border:1.5px solid #FFCDD2;border-radius:8px;padding:8px 10px;margin-bottom:4px;gap:6px;align-items:center;}
+.disparo-cancelado-row.visible{display:flex;}
+.disparo-cancelado-row input{flex:1;border:none;background:transparent;font-family:'Sora',sans-serif;font-size:12px;color:var(--red);outline:none;}
+.disparo-cancelado-row input::placeholder{color:#EF9A9A;}
+.disparo-cancelado-row label{font-size:10px;font-weight:700;color:var(--red);white-space:nowrap;text-transform:uppercase;letter-spacing:.06em;}
+.canal-date-input-cancelado{text-decoration:line-through;opacity:0.5;}
+
 /* Performance date range */
 .perf-date-range{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;padding:10px;background:var(--gray-50);border-radius:10px;border:1px solid var(--gray-200);}
 .perf-date-range label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);display:block;margin-bottom:4px;}
@@ -887,7 +899,8 @@ function rowToLocal(r){
     status:r.status||'ativa',
     motivo_adiamento:r.motivo_adiamento||'',
     data_adiamento:r.data_adiamento||'',
-    disparos_deslocados:r.disparos_deslocados||{}
+    disparos_deslocados:r.disparos_deslocados||{},
+    disparos_cancelados:r.disparos_cancelados||{}
   };
 }
 
@@ -1117,7 +1130,8 @@ async function dbInsert(data){
     status:data.status||'ativa',
     motivo_adiamento:data.motivo_adiamento||'',
     data_adiamento:data.data_adiamento||'',
-    disparos_deslocados:data.disparos_deslocados||{}
+    disparos_deslocados:data.disparos_deslocados||{},
+    disparos_cancelados:data.disparos_cancelados||{}
   };
   const rows=await sbFetch('campaigns','POST',payload);
   return rows&&rows[0]?rowToLocal(rows[0]):null;
@@ -1139,7 +1153,8 @@ async function dbUpdate(id,data){
     status:data.status||'ativa',
     motivo_adiamento:data.motivo_adiamento||'',
     data_adiamento:data.data_adiamento||'',
-    disparos_deslocados:data.disparos_deslocados||{}
+    disparos_deslocados:data.disparos_deslocados||{},
+    disparos_cancelados:data.disparos_cancelados||{}
   };
   await sbFetch('campaigns?id=eq.'+id,'PATCH',payload);
 }
@@ -1364,20 +1379,28 @@ function renderWeekRow(week,filtered,cont,today){
       ].forEach(([dates,lbl,dk])=>{
         if((dates||[]).includes(day.str)){
           const bar=document.createElement('div');
-          const isCancelada=cp.status==='cancelada';
+          const isCampCancelada=cp.status==='cancelada';
           const isAdiada=cp.status==='adiada';
-          bar.className='dispatch-bar'+(isCancelada?' cancelada':'');
-          if(isCancelada){
+          const isDisparoCancelado=!isCampCancelada&&cp.disparos_cancelados&&cp.disparos_cancelados[day.str];
+          const motivoDisp=isDisparoCancelado?cp.disparos_cancelados[day.str]:'';
+          bar.className='dispatch-bar'+((isCampCancelada||isDisparoCancelado)?' cancelada':'');
+          if(isCampCancelada){
             bar.style.borderColor=cp.color;
             bar.textContent='❌ '+cp.name+' ['+lbl+']';
+            bar.title='Campanha cancelada · '+cp.name;
+          }else if(isDisparoCancelado){
+            bar.style.borderColor=cp.color;
+            bar.textContent='🚫 '+cp.name+' ['+lbl+']';
+            bar.title='Disparo cancelado'+(motivoDisp?' · '+motivoDisp:'')+' · '+cp.name;
           }else if(isAdiada){
             bar.style.background='#FFB74D';
             bar.textContent='⏳ '+cp.name+' ['+lbl+']';
+            bar.title='Campanha adiada · '+cp.name;
           }else{
             bar.style.background=darken(cp.color,dk);
             bar.textContent=cp.name+' ['+lbl+']';
+            bar.title=cp.name+' ['+lbl+']';
           }
-          bar.title=cp.name+' ['+lbl+']';
           bar.onclick=()=>openDetailModal(cp.id);cell.appendChild(bar);
         }
       });
@@ -1629,13 +1652,56 @@ function selectCat(cat){
 }
 
 // ── CANAL DATES ───────────────────────────────────────────────────
-function addCanalDate(canal,value=''){
+function addCanalDate(canal,value='',cancelado=false,motivoCancelamento=''){
   const c=document.getElementById('canal-'+canal);
+  const wrapper=document.createElement('div');wrapper.style.width='100%';
   const row=document.createElement('div');row.className='canal-date-row';
-  row.innerHTML='<input class="form-input" type="date" value="'+value+'"><button class="btn-remove-date" onclick="this.parentElement.remove();">✕</button>';
-  c.appendChild(row);
+  row.dataset.canal=canal;
+  const inp=document.createElement('input');
+  inp.className='form-input'+(cancelado?' canal-date-input-cancelado':'');
+  inp.type='date';inp.value=value;inp.style.flex='1';
+  // Botão cancelar disparo
+  const btnCancel=document.createElement('button');
+  btnCancel.className='btn-cancel-disparo'+(cancelado?' ativo':'');
+  btnCancel.type='button';btnCancel.title='Cancelar este disparo';btnCancel.textContent='🚫';
+  // Linha de justificativa
+  const justRow=document.createElement('div');
+  justRow.className='disparo-cancelado-row'+(cancelado?' visible':'');
+  justRow.innerHTML='<label>Motivo:</label><input type="text" placeholder="Justifique o cancelamento..." value="'+motivoCancelamento+'">';
+  // Botão remover
+  const btnRemove=document.createElement('button');
+  btnRemove.className='btn-remove-date';btnRemove.type='button';btnRemove.textContent='✕';
+  btnRemove.onclick=()=>wrapper.remove();
+  // Toggle cancelar
+  btnCancel.onclick=()=>{
+    const isCancel=!justRow.classList.contains('visible');
+    justRow.classList.toggle('visible',isCancel);
+    btnCancel.classList.toggle('ativo',isCancel);
+    inp.classList.toggle('canal-date-input-cancelado',isCancel);
+  };
+  row.appendChild(inp);row.appendChild(btnCancel);row.appendChild(btnRemove);
+  wrapper.appendChild(row);wrapper.appendChild(justRow);
+  c.appendChild(wrapper);
 }
-function getCanalDates(canal){return[...document.getElementById('canal-'+canal).querySelectorAll('input')].map(i=>i.value).filter(Boolean);}
+function getCanalDates(canal){
+  return [...document.getElementById('canal-'+canal).querySelectorAll('.canal-date-row')].map(row=>{
+    const inp=row.querySelector('input[type=date]');
+    return inp&&inp.value?inp.value:null;
+  }).filter(Boolean);
+}
+function getCanalCancelados(canal){
+  const result={};
+  [...document.getElementById('canal-'+canal).querySelectorAll('.canal-date-row')].forEach(row=>{
+    const inp=row.querySelector('input[type=date]');
+    const justRow=row.nextElementSibling;
+    const isCancelado=justRow&&justRow.classList.contains('visible');
+    if(isCancelado&&inp&&inp.value){
+      const motivo=justRow.querySelector('input[type=text]')?.value||'';
+      result[inp.value]=motivo;
+    }
+  });
+  return result;
+}
 function clearCanals(){
   ['inbound_wa','inbound_email','inbound_sms','rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros','performance_meta_ads','performance_google_ads'].forEach(c=>document.getElementById('canal-'+c).innerHTML='');
   // Clear performance date ranges
@@ -1670,18 +1736,18 @@ function openEditModal(id){
   document.getElementById('f-defesa').value=c.defesa||'';
   document.getElementById('f-tags').value=c.tags||'';
   clearCanals();
-  (c.inbound.wa||[]).forEach(d=>addCanalDate('inbound_wa',d));
-  (c.inbound.email||[]).forEach(d=>addCanalDate('inbound_email',d));
-  (c.inbound.sms||[]).forEach(d=>addCanalDate('inbound_sms',d));
-  (c.rede_social.instagram||[]).forEach(d=>addCanalDate('rede_social_instagram',d));
-  (c.rede_social.facebook||[]).forEach(d=>addCanalDate('rede_social_facebook',d));
-  (c.rede_social.linkedin||[]).forEach(d=>addCanalDate('rede_social_linkedin',d));
-  (c.rede_social.blog||[]).forEach(d=>addCanalDate('rede_social_blog',d));
-  (c.rede_social.outros||[]).forEach(d=>addCanalDate('rede_social_outros',d));
-  (c.performance.meta_ads||[]).forEach(d=>addCanalDate('performance_meta_ads',d));
+  (c.inbound.wa||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_wa',d,!!dc[d],dc[d]||'');});
+  (c.inbound.email||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_email',d,!!dc[d],dc[d]||'');});
+  (c.inbound.sms||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_sms',d,!!dc[d],dc[d]||'');});
+  (c.rede_social.instagram||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_instagram',d,!!dc[d],dc[d]||'');});
+  (c.rede_social.facebook||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_facebook',d,!!dc[d],dc[d]||'');});
+  (c.rede_social.linkedin||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_linkedin',d,!!dc[d],dc[d]||'');});
+  (c.rede_social.blog||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_blog',d,!!dc[d],dc[d]||'');});
+  (c.rede_social.outros||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_outros',d,!!dc[d],dc[d]||'');});
+  (c.performance.meta_ads||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('performance_meta_ads',d,!!dc[d],dc[d]||'');});
   document.getElementById('perf-meta-inicio').value=c.performance.meta_ads_inicio||'';
   document.getElementById('perf-meta-fim').value=c.performance.meta_ads_fim||'';
-  (c.performance.google_ads||[]).forEach(d=>addCanalDate('performance_google_ads',d));
+  (c.performance.google_ads||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('performance_google_ads',d,!!dc[d],dc[d]||'');});
   document.getElementById('perf-google-inicio').value=c.performance.google_ads_inicio||'';
   document.getElementById('perf-google-fim').value=c.performance.google_ads_fim||'';
   // Status
@@ -1722,6 +1788,18 @@ async function saveCampaign(){
     rede_social_linkedin:getCanalDates('rede_social_linkedin'),
     rede_social_blog:getCanalDates('rede_social_blog'),
     rede_social_outros:getCanalDates('rede_social_outros'),
+    disparos_cancelados:{
+      ...getCanalCancelados('inbound_wa'),
+      ...getCanalCancelados('inbound_email'),
+      ...getCanalCancelados('inbound_sms'),
+      ...getCanalCancelados('rede_social_instagram'),
+      ...getCanalCancelados('rede_social_facebook'),
+      ...getCanalCancelados('rede_social_linkedin'),
+      ...getCanalCancelados('rede_social_blog'),
+      ...getCanalCancelados('rede_social_outros'),
+      ...getCanalCancelados('performance_meta_ads'),
+      ...getCanalCancelados('performance_google_ads'),
+    },
     motivo_adiamento:selectedStatus==='adiada'?document.getElementById('f-motivo-adiamento').value:'',
     data_adiamento:selectedStatus==='adiada'?document.getElementById('f-data-adiamento').value:'',
     disparos_deslocados:{},
