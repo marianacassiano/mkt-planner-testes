@@ -426,7 +426,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="view-toprow">
       <input type="text" class="search-input" id="search-cal" placeholder="🔍 Buscar campanha..." oninput="renderAll()">
       <div class="filter-wrap">
-        <button class="btn-filtro" id="btn-filtro-cal" onclick="togglePanel('cal')">
+        <button class="btn-filtro" id="btn-filtro-cal" onclick="togglePanel('cal',event)">
           ⚙ Filtros
           <span class="filtro-count" id="fcnt-cal" style="display:none">0</span>
           <span class="f-arrow">▾</span>
@@ -902,7 +902,8 @@ function showToast(msg,type='success'){
 // ── FILTROS ───────────────────────────────────────────────────────
 const fpState={cal:{categorias:[],estrategias:[],canais:[]},res:{categoria:null}};
 
-function togglePanel(ctx){
+function togglePanel(ctx,event){
+  if(event){event.stopPropagation();}
   const panel=document.getElementById('fp-'+ctx);
   const btn=document.getElementById('btn-filtro-'+ctx);
   const isOpen=panel.classList.contains('fp-open');
