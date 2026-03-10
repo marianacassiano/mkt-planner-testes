@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FOTUS: PLANNER MARKETING</title>
+<link rel="icon" href="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --purple:#0D518E;--purple-light:#1A6BB5;--purple-pale:#E7E7E7;
+  --orange:#FAB515;--teal:#00B2C8;--green:#00C07A;--red:#E53935;
+  --gray-50:#F8F9FC;--gray-100:#F0F2F7;--gray-200:#E2E6EF;
+  --gray-400:#9BA3B8;--gray-600:#5A6375;--gray-800:#454444;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-800);min-height:100vh;}
+
+/* LOGIN */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#E7E7E7 0%,#F8F9FC 60%,#FFF8E6 100%);}
+.login-card{background:white;border-radius:24px;padding:48px 40px;width:400px;box-shadow:0 8px 40px rgba(13,81,142,.12);display:flex;flex-direction:column;align-items:center;animation:fadeUp .5s ease both;}
+.logo-badge{width:64px;height:64px;background:transparent;border-radius:16px;display:flex;align-items:center;justify-content:center;color:white;font-size:28px;font-weight:700;margin-bottom:24px;overflow:hidden;}
+.logo-badge img{width:100%;height:100%;object-fit:contain;}
+.login-card h1{font-size:22px;font-weight:700;margin-bottom:4px;}
+.login-card .subtitle{font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--gray-400);text-transform:uppercase;margin-bottom:32px;}
+.inp{width:100%;padding:14px 18px;border:1.5px solid var(--gray-200);border-radius:12px;font-family:'Sora',sans-serif;font-size:14px;background:var(--gray-50);outline:none;transition:border-color .2s,box-shadow .2s;margin-bottom:12px;}
+.inp:focus{border-color:var(--purple-light);box-shadow:0 0 0 3px rgba(13,81,142,.1);background:white;}
+.inp::placeholder{color:var(--gray-400);}
+.btn-login{width:100%;margin-top:8px;padding:15px;background:var(--purple);color:white;border:none;border-radius:12px;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 4px 16px rgba(13,81,142,.3);transition:background .2s,transform .1s;}
+.btn-login:hover{background:#0A4070;}
+.btn-login:active{transform:scale(.98);}
+.login-error{color:var(--red);font-size:12px;margin-top:10px;display:none;text-align:center;}
+.login-footer{margin-top:24px;text-align:center;}
+.login-footer a{color:var(--purple);font-size:12px;font-weight:600;text-decoration:none;cursor:pointer;transition:color .2s;}
+.login-footer a:hover{color:#0A4070;}
+
+/* FORGOT PASSWORD */
+#forgot-password-screen{min-height:100vh;display:none;align-items:center;justify-content:center;background:linear-gradient(135deg,#E7E7E7 0%,#F8F9FC 60%,#FFF8E6 100%);}
+#forgot-password-screen.active{display:flex;}
+.forgot-card{background:white;border-radius:24px;padding:48px 40px;width:400px;box-shadow:0 8px 40px rgba(13,81,142,.12);display:flex;flex-direction:column;align-items:center;animation:fadeUp .5s ease both;}
+.forgot-card h1{font-size:22px;font-weight:700;margin-bottom:4px;}
+.forgot-card .subtitle{font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--gray-400);text-transform:uppercase;margin-bottom:32px;}
+.forgot-card p{font-size:13px;color:var(--gray-600);margin-bottom:24px;text-align:center;}
+.forgot-error{color:var(--red);font-size:12px;margin-top:10px;display:none;text-align:center;}
+.forgot-success{color:var(--green);font-size:12px;margin-top:10px;display:none;text-align:center;}
+.back-to-login{margin-top:20px;text-align:center;}
+.back-to-login a{color:var(--purple);font-size:12px;font-weight:600;text-decoration:none;cursor:pointer;}
+.back-to-login a:hover{color:#0A4070;}
+
+/* APP */
+#app{display:none;}
+.topbar{background:white;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 32px;height:60px;position:sticky;top:0;z-index:100;}
+.topbar-logo{display:flex;align-items:center;gap:12px;margin-right:40px;}
+.topbar-logo .badge{width:36px;height:36px;background:var(--purple);border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-size:15px;font-weight:700;}
+.topbar-logo .app-name{font-size:14px;font-weight:700;}
+.topbar-logo .user-email{font-size:11px;color:var(--gray-400);}
+.topbar-nav{display:flex;gap:4px;}
+.nav-btn{padding:8px 18px;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--gray-600);transition:background .15s,color .15s;}
+.nav-btn.active{background:var(--purple-pale);color:var(--purple);font-weight:600;}
+.nav-btn:hover:not(.active){background:var(--gray-100);}
+.topbar-actions{display:flex;align-items:center;gap:10px;margin-left:auto;}
+.role-badge{font-size:10px;font-weight:700;letter-spacing:.08em;padding:4px 10px;border-radius:20px;text-transform:uppercase;}
+.role-badge.admin{background:#E7E7E7;color:var(--purple);}
+.role-badge.user{background:#F0FFF7;color:var(--green);}
+.user-menu{position:relative;}
+.user-avatar{width:36px;height:36px;border-radius:50%;background:var(--purple);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;cursor:pointer;font-size:14px;transition:opacity .2s;}
+.user-avatar:hover{opacity:.8;}
+.user-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;}
+.user-dropdown{position:absolute;top:calc(100% + 8px);right:0;background:white;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.14);border:1px solid var(--gray-200);width:240px;padding:12px 0;z-index:300;opacity:0;pointer-events:none;transform:translateY(-6px);transition:opacity .15s,transform .15s;}
+.user-dropdown.open{opacity:1;pointer-events:auto;transform:translateY(0);}
+.user-dropdown-header{padding:12px 16px;border-bottom:1px solid var(--gray-100);}
+.user-info{display:flex;align-items:center;gap:10px;}
+.user-info-avatar{width:32px;height:32px;border-radius:50%;background:var(--purple);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;}
+.user-info-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover;}
+.user-info-text{flex:1;min-width:0;}
+.user-info-name{font-size:12px;font-weight:700;color:var(--gray-800);}
+.user-info-email{font-size:10px;color:var(--gray-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.user-dropdown-item{padding:10px 16px;font-size:13px;color:var(--gray-600);cursor:pointer;transition:background .15s;border:none;background:transparent;font-family:'Sora',sans-serif;width:100%;text-align:left;}
+.user-dropdown-item:hover{background:var(--gray-100);color:var(--gray-800);font-weight:500;}
+.user-dropdown-divider{border:none;border-top:1px solid var(--gray-100);margin:4px 0;}
+.btn-nova{padding:9px 20px;background:var(--purple);color:white;border:none;border-radius:12px;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(13,81,142,.3);transition:background .2s,transform .1s;}
+.btn-nova:hover{background:#0A4070;}
+.btn-nova:active{transform:scale(.97);}
+
+/* VIEWS */
+.view{display:none;padding:24px 32px;}
+.view.active{display:block;}
+
+/* TOP ACTION ROW */
+.view-toprow{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.search-input{padding:9px 14px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;color:var(--gray-800);background:white;outline:none;width:240px;transition:border-color .2s;}
+.search-input:focus{border-color:var(--purple-light);}
+.search-input::placeholder{color:var(--gray-400);}
+
+/* LOADING / TOAST */
+.loading-bar{position:fixed;top:0;left:0;right:0;height:3px;background:var(--purple);z-index:9999;display:none;animation:loadingSlide 1.2s ease infinite;}
+@keyframes loadingSlide{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--gray-800);color:white;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:9999;display:none;animation:fadeUp .3s ease;box-shadow:0 4px 20px rgba(0,0,0,.25);}
+.toast.success{background:#1B5E20;}
+.toast.error{background:#B71C1C;}
+
+/* FILTRO DROPDOWN */
+.filter-wrap{position:relative;}
+.btn-filtro{display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--gray-200);background:white;color:var(--gray-600);transition:all .15s;user-select:none;}
+.btn-filtro:hover{border-color:var(--gray-400);background:var(--gray-50);}
+.btn-filtro.has-filter{border-color:var(--purple-light);background:var(--purple-pale);color:var(--purple);}
+.btn-filtro .f-arrow{font-size:10px;transition:transform .2s;display:inline-block;}
+.btn-filtro.fp-open .f-arrow{transform:rotate(180deg);}
+.filtro-count{background:var(--purple);color:white;font-size:10px;font-weight:700;border-radius:50%;width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.filtro-panel{position:absolute;top:calc(100% + 8px);left:0;background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.14);border:1px solid var(--gray-200);width:280px;padding:18px;z-index:300;opacity:0;pointer-events:none;transform:translateY(-6px);transition:opacity .15s,transform .15s;}
+.filtro-panel.fp-open{opacity:1;pointer-events:auto;transform:translateY(0);}
+.fp-section{margin-bottom:14px;}
+.fp-section:last-child{margin-bottom:0;}
+.fp-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:10px;}
+.fp-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.fp-chip{padding:6px 13px;border-radius:20px;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--gray-200);background:white;color:var(--gray-600);transition:all .15s;}
+.fp-chip:hover{border-color:var(--gray-400);}
+.fp-chip.fpa{background:var(--purple-pale);border-color:var(--purple-light);color:var(--purple);}
+.fp-chip.cat-com.fpa{background:#EAF4FF;border-color:#1E88E5;color:#1E40AF;}
+.fp-chip.cat-cont.fpa{background:#DCFCE7;border-color:#43A047;color:#166534;}
+.fp-chip.cat-ev.fpa{background:#FFEDD5;border-color:#FB8C00;color:#9A3412;}
+.fp-chip.ch-wa.fpa{background:#E8FFF3;border-color:#25D366;color:#128C5E;}
+.fp-chip.ch-email.fpa{background:#E8F4FF;border-color:#2196F3;color:#1565C0;}
+.fp-chip.ch-sms.fpa{background:#FFF8E8;border-color:#FF9800;color:#E65100;}
+.fp-divider{border:none;border-top:1px solid var(--gray-100);margin:12px 0;}
+.fp-footer{display:flex;justify-content:flex-end;}
+.btn-limpar{font-family:'Sora',sans-serif;font-size:12px;font-weight:600;color:var(--red);background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:6px;transition:background .15s;}
+.btn-limpar:hover{background:#FFF5F5;}
+
+/* EXPORT BUTTON */
+.btn-export{display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--gray-200);background:white;color:var(--gray-600);transition:all .15s;margin-left:auto;white-space:nowrap;}
+.btn-export:hover{background:var(--gray-100);border-color:var(--gray-400);}
+
+/* CALENDÁRIO */
+.cal-layout{display:flex;gap:20px;align-items:flex-start;}
+.cal-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:16px;}
+.cal-sidebar{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;}
+.dispatch-card{background:white;border-radius:16px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.cal-month-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.cal-month-label{font-size:15px;font-weight:700;letter-spacing:.04em;}
+.cal-nav{display:flex;gap:6px;}
+.cal-nav button{width:30px;height:30px;border-radius:8px;border:1.5px solid var(--gray-200);background:white;cursor:pointer;font-size:15px;color:var(--gray-600);display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.cal-nav button:hover{background:var(--gray-100);}
+.week-row{display:grid;grid-template-columns:repeat(7,1fr);border-top:2px solid var(--gray-200);}
+.week-row.header{border-top:none;}
+.week-header-cell{padding:8px 6px;font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--gray-400);text-align:left;border-right:1px solid var(--gray-100);}
+.week-header-cell:last-child{border-right:none;}
+.day-cell{border-right:1px solid var(--gray-100);padding:6px;min-height:90px;vertical-align:top;}
+.day-cell:last-child{border-right:none;}
+.day-cell.today .day-num{background:var(--purple);color:white;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:10px;}
+.day-cell.empty{background:var(--gray-50);}
+.day-num{font-size:10px;font-weight:700;color:var(--gray-400);margin-bottom:4px;font-family:'DM Mono',monospace;}
+.day-date{font-size:9px;color:var(--gray-400);font-family:'DM Mono',monospace;margin-bottom:5px;}
+.dispatch-bar{font-size:9.5px;font-weight:600;border-radius:4px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:white;transition:opacity .15s;}
+.dispatch-bar:hover{opacity:.8;}
+
+/* GANTT */
+.gantt-card{background:white;border-radius:16px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow-x:auto;}
+.gantt-card h3{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:14px;}
+.gantt-table{width:100%;border-collapse:collapse;table-layout:fixed;min-width:700px;}
+.gantt-table th{font-size:9px;font-weight:700;color:var(--gray-400);font-family:'DM Mono',monospace;text-align:center;padding:4px 0;border:1px solid var(--gray-200);background:var(--gray-50);width:3.225%;}
+.gantt-table th.today-col{background:#E7E7E7;color:var(--purple);}
+.gantt-table td{border:1px solid var(--gray-200);height:28px;padding:0;vertical-align:middle;}
+.gantt-table td.today-col{background:#FAFAFE;}
+.gantt-table tr:hover td{background:var(--gray-50);}
+.gantt-cell-bar{width:100%;height:22px;border-radius:4px;font-size:9px;font-weight:700;color:white;display:flex;align-items:center;padding:0 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;transition:opacity .15s;box-shadow:0 1px 3px rgba(0,0,0,.15);}
+.gantt-cell-bar:hover{opacity:.85;}
+.gantt-empty{font-size:12px;color:var(--gray-400);font-style:italic;padding:8px 0;}
+
+/* SIDEBAR */
+.sidebar-card{background:white;border-radius:16px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.sidebar-card h3{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
+.sidebar-card h3 .count{background:var(--purple-pale);color:var(--purple);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;}
+.camp-item{border-left:3px solid var(--orange);padding:9px 10px;border-radius:0 10px 10px 0;background:var(--gray-50);margin-bottom:8px;cursor:pointer;transition:background .15s;}
+.camp-item:last-child{margin-bottom:0;}
+.camp-item:hover{background:var(--gray-100);}
+.camp-item-name{font-size:11px;font-weight:700;color:var(--gray-800);margin-bottom:4px;}
+.camp-item-vig{font-size:9px;font-family:'DM Mono',monospace;color:var(--gray-400);display:flex;justify-content:space-between;}
+.camp-item-dias{font-size:10px;font-weight:600;margin-top:4px;text-align:right;}
+.camp-item-dias.urgent{color:var(--red);}
+.camp-item-dias.normal{color:var(--gray-600);}
+.dica-card{background:var(--purple-pale);border-radius:14px;padding:14px;}
+.dica-card h4{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--purple);text-transform:uppercase;margin-bottom:5px;}
+.dica-card p{font-size:11px;color:var(--gray-600);line-height:1.5;}
+
+/* CATEGORIA badge */
+.cat-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;padding:2px 7px;border-radius:5px;text-transform:uppercase;margin-bottom:4px;}
+.cat-COMERCIAL{background:#DBEAFE;color:#1E40AF;}
+.cat-CONTEUDO{background:#DCFCE7;color:#166534;}
+.cat-EVENTOS{background:#FFEDD5;color:#9A3412;}
+
+/* RESUMO */
+.resumo-cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;align-items:start;}
+.resumo-col-title{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+.resumo-col-title .dot{width:8px;height:8px;border-radius:50%;}
+.resumo-card{background:white;border-radius:14px;padding:18px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-bottom:12px;position:relative;overflow:hidden;cursor:pointer;transition:box-shadow .2s,transform .2s;animation:fadeUp .4s ease both;}
+.resumo-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-2px);}
+.resumo-card-name{font-size:13px;font-weight:700;color:var(--gray-800);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.resumo-card-name .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.resumo-field{margin-bottom:7px;}
+.resumo-field label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);display:block;margin-bottom:2px;}
+.resumo-field span{font-size:12px;font-family:'DM Mono',monospace;color:var(--gray-600);}
+.badge-urgente{position:absolute;top:12px;right:12px;background:var(--red);color:white;font-size:9px;font-weight:700;letter-spacing:.06em;padding:3px 8px;border-radius:6px;text-transform:uppercase;}
+.empty-col{color:var(--gray-400);font-size:13px;font-style:italic;padding:10px 0;}
+
+/* DASHBOARD */
+.dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.kpi-card{background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.kpi-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:6px;}
+.kpi-value{font-size:32px;font-weight:700;font-family:'DM Mono',monospace;line-height:1;margin-bottom:4px;}
+.kpi-sub{font-size:11px;color:var(--gray-400);}
+.dash-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;}
+.dash-card{background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.dash-card h3{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:16px;}
+.bar-item{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.bar-label{font-size:12px;font-weight:600;color:var(--gray-800);width:90px;flex-shrink:0;}
+.bar-track{flex:1;height:10px;background:var(--gray-100);border-radius:5px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:5px;transition:width .6s ease;}
+.bar-count{font-size:11px;font-family:'DM Mono',monospace;color:var(--gray-400);width:24px;text-align:right;}
+.canal-stat-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--gray-100);}
+.canal-stat-row:last-child{border-bottom:none;}
+.canal-stat-name{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;}
+.canal-stat-dot{width:10px;height:10px;border-radius:50%;}
+.canal-stat-num{font-size:20px;font-weight:700;font-family:'DM Mono',monospace;}
+.canal-stat-sub{font-size:11px;color:var(--gray-400);}
+.timeline-item{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start;}
+.timeline-dot{width:10px;height:10px;border-radius:50%;margin-top:4px;flex-shrink:0;}
+.timeline-content{font-size:12px;}
+.timeline-name{font-weight:700;color:var(--gray-800);margin-bottom:2px;}
+.timeline-date{color:var(--gray-400);font-family:'DM Mono',monospace;font-size:11px;}
+
+/* USUARIOS VIEW */
+#view-usuarios{display:none;}
+#view-usuarios.active{display:block;}
+.usuarios-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.usuarios-header h2{font-size:24px;font-weight:700;margin:0;}
+.btn-novo-usuario{padding:9px 20px;background:var(--purple);color:white;border:none;border-radius:12px;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(107,92,231,.3);transition:background .2s,transform .1s;}
+.btn-novo-usuario:hover{background:#5A4CD6;}
+.btn-novo-usuario:active{transform:scale(.97);}
+.usuarios-table{width:100%;border-collapse:collapse;background:white;border-radius:14px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.06);}
+.usuarios-table th{background:var(--gray-50);padding:16px;text-align:left;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);border-bottom:1px solid var(--gray-200);}
+.usuarios-table td{padding:16px;border-bottom:1px solid var(--gray-100);font-size:13px;color:var(--gray-800);}
+.usuarios-table tbody tr:hover{background:var(--gray-50);}
+.usuario-avatar-cell{display:flex;align-items:center;gap:10px;}
+.usuario-avatar-small{width:32px;height:32px;border-radius:50%;background:var(--purple);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;}
+.usuario-avatar-small img{width:100%;height:100%;border-radius:50%;object-fit:cover;}
+.usuario-info{flex:1;}
+.usuario-name{font-weight:600;color:var(--gray-800);}
+.usuario-email{font-size:12px;color:var(--gray-400);}
+.usuario-role{display:inline-block;font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;text-transform:uppercase;}
+.usuario-role.admin{background:#EEF0FF;color:var(--purple);}
+.usuario-role.user{background:#F0FFF7;color:var(--green);}
+.usuario-acesso{font-size:12px;color:var(--gray-600);font-family:'DM Mono',monospace;}
+.usuario-actions{display:flex;gap:6px;}
+.btn-usuario-action{background:none;border:none;cursor:pointer;font-size:14px;padding:6px;border-radius:6px;transition:background .15s;color:var(--gray-600);}
+.btn-usuario-action:hover{background:var(--gray-100);}
+.btn-usuario-delete:hover{color:var(--red);}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(30,35,51,.5);backdrop-filter:blur(4px);z-index:200;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px;}
+.modal-overlay.open{display:flex;animation:fadeIn .2s ease;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.modal{background:white;border-radius:20px;padding:36px;width:560px;box-shadow:0 20px 60px rgba(0,0,0,.18);position:relative;margin:auto;animation:fadeUp .2s ease;}
+.modal-close{position:absolute;top:16px;right:18px;background:var(--gray-100);border:none;cursor:pointer;width:30px;height:30px;border-radius:50%;font-size:16px;color:var(--gray-600);display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.modal-close:hover{background:var(--gray-200);}
+.modal h2{font-size:22px;font-weight:700;margin-bottom:6px;}
+.modal .modal-sub{font-size:13px;color:var(--gray-400);margin-bottom:28px;}
+.form-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);display:block;margin-bottom:8px;}
+.form-input{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;color:var(--gray-800);background:var(--gray-50);outline:none;transition:border-color .2s,box-shadow .2s;resize:vertical;}
+.form-input:focus{border-color:var(--purple-light);box-shadow:0 0 0 3px rgba(107,92,231,.1);background:white;}
+.form-input::placeholder{color:var(--gray-400);}
+.form-row2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;}
+.form-section{margin-bottom:18px;}
+.color-swatches{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px;}
+.color-dot{width:26px;height:26px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:transform .15s,box-shadow .15s;flex-shrink:0;}
+.color-dot:hover{transform:scale(1.15);}
+.color-dot.selected{border-color:rgba(0,0,0,.6);box-shadow:0 0 0 3px rgba(0,0,0,.12);}
+.color-custom-row{display:flex;align-items:center;gap:8px;}
+.color-native{width:36px;height:36px;border-radius:8px;border:1.5px solid var(--gray-200);cursor:pointer;padding:2px;background:white;}
+.color-hex-input{flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'DM Mono',monospace;font-size:13px;color:var(--gray-800);background:var(--gray-50);outline:none;}
+.color-preview{width:36px;height:36px;border-radius:8px;border:1.5px solid var(--gray-200);flex-shrink:0;}
+.cat-selector{display:flex;gap:8px;margin-top:4px;}
+.cat-opt{padding:8px 16px;border-radius:8px;border:1.5px solid var(--gray-200);background:white;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--gray-600);}
+.cat-opt.sel-COMERCIAL{background:#DBEAFE;border-color:#1E88E5;color:#1E40AF;}
+.cat-opt.sel-CONTEUDO{background:#DCFCE7;border-color:#43A047;color:#166534;}
+.cat-opt.sel-EVENTOS{background:#FFEDD5;border-color:#FB8C00;color:#9A3412;}
+.canal-block{margin-bottom:14px;}
+.canal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.canal-title{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);}
+.btn-add-canal{background:none;border:none;cursor:pointer;font-size:22px;color:var(--purple);width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:background .15s;}
+.btn-add-canal:hover{background:var(--purple-pale);}
+.canal-dates{display:flex;flex-direction:column;gap:8px;}
+.canal-date-row{display:flex;align-items:center;gap:8px;}
+.canal-date-row .form-input{flex:1;}
+.btn-remove-date{background:none;border:none;cursor:pointer;font-size:16px;color:var(--gray-400);padding:4px 6px;border-radius:6px;transition:color .15s,background .15s;}
+.btn-remove-date:hover{color:var(--red);background:#FEE;}
+.divider{border:none;border-top:1px solid var(--gray-100);margin:22px 0;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;align-items:center;}
+.modal-actions-left{margin-right:auto;}
+.btn-cancel{padding:11px 22px;border-radius:10px;border:1.5px solid var(--gray-200);background:white;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;color:var(--gray-600);cursor:pointer;transition:background .15s;}
+.btn-cancel:hover{background:var(--gray-100);}
+.btn-save{padding:11px 28px;border-radius:10px;background:var(--gray-800);color:white;border:none;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;box-shadow:0 3px 12px rgba(30,35,51,.25);transition:background .2s;}
+.btn-save:hover{background:#2E3550;}
+.btn-save.update{background:var(--purple);box-shadow:0 3px 12px rgba(107,92,231,.3);}
+.btn-save.update:hover{background:#5A4CD6;}
+.btn-save:disabled{opacity:.5;cursor:not-allowed;}
+.btn-delete{padding:11px 18px;border-radius:10px;border:1.5px solid #FFCDD2;background:#FFF5F5;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;color:var(--red);cursor:pointer;transition:background .15s;}
+.btn-delete:hover{background:#FFEBEE;}
+.detail-color-bar{height:5px;border-radius:3px;margin-bottom:22px;}
+.detail-section{margin-bottom:16px;}
+.detail-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:5px;}
+.detail-value{font-size:14px;color:var(--gray-800);line-height:1.6;}
+.detail-value.mono{font-family:'DM Mono',monospace;font-size:13px;}
+.canal-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.canal-tag{display:inline-flex;align-items:center;gap:6px;background:var(--gray-100);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--gray-600);}
+.canal-tag .dot{width:7px;height:7px;border-radius:50%;}
+
+/* Performance date range */
+.perf-date-range{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;padding:10px;background:var(--gray-50);border-radius:10px;border:1px solid var(--gray-200);}
+.perf-date-range label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);display:block;margin-bottom:4px;}
+
+/* PROFILE MODAL */
+.profile-section{margin-bottom:24px;}
+.profile-avatar-section{text-align:center;margin-bottom:24px;}
+.profile-avatar-large{width:80px;height:80px;border-radius:50%;background:var(--purple);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:32px;margin:0 auto 12px;cursor:pointer;position:relative;transition:opacity .2s;}
+.profile-avatar-large:hover{opacity:.8;}
+.profile-avatar-large img{width:100%;height:100%;border-radius:50%;object-fit:cover;}
+.profile-avatar-upload{font-size:12px;color:var(--purple);cursor:pointer;font-weight:600;}
+.profile-field{margin-bottom:16px;}
+.profile-field label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);display:block;margin-bottom:6px;}
+.profile-field input[type="text"],.profile-field input[type="email"],.profile-field input[type="password"]{width:100%;padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;color:var(--gray-800);background:var(--gray-50);outline:none;}
+.profile-field input:disabled{background:var(--gray-100);color:var(--gray-400);cursor:not-allowed;}
+.profile-field input:focus{border-color:var(--purple-light);box-shadow:0 0 0 3px rgba(107,92,231,.1);background:white;}
+.profile-field-readonly{padding:12px 14px;border:1.5px solid var(--gray-200);border-radius:10px;background:var(--gray-50);color:var(--gray-600);font-size:13px;}
+.password-section{background:var(--gray-50);border-radius:12px;padding:18px;margin-top:16px;}
+.password-section h4{font-size:12px;font-weight:700;color:var(--gray-800);margin-bottom:14px;}
+.password-field{margin-bottom:12px;}
+.password-field:last-child{margin-bottom:0;}
+.access-history{background:var(--gray-50);border-radius:12px;padding:18px;margin-top:16px;}
+.access-history h4{font-size:12px;font-weight:700;color:var(--gray-800);margin-bottom:12px;}
+.access-item{padding:10px 0;border-bottom:1px solid var(--gray-100);font-size:12px;}
+.access-item:last-child{border-bottom:none;}
+.access-date{color:var(--gray-600);font-family:'DM Mono',monospace;}
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loading-bar"></div>
+<div class="toast" id="toast"></div>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="logo-badge"><img src="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" alt="Fotus"></div>
+    <h1>Acesso ao Painel</h1>
+    <p class="subtitle">FOTUS: PLANNER MARKETING</p>
+    <input class="inp" type="email" id="inp-email" placeholder="E-mail">
+    <input class="inp" type="password" id="inp-senha" placeholder="Senha">
+    <button class="btn-login" onclick="doLogin()">ENTRAR</button>
+    <p class="login-error" id="login-error">E-mail ou senha incorretos.</p>
+    <div class="login-footer">
+      <a onclick="showForgotPassword()"></a>
+    </div>
+  </div>
+</div>
+
+<!-- FORGOT PASSWORD -->
+<div id="forgot-password-screen">
+  <div class="forgot-card">
+    <div class="logo-badge"><img src="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" alt="Fotus"></div>
+    <h1>Recuperar Senha</h1>
+    <p class="subtitle">FOTUS: PLANNER MARKETING</p>
+    <p>Digite seu e-mail para receber instruções de recuperação de senha.</p>
+    <input class="inp" type="email" id="inp-forgot-email" placeholder="E-mail cadastrado">
+    <button class="btn-login" onclick="doForgotPassword()">ENVIAR INSTRUÇÕES</button>
+    <p class="forgot-error" id="forgot-error"></p>
+    <p class="forgot-success" id="forgot-success"></p>
+    <div class="back-to-login">
+      <a onclick="backToLogin()">Voltar ao login</a>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">
+      <div class="badge" style="background:transparent;padding:2px;"><img src="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" alt="Fotus" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></div>
+      <div><div class="app-name">FOTUS: PLANNER MARKETING</div><div class="user-email" id="topbar-email"></div></div>
+    </div>
+    <nav class="topbar-nav">
+      <button class="nav-btn active" id="nav-cal" onclick="showView('calendario')">Calendário</button>
+      <button class="nav-btn" id="nav-res" onclick="showView('resumo')">Resumo Mensal</button>
+      <button class="nav-btn" id="nav-dash" onclick="showView('dashboard')">Dashboard</button>
+      <button class="nav-btn" id="nav-usuarios" onclick="showView('usuarios')">Usuários</button>
+    </nav>
+    <div class="topbar-actions">
+      <span class="role-badge" id="role-badge"></span>
+      <div class="user-menu">
+        <div class="user-avatar" id="user-avatar-btn" onclick="toggleUserMenu()">A</div>
+        <div class="user-dropdown" id="user-dropdown">
+          <div class="user-dropdown-header">
+            <div class="user-info">
+              <div class="user-info-avatar" id="dropdown-avatar">A</div>
+              <div class="user-info-text">
+                <div class="user-info-name" id="dropdown-name">Usuário</div>
+                <div class="user-info-email" id="dropdown-email">email@fotus.com.br</div>
+              </div>
+            </div>
+          </div>
+          <button class="user-dropdown-item" onclick="openProfileModal()">👤 Meu Perfil</button>
+          <div class="user-dropdown-divider"></div>
+          <button class="user-dropdown-item" onclick="doLogout()">🚪 Sair</button>
+        </div>
+      </div>
+      <button class="btn-nova" id="btn-nova-camp" onclick="openNewModal()">+ Nova Campanha</button>
+    </div>
+  </div>
+
+  <!-- CALENDÁRIO -->
+  <div class="view active" id="view-calendario">
+    <div class="view-toprow">
+      <input type="text" class="search-input" id="search-cal" placeholder="🔍 Buscar campanha..." oninput="renderAll()">
+      <div class="filter-wrap">
+        <button class="btn-filtro" id="btn-filtro-cal" onclick="togglePanel('cal')">
+          ⚙ Filtros
+          <span class="filtro-count" id="fcnt-cal" style="display:none">0</span>
+          <span class="f-arrow">▾</span>
+        </button>
+        <div class="filtro-panel" id="fp-cal">
+          <div class="fp-section">
+            <div class="fp-label">Categoria <button class="btn-todos-filtro" onclick="toggleAllFilters('cal','categoria')">Todos</button></div>
+            <div class="fp-chips">
+              <button class="fp-chip cat-com" id="fpc-cal-COMERCIAL" onclick="toggleChip('cal','categoria','COMERCIAL')">Comercial</button>
+              <button class="fp-chip cat-cont" id="fpc-cal-CONTEUDO" onclick="toggleChip('cal','categoria','CONTEUDO')">Conteúdo</button>
+              <button class="fp-chip cat-ev" id="fpc-cal-EVENTOS" onclick="toggleChip('cal','categoria','EVENTOS')">Eventos</button>
+            </div>
+          </div>
+          <div class="fp-divider"></div>
+          <div class="fp-section">
+            <div class="fp-label">Estratégia <button class="btn-todos-filtro" onclick="toggleAllFilters('cal','estrategia')">Todos</button></div>
+            <div class="fp-chips">
+              <button class="fp-chip est-inb" id="fpc-cal-inbound" onclick="toggleChip('cal','estrategia','inbound')">Inbound</button>
+              <button class="fp-chip est-soc" id="fpc-cal-rede_social" onclick="toggleChip('cal','estrategia','rede_social')">Rede Social</button>
+              <button class="fp-chip est-perf" id="fpc-cal-performance" onclick="toggleChip('cal','estrategia','performance')">Performance</button>
+            </div>
+          </div>
+          <div class="fp-divider"></div>
+          <div class="fp-section">
+            <div class="fp-label">Canais <button class="btn-todos-filtro" onclick="toggleAllFilters('cal','canal')">Todos</button></div>
+            <div class="fp-chips">
+              <button class="fp-chip ch-wa" id="fpc-cal-wa" onclick="toggleChip('cal','canal','wa')">WhatsApp</button>
+              <button class="fp-chip ch-email" id="fpc-cal-email" onclick="toggleChip('cal','canal','email')">E-mail</button>
+              <button class="fp-chip ch-sms" id="fpc-cal-sms" onclick="toggleChip('cal','canal','sms')">SMS</button>
+              <button class="fp-chip ch-ig" id="fpc-cal-instagram" onclick="toggleChip('cal','canal','instagram')">Instagram</button>
+              <button class="fp-chip ch-fb" id="fpc-cal-facebook" onclick="toggleChip('cal','canal','facebook')">Facebook</button>
+              <button class="fp-chip ch-li" id="fpc-cal-linkedin" onclick="toggleChip('cal','canal','linkedin')">LinkedIn</button>
+              <button class="fp-chip ch-blog" id="fpc-cal-blog" onclick="toggleChip('cal','canal','blog')">Blog</button>
+              <button class="fp-chip ch-out" id="fpc-cal-outros" onclick="toggleChip('cal','canal','outros')">Outros</button>
+              <button class="fp-chip ch-ma" id="fpc-cal-meta_ads" onclick="toggleChip('cal','canal','meta_ads')">Meta Ads</button>
+              <button class="fp-chip ch-ga" id="fpc-cal-google_ads" onclick="toggleChip('cal','canal','google_ads')">Google Ads</button>
+            </div>
+          </div>
+          <div class="fp-divider"></div>
+          <div class="fp-footer"><button class="btn-limpar" onclick="limparFiltros('cal')">Limpar filtros</button></div>
+        </div>
+      </div>
+      <button class="btn-export" onclick="exportarCalendario()">📥 Exportar Calendário</button>
+    </div>
+    <div class="cal-layout">
+      <div class="cal-main">
+        <div class="dispatch-card">
+          <div class="cal-month-row">
+            <span class="cal-month-label" id="cal-month-label"></span>
+            <div class="cal-nav">
+              <button onclick="changeMonth(-1)">‹</button>
+              <button onclick="changeMonth(1)">›</button>
+            </div>
+          </div>
+          <div id="dispatch-grid"></div>
+        </div>
+        <div class="gantt-card">
+          <h3>Vigência das Campanhas</h3>
+          <div id="gantt-container"></div>
+        </div>
+      </div>
+      <div class="cal-sidebar">
+        <div class="sidebar-card">
+          <h3>Ativas <span class="count" id="active-count">0</span></h3>
+          <div id="sidebar-active-list"></div>
+        </div>
+        <div class="dica-card">
+          <h4>Dica</h4>
+          <p>Campanhas com 🔥 estão a menos de 3 dias do encerramento.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESUMO -->
+  <div class="view" id="view-resumo">
+    <div class="view-toprow" id="resumo-toprow">
+      <h2 style="margin:0;font-size:24px;font-weight:700;">Resumo de Campanhas</h2>
+      <input type="text" class="search-input" id="search-res" placeholder="🔍 Buscar campanha..." oninput="renderResumo()" style="margin-left:16px;">
+    </div>
+    <h3 style="font-size:16px;font-weight:700;margin-top:32px;margin-bottom:16px;">Calendário de Campanhas Comerciais</h3>
+    <div id="resumo-calendar" style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);"></div>
+    <div class="resumo-cols" style="margin-top:32px;">
+      <div>
+        <div class="resumo-col-title"><span class="dot" style="background:var(--gray-400)"></span>Em Breve</div>
+        <div id="col-breve"></div>
+      </div>
+      <div>
+        <div class="resumo-col-title"><span class="dot" style="background:var(--orange)"></span>Ativas Agora</div>
+        <div id="col-ativas"></div>
+      </div>
+      <div>
+        <div class="resumo-col-title"><span class="dot" style="background:var(--teal)"></span>Encerradas</div>
+        <div id="col-encerradas"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="view" id="view-dashboard">
+    <h2 style="font-size:24px;font-weight:700;margin-bottom:24px;">Dashboard de Marketing</h2>
+    <div class="dash-kpis" id="dash-kpis"></div>
+    <div class="dash-row">
+      <div class="dash-card"><h3>Campanhas por Categoria</h3><div id="dash-cat-bars"></div></div>
+      <div class="dash-card"><h3>Disparos por Canal</h3><div id="dash-canal-stats"></div></div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-card"><h3>Próximas a Encerrar</h3><div id="dash-encerrar"></div></div>
+      <div class="dash-card"><h3>Próximos Disparos</h3><div id="dash-disparos"></div></div>
+    </div>
+  </div>
+
+  <!-- USUÁRIOS (Admin only) -->
+  <div class="view" id="view-usuarios">
+    <div class="usuarios-header">
+      <h2>Gestão de Usuários</h2>
+      <button class="btn-novo-usuario" onclick="openNewUserModal()">+ Novo Usuário</button>
+    </div>
+    <table class="usuarios-table">
+      <thead>
+        <tr>
+          <th>Usuário</th>
+          <th>E-mail</th>
+          <th>Perfil</th>
+          <th>Último Acesso</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="usuarios-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MODAL: Nova / Editar Campanha -->
+<div class="modal-overlay" id="modal-form">
+  <div class="modal">
+    <button class="modal-close" onclick="closeFormModal()">✕</button>
+    <h2 id="form-title">Detalhes da Campanha</h2>
+    <p class="modal-sub">Configure o período, categoria, briefing e canais.</p>
+    <div class="form-row2">
+      <div>
+        <label class="form-label">Título</label>
+        <input class="form-input" type="text" id="f-nome" placeholder="Nome da campanha">
+      </div>
+      <div>
+        <label class="form-label">Cor</label>
+        <div class="color-swatches" id="color-swatches"></div>
+        <div class="color-custom-row">
+          <input type="color" class="color-native" id="color-native" oninput="onNativeColor(this.value)">
+          <input type="text" class="color-hex-input" id="color-hex-input" placeholder="#RRGGBB" maxlength="7" oninput="onHexInput(this.value)">
+          <div class="color-preview" id="color-preview"></div>
+        </div>
+      </div>
+    </div>
+    <div class="form-section">
+      <label class="form-label">Categoria</label>
+      <div class="cat-selector">
+        <button class="cat-opt" id="cat-COMERCIAL" onclick="selectCat('COMERCIAL')">Comercial</button>
+        <button class="cat-opt" id="cat-CONTEUDO" onclick="selectCat('CONTEUDO')">Conteúdo</button>
+        <button class="cat-opt" id="cat-EVENTOS" onclick="selectCat('EVENTOS')">Eventos</button>
+      </div>
+    </div>
+    <div class="form-row2">
+      <div><label class="form-label">Data Início</label><input class="form-input" type="date" id="f-inicio"></div>
+      <div><label class="form-label">Data Fim</label><input class="form-input" type="date" id="f-fim"></div>
+    </div>
+    <div class="form-row2">
+      <div><label class="form-label">Briefing / Objetivo</label><textarea class="form-input" id="f-briefing" rows="3" placeholder="O que queremos comunicar?"></textarea></div>
+      <div><label class="form-label">Defesa / Regras</label><textarea class="form-input" id="f-defesa" rows="3" placeholder="Regras, condições e argumentos..."></textarea></div>
+    </div>
+    <div class="form-section">
+      <label class="form-label">Tags</label>
+      <input class="form-input" type="text" id="f-tags" placeholder="Classifique a campanha (ex: black friday, promoção)">
+    </div>
+    <hr class="divider">
+    <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">Estratégia Inbound</h3>
+    <div class="canal-block">
+      <div class="canal-header"><span class="canal-title">WhatsApp</span><button class="btn-add-canal" onclick="addCanalDate('inbound_wa')">+</button></div>
+      <div class="canal-dates" id="canal-inbound_wa"></div>
+    </div>
+    <div class="canal-block">
+      <div class="canal-header"><span class="canal-title">E-mail</span><button class="btn-add-canal" onclick="addCanalDate('inbound_email')">+</button></div>
+      <div class="canal-dates" id="canal-inbound_email"></div>
+    </div>
+    <div class="canal-block">
+      <div class="canal-header"><span class="canal-title">SMS</span><button class="btn-add-canal" onclick="addCanalDate('inbound_sms')">+</button></div>
+      <div class="canal-dates" id="canal-inbound_sms"></div>
+    </div>
+    <hr class="divider">
+    <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">Estratégia Rede Social</h3>
+    <div class="canal-block">
+      <div class="canal-header"><span class="canal-title">Instagram</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_instagram')">+</button></div>
+      <div class="canal-dates" id="canal-rede_social_instagram"></div>
+    </div>
+    <div class="canal-block">
+      <div class="canal-header"><span class="canal-title">Facebook</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_facebook')">+</button></div>
+      <div class="canal-dates" id="canal-rede_social_facebook"></div>
+    </div>
+    <div class="canal-block">
+      <div class="canal-header"><span class="canal-title">LinkedIn</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_linkedin')">+</button></div>
+      <div class="canal-dates" id="canal-rede_social_linkedin"></div>
+    </div>
+    <div class="canal-block">
+      <div class="canal-header"><span class="canal-title">Blog</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_blog')">+</button></div>
+      <div class="canal-dates" id="canal-rede_social_blog"></div>
+    </div>
+    <div class="canal-block">
+      <div class="canal-header"><span class="canal-title">Outros</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_outros')">+</button></div>
+      <div class="canal-dates" id="canal-rede_social_outros"></div>
+    </div>
+    <hr class="divider">
+    <!-- ═══ ESTRATÉGIA PERFORMANCE ═══ -->
+    <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">Estratégia Performance</h3>
+
+    <!-- Meta Ads (unificado) -->
+    <div class="canal-block">
+      <div class="canal-header">
+        <span class="canal-title">Meta Ads</span>
+        <button class="btn-add-canal" onclick="addCanalDate('performance_meta_ads')">+</button>
+      </div>
+      <!-- Período de veiculação Meta Ads -->
+      <div class="perf-date-range">
+        <div>
+          <label>Data Início</label>
+          <input class="form-input" type="date" id="perf-meta-inicio">
+        </div>
+        <div>
+          <label>Data Fim</label>
+          <input class="form-input" type="date" id="perf-meta-fim">
+        </div>
+      </div>
+      <div class="canal-dates" id="canal-performance_meta_ads"></div>
+    </div>
+
+    <!-- Google Ads -->
+    <div class="canal-block">
+      <div class="canal-header">
+        <span class="canal-title">Google Ads</span>
+        <button class="btn-add-canal" onclick="addCanalDate('performance_google_ads')">+</button>
+      </div>
+      <!-- Período de veiculação Google Ads -->
+      <div class="perf-date-range">
+        <div>
+          <label>Data Início</label>
+          <input class="form-input" type="date" id="perf-google-inicio">
+        </div>
+        <div>
+          <label>Data Fim</label>
+          <input class="form-input" type="date" id="perf-google-fim">
+        </div>
+      </div>
+      <div class="canal-dates" id="canal-performance_google_ads"></div>
+    </div>
+
+    <hr class="divider">
+    <div class="modal-actions">
+      <div class="modal-actions-left"><button class="btn-delete" id="btn-delete-camp" style="display:none" onclick="deleteCampaign()">Excluir</button></div>
+      <button class="btn-cancel" onclick="closeFormModal()">Cancelar</button>
+      <button class="btn-save" id="btn-form-save" onclick="saveCampaign()">GRAVAR CAMPANHA</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Detalhe da Campanha -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal" style="width:500px">
+    <button class="modal-close" onclick="closeDetailModal()">✕</button>
+    <div class="detail-color-bar" id="detail-color-bar"></div>
+    <h2 id="detail-name" style="margin-bottom:6px"></h2>
+    <div id="detail-cat-badge" style="margin-bottom:16px;"></div>
+    <div class="form-row2" style="margin-bottom:0">
+      <div class="detail-section"><div class="detail-label">Vigência</div><div class="detail-value mono" id="detail-vig"></div></div>
+      <div class="detail-section"><div class="detail-label">Status</div><div class="detail-value" id="detail-status"></div></div>
+    </div>
+    <div class="detail-section"><div class="detail-label">Briefing / Objetivo</div><div class="detail-value" id="detail-briefing"></div></div>
+    <div class="detail-section"><div class="detail-label">Defesa / Regras</div><div class="detail-value" id="detail-defesa"></div></div>
+    <div class="detail-section"><div class="detail-label">Canais de Disparo</div><div class="canal-tags" id="detail-canais"></div></div>
+    <hr class="divider">
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeDetailModal()">Fechar</button>
+      <button class="btn-save update" id="btn-edit-from-detail" onclick="editFromDetail()">✏️ Atualizar Campanha</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Perfil do Usuário -->
+<div class="modal-overlay" id="modal-profile">
+  <div class="modal" style="width:560px">
+    <button class="modal-close" onclick="closeProfileModal()">✕</button>
+    <h2>Meu Perfil</h2>
+    <p class="modal-sub">Gerencie suas informações pessoais e segurança.</p>
+    <div class="profile-avatar-section">
+      <div class="profile-avatar-large" id="profile-avatar-display">A</div>
+      <div class="profile-avatar-upload" onclick="document.getElementById('avatar-upload').click()">Alterar Foto</div>
+      <input type="file" id="avatar-upload" accept="image/*" style="display:none" onchange="uploadAvatar(this.files[0])">
+    </div>
+    <div class="profile-field">
+      <label>Nome</label>
+      <div class="profile-field-readonly" id="profile-name">USUARIO</div>
+    </div>
+    <div class="profile-field">
+      <label>E-mail</label>
+      <div class="profile-field-readonly" id="profile-email">usuario@fotus.com.br</div>
+    </div>
+    <div class="profile-field">
+      <label>Perfil de Acesso</label>
+      <div class="profile-field-readonly" id="profile-role">Usuário</div>
+    </div>
+    <div id="profile-admin-fields" style="display:none;">
+      <div class="profile-field">
+        <label>Nome (Editável)</label>
+        <input type="text" id="profile-name-edit" placeholder="Nome do usuário">
+      </div>
+    </div>
+    <div class="password-section">
+      <h4>Alterar Senha</h4>
+      <div class="password-field">
+        <label class="form-label">Senha Atual</label>
+        <input type="password" class="form-input" id="profile-current-password" placeholder="Digite sua senha atual">
+      </div>
+      <div class="password-field">
+        <label class="form-label">Nova Senha</label>
+        <input type="password" class="form-input" id="profile-new-password" placeholder="Digite a nova senha">
+      </div>
+      <div class="password-field">
+        <label class="form-label">Confirmar Nova Senha</label>
+        <input type="password" class="form-input" id="profile-confirm-password" placeholder="Confirme a nova senha">
+      </div>
+      <button class="btn-save" style="margin-top:12px;width:100%;" onclick="updatePassword()">ALTERAR SENHA</button>
+    </div>
+    <div class="access-history">
+      <h4>Últimos Acessos</h4>
+      <div id="access-history-list"></div>
+    </div>
+    <hr class="divider">
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeProfileModal()">Fechar</button>
+      <button class="btn-save" id="btn-profile-save" style="display:none" onclick="saveProfileChanges()">SALVAR ALTERAÇÕES</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Editar Usuário -->
+<div class="modal-overlay" id="modal-edit-user">
+  <div class="modal" style="width:560px">
+    <button class="modal-close" onclick="closeEditUserModal()">✕</button>
+    <h2 id="modal-edit-user-title">Editar Usuário</h2>
+    <p class="modal-sub">Atualize as informações do usuário.</p>
+    <div class="profile-field">
+      <label>Nome</label>
+      <input type="text" id="edit-user-name" class="form-input" placeholder="Nome do usuário">
+    </div>
+    <div class="profile-field">
+      <label>E-mail</label>
+      <input type="email" id="edit-user-email" class="form-input" placeholder="E-mail do usuário">
+    </div>
+    <div class="profile-field">
+      <label>Perfil de Acesso</label>
+      <select id="edit-user-role" class="form-input">
+        <option value="user">Usuário</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+    <div class="profile-field">
+      <label>Alterar Senha (deixe em branco para manter)</label>
+      <input type="password" id="edit-user-senha" class="form-input" placeholder="Nova senha (opcional)">
+    </div>
+    <hr class="divider">
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEditUserModal()">Cancelar</button>
+      <button class="btn-save" id="btn-save-user" onclick="saveUserChanges()">SALVAR ALTERAÇÕES</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL='https://qoctnofguhjlfraoiqwx.supabase.co';
+const SUPA_KEY='sb_publishable_BW72en5_69z4r3yVLJuk1Q_rXVywKs8';
+
+async function sbFetch(path,method='GET',body=null){
+  const opts={method,headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=representation'}};
+  if(body)opts.body=JSON.stringify(body);
+  const res=await fetch(SUPA_URL+'/rest/v1/'+path,opts);
+  if(!res.ok){const t=await res.text();throw new Error(t);}
+  const txt=await res.text();
+  return txt?JSON.parse(txt):null;
+}
+
+function rowToLocal(r){
+  return{
+    id:r.id,
+    name:r.name,
+    color:r.color,
+    categoria:r.categoria,
+    inicio:r.inicio,
+    fim:r.fim,
+    briefing:r.briefing||'',
+    defesa:r.defesa||'',
+    tags:r.tags||'',
+    inbound:{wa:r.inbound_wa||[],sms:r.inbound_sms||[],email:r.inbound_email||[]},
+    rede_social:{instagram:r.rede_social_instagram||[],facebook:r.rede_social_facebook||[],linkedin:r.rede_social_linkedin||[],blog:r.rede_social_blog||[],outros:r.rede_social_outros||[]},
+    // Meta Ads unificado (compatível com dados antigos: mescla instagram_ads + facebook_ads)
+    performance:{
+      meta_ads:r.performance_meta_ads||[...(r.performance_instagram_ads||[]),...(r.performance_facebook_ads||[])],
+      meta_ads_inicio:r.performance_meta_ads_inicio||'',
+      meta_ads_fim:r.performance_meta_ads_fim||'',
+      google_ads:r.performance_google_ads||[],
+      google_ads_inicio:r.performance_google_ads_inicio||'',
+      google_ads_fim:r.performance_google_ads_fim||''
+    },
+    mes_ref:r.mes_ref
+  };
+}
+
+function getMesRef(inicio){
+  return inicio.slice(0,7);
+}
+
+let USERS=[];
+
+async function loadUsers(){
+  try{
+    const rows=await sbFetch('users?select=*&order=id.asc');
+    USERS=(rows||[]).map(r=>({id:r.id,email:r.email,senha:r.senha,role:r.role,nome:r.nome,foto:r.foto||null,acessos:r.acessos||[]}));
+  }catch(e){
+    console.error('Erro ao carregar usuários:',e);
+    showToast('Erro ao carregar usuários: '+e.message,'error');
+  }
+}
+
+async function dbUserInsert(user){
+  const payload={email:user.email,senha:user.senha,role:user.role,nome:user.nome,foto:user.foto||null,acessos:user.acessos||[]};
+  const rows=await sbFetch('users','POST',payload);
+  return rows&&rows[0]?rows[0]:null;
+}
+
+async function dbUserUpdate(id,data){
+  await sbFetch('users?id=eq.'+id,'PATCH',data);
+}
+
+async function dbUserDelete(id){
+  await sbFetch('users?id=eq.'+id,'DELETE');
+}
+
+loadUsers();
+
+const COLORS=['#E53935','#D81B60','#8E24AA','#5E35B1','#3949AB','#1E88E5','#039BE5','#00ACC1','#00897B','#43A047','#7CB342','#C0CA33','#FDD835','#FFB300','#FB8C00','#F4511E','#6D4C41','#546E7A','#1565C0','#283593','#6A1B9A','#AD1457','#558B2F','#00695C','#FF5C00','#00B2C8','#00C07A','#FF9800','#607D8B','#795548','#009688','#9C27B0'];
+const MONTHS_PT=['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+const WEEKDAYS=['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
+const CAT_LABELS={COMERCIAL:'Comercial',CONTEUDO:'Conteúdo',EVENTOS:'Eventos'};
+const CANAIS={
+  inbound:{wa:'WhatsApp',sms:'SMS',email:'E-mail'},
+  rede_social:{instagram:'Instagram',facebook:'Facebook',linkedin:'LinkedIn',blog:'Blog',outros:'Outros'},
+  performance:{meta_ads:'Meta Ads',google_ads:'Google Ads'}
+};
+
+let currentUser=null,currentYear=new Date().getFullYear(),currentMonth=new Date().getMonth();
+let editingId=null,detailId=null,selectedColor=COLORS[0],selectedCat='COMERCIAL';
+let campaigns=[];
+
+function showLoading(){document.getElementById('loading-bar').style.display='block';}
+function hideLoading(){document.getElementById('loading-bar').style.display='none';}
+let toastTimer;
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast '+type;t.style.display='block';
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.style.display='none';},3000);
+}
+
+// ── FILTROS ───────────────────────────────────────────────────────
+const fpState={cal:{categorias:[],estrategias:[],canais:[]},res:{categoria:null}};
+
+function togglePanel(ctx){
+  const panel=document.getElementById('fp-'+ctx);
+  const btn=document.getElementById('btn-filtro-'+ctx);
+  const isOpen=panel.classList.contains('fp-open');
+  closeAllPanels();
+  if(!isOpen){panel.classList.add('fp-open');btn.classList.add('fp-open');}
+}
+function closeAllPanels(){
+  document.querySelectorAll('.filtro-panel').forEach(p=>p.classList.remove('fp-open'));
+  document.querySelectorAll('.btn-filtro').forEach(b=>b.classList.remove('fp-open'));
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.filter-wrap'))closeAllPanels();});
+
+function toggleChip(ctx,key,val){
+  if(ctx==='cal'){
+    const arr=fpState[ctx][key];
+    const idx=arr.indexOf(val);
+    if(idx>-1)arr.splice(idx,1);
+    else arr.push(val);
+  }else{
+    fpState[ctx][key]=fpState[ctx][key]===val?null:val;
+  }
+  syncChips(ctx);renderAll();
+}
+function limparFiltros(ctx){
+  if(ctx==='cal'){
+    fpState[ctx].categorias=[];
+    fpState[ctx].estrategias=[];
+    fpState[ctx].canais=[];
+  }else{
+    Object.keys(fpState[ctx]).forEach(k=>fpState[ctx][k]=null);
+  }
+  syncChips(ctx);renderAll();
+}
+function toggleAllFilters(ctx,key){
+  const s=fpState[ctx];
+  if(key==='categoria'){
+    const allSelected=['COMERCIAL','CONTEUDO','EVENTOS'].every(v=>s.categorias.includes(v));
+    s.categorias=allSelected?[]:['COMERCIAL','CONTEUDO','EVENTOS'];
+  }else if(key==='estrategia'){
+    const allSelected=['inbound','rede_social','performance'].every(v=>s.estrategias.includes(v));
+    s.estrategias=allSelected?[]:['inbound','rede_social','performance'];
+  }else if(key==='canal'){
+    const allCanais=['wa','email','sms','instagram','facebook','linkedin','blog','outros','meta_ads','google_ads'];
+    const allSelected=allCanais.every(v=>s.canais.includes(v));
+    s.canais=allSelected?[]:[...allCanais];
+  }
+  syncChips(ctx);renderAll();
+}
+function syncChips(ctx){
+  const s=fpState[ctx];
+  if(ctx==='cal'){
+    ['COMERCIAL','CONTEUDO','EVENTOS'].forEach(v=>{const el=document.getElementById('fpc-'+ctx+'-'+v);if(el)el.classList.toggle('fpa',s.categorias.includes(v));});
+    ['inbound','rede_social','performance'].forEach(v=>{const el=document.getElementById('fpc-'+ctx+'-'+v);if(el)el.classList.toggle('fpa',s.estrategias.includes(v));});
+    ['wa','email','sms','instagram','facebook','linkedin','blog','outros','meta_ads','google_ads'].forEach(v=>{const el=document.getElementById('fpc-'+ctx+'-'+v);if(el)el.classList.toggle('fpa',s.canais.includes(v));});
+    const n=s.categorias.length+s.estrategias.length+s.canais.length;
+    const cnt=document.getElementById('fcnt-'+ctx);
+    const btn=document.getElementById('btn-filtro-'+ctx);
+    cnt.style.display=n>0?'inline-flex':'none';cnt.textContent=n;
+    btn.classList.toggle('has-filter',n>0);
+  }else{
+    ['COMERCIAL','CONTEUDO','EVENTOS'].forEach(v=>{const el=document.getElementById('fpc-'+ctx+'-'+v);if(el)el.classList.toggle('fpa',s.categoria===v);});
+    const n=Object.values(s).filter(v=>v!==null).length;
+    const cnt=document.getElementById('fcnt-'+ctx);
+    const btn=document.getElementById('btn-filtro-'+ctx);
+    if(cnt){cnt.style.display=n>0?'inline-flex':'none';cnt.textContent=n;}
+    if(btn)btn.classList.toggle('has-filter',n>0);
+  }
+}
+function getFiltered(ctx){
+  const s=fpState[ctx];
+  const searchEl=document.getElementById(ctx==='cal'?'search-cal':'search-res');
+  const q=searchEl?searchEl.value.trim().toLowerCase():'';
+  const isUser=currentUser&&currentUser.role==='user';
+  return campaigns.filter(c=>{
+    if(isUser&&c.categoria!=='COMERCIAL')return false;
+    if(ctx==='cal'){
+      if(s.categorias.length>0&&!s.categorias.includes(c.categoria))return false;
+      if(s.estrategias.length>0){
+        const hasEst=s.estrategias.some(e=>{
+          if(e==='inbound')return(c.inbound.wa||[]).length||(c.inbound.email||[]).length||(c.inbound.sms||[]).length;
+          if(e==='rede_social')return(c.rede_social.instagram||[]).length||(c.rede_social.facebook||[]).length||(c.rede_social.linkedin||[]).length||(c.rede_social.blog||[]).length||(c.rede_social.outros||[]).length;
+          if(e==='performance')return(c.performance.meta_ads||[]).length||(c.performance.google_ads||[]).length;
+          return false;
+        });
+        if(!hasEst)return false;
+      }
+      if(s.canais.length>0){
+        const canalMap={
+          wa:'inbound.wa',email:'inbound.email',sms:'inbound.sms',
+          instagram:'rede_social.instagram',facebook:'rede_social.facebook',linkedin:'rede_social.linkedin',blog:'rede_social.blog',outros:'rede_social.outros',
+          meta_ads:'performance.meta_ads',google_ads:'performance.google_ads'
+        };
+        const hasCanal=s.canais.some(ch=>{const path=canalMap[ch];const parts=path.split('.');return(c[parts[0]][parts[1]]||[]).length;});
+        if(!hasCanal)return false;
+      }
+    }else{
+      if(s.categoria&&c.categoria!==s.categoria)return false;
+    }
+    if(q&&!c.name.toLowerCase().includes(q))return false;
+    return true;
+  });
+}
+
+// ── SUPABASE CRUD ─────────────────────────────────────────────────
+async function loadCampaigns(){
+  showLoading();
+  try{
+    const mesStr=currentYear+'-'+String(currentMonth+1).padStart(2,'0');
+    const monthStart=mesStr+'-01';
+    const dim=new Date(currentYear,currentMonth+1,0).getDate();
+    const monthEnd=mesStr+'-'+String(dim).padStart(2,'0');
+    const rows=await sbFetch('campaigns?select=*&or=(inicio.lte.'+monthEnd+',fim.gte.'+monthStart+')&order=inicio.asc');
+    campaigns=(rows||[]).map(rowToLocal);
+    renderAll();
+  }catch(e){
+    showToast('Erro ao carregar campanhas: '+e.message,'error');
+  }finally{hideLoading();}
+}
+
+async function dbInsert(data){
+  const payload={
+    name:data.name,color:data.color,categoria:data.categoria,
+    inicio:data.inicio,fim:data.fim,briefing:data.briefing||'',defesa:data.defesa||'',tags:data.tags||'',
+    inbound_wa:data.inbound_wa||[],inbound_email:data.inbound_email||[],inbound_sms:data.inbound_sms||[],
+    rede_social_instagram:data.rede_social_instagram||[],rede_social_facebook:data.rede_social_facebook||[],rede_social_linkedin:data.rede_social_linkedin||[],rede_social_blog:data.rede_social_blog||[],rede_social_outros:data.rede_social_outros||[],
+    performance_meta_ads:data.performance_meta_ads||[],
+    performance_meta_ads_inicio:data.performance_meta_ads_inicio||'',
+    performance_meta_ads_fim:data.performance_meta_ads_fim||'',
+    performance_google_ads:data.performance_google_ads||[],
+    performance_google_ads_inicio:data.performance_google_ads_inicio||'',
+    performance_google_ads_fim:data.performance_google_ads_fim||'',
+    mes_ref:getMesRef(data.inicio)
+  };
+  const rows=await sbFetch('campaigns','POST',payload);
+  return rows&&rows[0]?rowToLocal(rows[0]):null;
+}
+
+async function dbUpdate(id,data){
+  const payload={
+    name:data.name,color:data.color,categoria:data.categoria,
+    inicio:data.inicio,fim:data.fim,briefing:data.briefing||'',defesa:data.defesa||'',tags:data.tags||'',
+    inbound_wa:data.inbound_wa||[],inbound_email:data.inbound_email||[],inbound_sms:data.inbound_sms||[],
+    rede_social_instagram:data.rede_social_instagram||[],rede_social_facebook:data.rede_social_facebook||[],rede_social_linkedin:data.rede_social_linkedin||[],rede_social_blog:data.rede_social_blog||[],rede_social_outros:data.rede_social_outros||[],
+    performance_meta_ads:data.performance_meta_ads||[],
+    performance_meta_ads_inicio:data.performance_meta_ads_inicio||'',
+    performance_meta_ads_fim:data.performance_meta_ads_fim||'',
+    performance_google_ads:data.performance_google_ads||[],
+    performance_google_ads_inicio:data.performance_google_ads_inicio||'',
+    performance_google_ads_fim:data.performance_google_ads_fim||'',
+    mes_ref:getMesRef(data.inicio)
+  };
+  await sbFetch('campaigns?id=eq.'+id,'PATCH',payload);
+}
+
+async function dbDelete(id){
+  await sbFetch('campaigns?id=eq.'+id,'DELETE');
+}
+
+// ── AUTH ──────────────────────────────────────────────────────────
+function showForgotPassword(){
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('forgot-password-screen').classList.add('active');
+}
+function backToLogin(){
+  document.getElementById('forgot-password-screen').classList.remove('active');
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('inp-forgot-email').value='';
+  document.getElementById('forgot-error').style.display='none';
+  document.getElementById('forgot-success').style.display='none';
+}
+function doForgotPassword(){
+  const email=document.getElementById('inp-forgot-email').value.trim();
+  const user=USERS.find(u=>u.email===email);
+  const errorEl=document.getElementById('forgot-error');
+  const successEl=document.getElementById('forgot-success');
+  errorEl.style.display='none';successEl.style.display='none';
+  if(!user){errorEl.textContent='E-mail não encontrado no sistema.';errorEl.style.display='block';return;}
+  successEl.textContent='Instruções de recuperação foram enviadas para '+email+'.';
+  successEl.style.display='block';
+  setTimeout(()=>{backToLogin();},3000);
+}
+function recordAccess(){
+  if(!currentUser)return;
+  const now=new Date();
+  const accessStr=now.toLocaleString('pt-BR');
+  if(!currentUser.acessos)currentUser.acessos=[];
+  currentUser.acessos.unshift(accessStr);
+  if(currentUser.acessos.length>3)currentUser.acessos.pop();
+  dbUserUpdate(currentUser.id,{acessos:currentUser.acessos}).catch(e=>console.error('Erro ao salvar acesso:',e));
+}
+async function doLogin(){
+  const email=document.getElementById('inp-email').value.trim();
+  const senha=document.getElementById('inp-senha').value;
+  if(!email||!senha){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail e senha são obrigatórios';return;}
+  await loadUsers();
+  const user=USERS.find(u=>u.email===email&&u.senha===senha);
+  if(!user){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail ou senha incorretos';return;}
+  currentUser=user;
+  recordAccess();
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('topbar-email').textContent=user.email.toUpperCase();
+  const rb=document.getElementById('role-badge');
+  rb.textContent=user.role==='admin'?'Administrador':'Usuário';
+  rb.className='role-badge '+(user.role==='admin'?'admin':'user');
+  updateUserMenu();
+  applyRoleRestrictions();
+  loadCampaigns().catch(e=>console.error('Erro ao carregar campanhas:',e));
+}
+function updateUserMenu(){
+  const initial=currentUser.nome.charAt(0);
+  document.getElementById('user-avatar-btn').textContent=initial;
+  document.getElementById('dropdown-name').textContent=currentUser.nome;
+  document.getElementById('dropdown-email').textContent=currentUser.email;
+  const avatarEl=document.getElementById('dropdown-avatar');
+  if(currentUser.foto){avatarEl.innerHTML='<img src="'+currentUser.foto+'" alt="Avatar">';}
+  else{avatarEl.textContent=initial;}
+}
+function toggleUserMenu(){
+  const dropdown=document.getElementById('user-dropdown');
+  dropdown.classList.toggle('open');
+  document.addEventListener('click',e=>{if(!e.target.closest('.user-menu'))dropdown.classList.remove('open');});
+}
+function applyRoleRestrictions(){
+  const isUser=currentUser.role==='user';
+  document.getElementById('nav-cal').style.display=isUser?'none':'';
+  document.getElementById('nav-dash').style.display=isUser?'none':'';
+  document.getElementById('nav-usuarios').style.display=isUser?'none':'';
+  document.getElementById('btn-nova-camp').style.display=isUser?'none':'';
+  if(isUser)showView('resumo');
+}
+function doLogout(){
+  currentUser=null;campaigns=[];
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('inp-email').value='';
+  document.getElementById('inp-senha').value='';
+  ['nav-cal','nav-dash','nav-usuarios','btn-nova-camp'].forEach(id=>document.getElementById(id).style.display='');
+}
+document.getElementById('inp-senha').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ── VIEWS ─────────────────────────────────────────────────────────
+function showView(v){
+  ['calendario','resumo','dashboard','usuarios'].forEach(n=>document.getElementById('view-'+n).classList.toggle('active',v===n));
+  document.getElementById('nav-cal').classList.toggle('active',v==='calendario');
+  document.getElementById('nav-res').classList.toggle('active',v==='resumo');
+  document.getElementById('nav-dash').classList.toggle('active',v==='dashboard');
+  document.getElementById('nav-usuarios').classList.toggle('active',v==='usuarios');
+  if(v==='resumo')renderResumo();
+  if(v==='dashboard')renderDashboard();
+  if(v==='usuarios')renderUsuarios();
+}
+function renderAll(){renderDispatch();renderGantt();renderSidebar();renderResumo();if(document.getElementById('view-dashboard').classList.contains('active'))renderDashboard();}
+
+// ── HELPERS ───────────────────────────────────────────────────────
+function fmt(d){const[y,m,dd]=d.split('-');return dd+'/'+m;}
+function fmtFull(d){const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y;}
+function toDate(s){return new Date(s+'T00:00:00');}
+function toStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function getStatus(c){
+  const t=new Date();t.setHours(0,0,0,0);const ts=toStr(t);
+  if(c.fim<ts)return{label:'Encerrada',color:'var(--gray-400)'};
+  if(c.inicio>ts)return{label:'Em Breve',color:'var(--purple)'};
+  const diff=Math.round((toDate(c.fim)-t)/86400000);
+  return diff<=2?{label:'🔥 Encerra em '+diff+' dia'+(diff!==1?'s':''),color:'var(--red)'}:{label:'Ativa · '+diff+' dias restantes',color:'var(--green)'};
+}
+function catBadge(cat){return cat&&CAT_LABELS[cat]?'<span class="cat-badge cat-'+cat+'">'+CAT_LABELS[cat]+'</span>':'';}
+function darken(hex,p){let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return'rgb('+Math.max(0,Math.round(r*(1-p/100)))+','+Math.max(0,Math.round(g*(1-p/100)))+','+Math.max(0,Math.round(b*(1-p/100)))+')'; }
+function changeMonth(d){
+  currentMonth+=d;
+  if(currentMonth>11){currentMonth=0;currentYear++;}
+  if(currentMonth<0){currentMonth=11;currentYear--;}
+  loadCampaigns();
+}
+
+// ── DISPATCH ──────────────────────────────────────────────────────
+function renderDispatch(){
+  document.getElementById('cal-month-label').textContent=MONTHS_PT[currentMonth]+' '+currentYear;
+  const today=new Date();today.setHours(0,0,0,0);
+  const dim=new Date(currentYear,currentMonth+1,0).getDate();
+  const firstDay=new Date(currentYear,currentMonth,1).getDay();
+  const cont=document.getElementById('dispatch-grid');cont.innerHTML='';
+  const hrow=document.createElement('div');hrow.className='week-row header';
+  WEEKDAYS.forEach(n=>{const h=document.createElement('div');h.className='week-header-cell';h.textContent=n;hrow.appendChild(h);});
+  cont.appendChild(hrow);
+  const filtered=getFiltered('cal');
+  let week=[];for(let i=0;i<firstDay;i++){week.push(null);}
+  for(let d=1;d<=dim;d++){
+    const dt=new Date(currentYear,currentMonth,d);
+    const str=toStr(dt);
+    week.push({d,str});
+    if(week.length===7){renderWeekRow(week,filtered,cont,today);week=[];}
+  }
+  if(week.length>0){while(week.length<7){week.push(null);}renderWeekRow(week,filtered,cont,today);}
+}
+
+function renderWeekRow(week,filtered,cont,today){
+  const row=document.createElement('div');row.className='week-row';
+  week.forEach(day=>{
+    const cell=document.createElement('div');cell.className='day-cell';
+    if(!day){cell.classList.add('empty');row.appendChild(cell);return;}
+    if(day.d===today.getDate()&&currentMonth===today.getMonth()&&currentYear===today.getFullYear())cell.classList.add('today');
+    cell.innerHTML='<div class="day-num">'+day.d+'</div>';
+    filtered.forEach(cp=>{
+      [
+        [cp.inbound.wa,'INB-WPP',0],
+        [cp.inbound.email,'INB-EMAIL',18],
+        [cp.inbound.sms,'INB-SMS',35],
+        [cp.rede_social.instagram,'SOC-INST',52],
+        [cp.rede_social.facebook,'SOC-FACE',70],
+        [cp.rede_social.linkedin,'SOC-LINK',88],
+        [cp.rede_social.blog,'SOC-BLOG',106],
+        [cp.rede_social.outros,'SOC-OUT',124],
+        [cp.performance.meta_ads,'PERF-META',142],
+        [cp.performance.google_ads,'PERF-GOO',160]
+      ].forEach(([dates,lbl,dk])=>{
+        if((dates||[]).includes(day.str)){
+          const bar=document.createElement('div');bar.className='dispatch-bar';
+          bar.style.background=darken(cp.color,dk);bar.textContent=cp.name+' ['+lbl+']';bar.title=cp.name+' ['+lbl+']';
+          bar.onclick=()=>openDetailModal(cp.id);cell.appendChild(bar);
+        }
+      });
+    });
+    row.appendChild(cell);
+  });
+  cont.appendChild(row);
+}
+
+// ── GANTT ─────────────────────────────────────────────────────────
+function renderGantt(){
+  const dim=new Date(currentYear,currentMonth+1,0).getDate();
+  const today=new Date();today.setHours(0,0,0,0);
+  const td=(today.getMonth()===currentMonth&&today.getFullYear()===currentYear)?today.getDate():-1;
+  const ms=currentYear+'-'+String(currentMonth+1).padStart(2,'0')+'-01';
+  const me=currentYear+'-'+String(currentMonth+1).padStart(2,'0')+'-'+String(dim).padStart(2,'0');
+  const vis=getFiltered('cal').filter(c=>c.inicio<=me&&c.fim>=ms);
+  const cont=document.getElementById('gantt-container');cont.innerHTML='';
+  if(!vis.length){cont.innerHTML='<div class="gantt-empty">Nenhuma campanha neste mês.</div>';return;}
+  const tbl=document.createElement('table');tbl.className='gantt-table';
+  const thead=document.createElement('thead');const hr=document.createElement('tr');
+  for(let d=1;d<=dim;d++){const th=document.createElement('th');th.textContent=d;if(d===td)th.classList.add('today-col');hr.appendChild(th);}
+  thead.appendChild(hr);tbl.appendChild(thead);
+  const tbody=document.createElement('tbody');
+  vis.forEach(c=>{
+    const tr=document.createElement('tr');
+    const sd=Math.max(1,toDate(c.inicio).getMonth()===currentMonth&&toDate(c.inicio).getFullYear()===currentYear?toDate(c.inicio).getDate():1);
+    const ed=Math.min(dim,toDate(c.fim).getMonth()===currentMonth&&toDate(c.fim).getFullYear()===currentYear?toDate(c.fim).getDate():dim);
+    for(let d=1;d<=dim;d++){
+      const td2=document.createElement('td');if(d===td)td2.classList.add('today-col');
+      if(d===sd){
+        td2.colSpan=ed-sd+1;
+        const bar=document.createElement('div');bar.className='gantt-cell-bar';bar.style.background=c.color;
+        bar.textContent=c.name;bar.title=c.name+' · '+fmtFull(c.inicio)+' – '+fmtFull(c.fim);
+        bar.onclick=()=>openDetailModal(c.id);td2.appendChild(bar);tr.appendChild(td2);d=ed;
+      }else if(d<sd||d>ed){tr.appendChild(td2);}
+    }
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);cont.appendChild(tbl);
+}
+
+// ── SIDEBAR ───────────────────────────────────────────────────────
+function renderSidebar(){
+  const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);
+  const active=getFiltered('cal').filter(c=>c.inicio<=ts&&c.fim>=ts);
+  document.getElementById('active-count').textContent=active.length;
+  const list=document.getElementById('sidebar-active-list');list.innerHTML='';
+  if(!active.length){list.innerHTML='<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';return;}
+  active.forEach(c=>{
+    const diff=Math.round((toDate(c.fim)-today)/86400000);const urg=diff<=2;
+    const item=document.createElement('div');item.className='camp-item';item.style.borderLeftColor=c.color;
+    item.innerHTML=catBadge(c.categoria)+'<div class="camp-item-name">'+c.name+(urg?' 🔥':'')+'</div><div class="camp-item-vig"><span>VIGÊNCIA</span><span>'+fmt(c.inicio)+' – '+fmt(c.fim)+'</span></div><div class="camp-item-dias '+(urg?'urgent':'normal')+'">'+(diff===0?'Encerra hoje':diff+' dias restantes')+'</div>';
+    item.onclick=()=>openDetailModal(c.id);list.appendChild(item);
+  });
+}
+
+// ── RESUMO ────────────────────────────────────────────────────────
+function renderResumo(){
+  const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);
+  renderResumoCalendar();
+  const f=getFiltered('res');
+  const cols={breve:f.filter(c=>c.inicio>ts),ativas:f.filter(c=>c.inicio<=ts&&c.fim>=ts),encerradas:f.filter(c=>c.fim<ts)};
+  Object.entries(cols).forEach(([key,list])=>{
+    const col=document.getElementById('col-'+key);col.innerHTML='';
+    if(!list.length){col.innerHTML='<p class="empty-col">Nenhuma campanha.</p>';return;}
+    list.forEach((c,i)=>{
+      const diff=Math.round((toDate(c.fim)-today)/86400000);const urg=diff>=0&&diff<=1;
+      const card=document.createElement('div');card.className='resumo-card';card.style.animationDelay=(i*.07)+'s';
+      card.innerHTML=(urg?'<span class="badge-urgente">Acaba em '+diff+' dia'+(diff!==1?'s':'')+'</span>':'')+catBadge(c.categoria)+'<div class="resumo-card-name"><span class="dot" style="background:'+c.color+'"></span>'+c.name+'</div><div class="resumo-field"><label>Vigência</label><span>'+fmtFull(c.inicio)+' – '+fmtFull(c.fim)+'</span></div>'+(c.briefing?'<div class="resumo-field"><label>Briefing</label><span>'+c.briefing+'</span></div>':'')+'<div class="resumo-field"><label>Defesa</label><span>'+(c.defesa||'Sem defesa.')+'</span></div>';
+      card.onclick=()=>openDetailModal(c.id);col.appendChild(card);
+    });
+  });
+}
+function renderResumoCalendar(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const dim=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+  const cm=today.getMonth();const cy=today.getFullYear();
+  const ms=cy+'-'+String(cm+1).padStart(2,'0')+'-01';
+  const me=cy+'-'+String(cm+1).padStart(2,'0')+'-'+String(dim).padStart(2,'0');
+  const comerciais=campaigns.filter(c=>c.categoria==='COMERCIAL'&&c.inicio<=me&&c.fim>=ms);
+  const cont=document.getElementById('resumo-calendar');cont.innerHTML='';
+  if(!comerciais.length){cont.innerHTML='<div style="padding:16px;text-align:center;color:var(--gray-400);font-size:13px;">Nenhuma campanha comercial neste mês.</div>';return;}
+  const tbl=document.createElement('table');tbl.className='gantt-table';
+  const thead=document.createElement('thead');const hr=document.createElement('tr');
+  const th0=document.createElement('th');th0.textContent='Campanha';th0.style.width='180px';hr.appendChild(th0);
+  for(let d=1;d<=dim;d++){const th=document.createElement('th');th.textContent=d;if(d===today.getDate()&&today.getMonth()===cm&&today.getFullYear()===cy)th.classList.add('today-col');hr.appendChild(th);}
+  thead.appendChild(hr);tbl.appendChild(thead);
+  const tbody=document.createElement('tbody');
+  comerciais.forEach(c=>{
+    const tr=document.createElement('tr');
+    const nameCell=document.createElement('td');nameCell.style.cssText='font-weight:600;font-size:12px;padding:8px;border-right:1px solid var(--gray-200);cursor:pointer;';
+    nameCell.style.color=c.color;nameCell.textContent=c.name;nameCell.onclick=()=>openDetailModal(c.id);tr.appendChild(nameCell);
+    const sd=Math.max(1,toDate(c.inicio).getMonth()===cm&&toDate(c.inicio).getFullYear()===cy?toDate(c.inicio).getDate():1);
+    const ed=Math.min(dim,toDate(c.fim).getMonth()===cm&&toDate(c.fim).getFullYear()===cy?toDate(c.fim).getDate():dim);
+    for(let d=1;d<=dim;d++){
+      const td=document.createElement('td');if(d===today.getDate()&&today.getMonth()===cm&&today.getFullYear()===cy)td.classList.add('today-col');
+      if(d===sd){
+        td.colSpan=ed-sd+1;
+        const bar=document.createElement('div');bar.className='gantt-cell-bar';bar.style.background=c.color;bar.style.cursor='pointer';
+        bar.textContent=c.name;bar.title=fmtFull(c.inicio)+' – '+fmtFull(c.fim);bar.onclick=()=>openDetailModal(c.id);td.appendChild(bar);tr.appendChild(td);d=ed;
+      }else if(d<sd||d>ed){tr.appendChild(td);}
+    }
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);cont.appendChild(tbl);
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────────
+function renderDashboard(){
+  const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);
+  const all=campaigns;
+  const ativas=all.filter(c=>c.inicio<=ts&&c.fim>=ts);
+  const enc=all.filter(c=>c.fim<ts);const breve=all.filter(c=>c.inicio>ts);
+  const td=all.reduce((a,c)=>a+(c.inbound?.wa||[]).length+(c.inbound?.email||[]).length+(c.inbound?.sms||[]).length+(c.rede_social?.instagram||[]).length+(c.rede_social?.facebook||[]).length+(c.rede_social?.linkedin||[]).length+(c.rede_social?.blog||[]).length+(c.rede_social?.outros||[]).length+(c.performance?.meta_ads||[]).length+(c.performance?.google_ads||[]).length,0);
+  document.getElementById('dash-kpis').innerHTML='<div class="kpi-card"><div class="kpi-label">Total Campanhas</div><div class="kpi-value" style="color:var(--purple)">'+all.length+'</div><div class="kpi-sub">'+ativas.length+' ativas agora</div></div><div class="kpi-card"><div class="kpi-label">Ativas</div><div class="kpi-value" style="color:var(--green)">'+ativas.length+'</div><div class="kpi-sub">'+breve.length+' em breve</div></div><div class="kpi-card"><div class="kpi-label">Encerradas</div><div class="kpi-value" style="color:var(--gray-400)">'+enc.length+'</div><div class="kpi-sub">este período</div></div><div class="kpi-card"><div class="kpi-label">Total Ações</div><div class="kpi-value" style="color:var(--orange)">'+td+'</div><div class="kpi-sub">em todos os canais</div></div>';
+  const cc={COMERCIAL:0,CONTEUDO:0,EVENTOS:0};all.forEach(c=>{if(cc[c.categoria]!==undefined)cc[c.categoria]++;});
+  const mx=Math.max(...Object.values(cc),1);
+  const ccol={COMERCIAL:'#1E88E5',CONTEUDO:'#43A047',EVENTOS:'#FB8C00'};
+  document.getElementById('dash-cat-bars').innerHTML=Object.entries(cc).map(([k,n])=>'<div class="bar-item"><div class="bar-label">'+CAT_LABELS[k]+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.round(n/mx*100)+'%;background:'+ccol[k]+'"></div></div><div class="bar-count">'+n+'</div></div>').join('');
+  const wa=all.reduce((a,c)=>a+(c.inbound?.wa||[]).length,0),em=all.reduce((a,c)=>a+(c.inbound?.email||[]).length,0),sm=all.reduce((a,c)=>a+(c.inbound?.sms||[]).length,0),ig=all.reduce((a,c)=>a+(c.rede_social?.instagram||[]).length,0),fb=all.reduce((a,c)=>a+(c.rede_social?.facebook||[]).length,0),li=all.reduce((a,c)=>a+(c.rede_social?.linkedin||[]).length,0),bl=all.reduce((a,c)=>a+(c.rede_social?.blog||[]).length,0),ou=all.reduce((a,c)=>a+(c.rede_social?.outros||[]).length,0),ma=all.reduce((a,c)=>a+(c.performance?.meta_ads||[]).length,0),ga=all.reduce((a,c)=>a+(c.performance?.google_ads||[]).length,0);
+  document.getElementById('dash-canal-stats').innerHTML='<div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#25D366"></div>WhatsApp</div><div><div class="canal-stat-num">'+wa+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#2196F3"></div>E-mail</div><div><div class="canal-stat-num">'+em+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#FF9800"></div>SMS</div><div><div class="canal-stat-num">'+sm+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#E91E63"></div>Instagram</div><div><div class="canal-stat-num">'+ig+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#1877F2"></div>Facebook</div><div><div class="canal-stat-num">'+fb+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#0A66C2"></div>LinkedIn</div><div><div class="canal-stat-num">'+li+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#6B5CE7"></div>Blog</div><div><div class="canal-stat-num">'+bl+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#999"></div>Outros</div><div><div class="canal-stat-num">'+ou+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#1877F2"></div>Meta Ads</div><div><div class="canal-stat-num">'+ma+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#4285F4"></div>Google Ads</div><div><div class="canal-stat-num">'+ga+'</div><div class="canal-stat-sub">ações</div></div></div>';
+  const pe=[...ativas].sort((a,b)=>a.fim.localeCompare(b.fim)).slice(0,5);
+  document.getElementById('dash-encerrar').innerHTML=pe.length?pe.map(c=>{const diff=Math.round((toDate(c.fim)-today)/86400000);return'<div class="timeline-item"><div class="timeline-dot" style="background:'+c.color+'"></div><div class="timeline-content"><div class="timeline-name">'+c.name+' '+catBadge(c.categoria)+'</div><div class="timeline-date">Encerra '+fmtFull(c.fim)+' · '+(diff===0?'hoje':diff+' dia(s)')+'</div></div></div>';}).join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';
+  const disp=[];
+  all.forEach(c=>{
+    (c.inbound?.wa||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'WhatsApp [INB-WPP]',color:'#25D366',data:d,cat:c.categoria});});
+    (c.inbound?.email||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'E-mail [INB-EMAIL]',color:'#2196F3',data:d,cat:c.categoria});});
+    (c.inbound?.sms||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'SMS [INB-SMS]',color:'#FF9800',data:d,cat:c.categoria});});
+    (c.rede_social?.instagram||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Instagram [SOC-INST]',color:'#E91E63',data:d,cat:c.categoria});});
+    (c.rede_social?.facebook||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Facebook [SOC-FACE]',color:'#1877F2',data:d,cat:c.categoria});});
+    (c.rede_social?.linkedin||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'LinkedIn [SOC-LINK]',color:'#0A66C2',data:d,cat:c.categoria});});
+    (c.rede_social?.blog||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Blog [SOC-BLOG]',color:'#6B5CE7',data:d,cat:c.categoria});});
+    (c.rede_social?.outros||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Outros [SOC-OUT]',color:'#999',data:d,cat:c.categoria});});
+    (c.performance?.meta_ads||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Meta Ads [PERF-META]',color:'#1877F2',data:d,cat:c.categoria});});
+    (c.performance?.google_ads||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Google Ads [PERF-GOO]',color:'#4285F4',data:d,cat:c.categoria});});
+  });
+  disp.sort((a,b)=>a.data.localeCompare(b.data));
+  document.getElementById('dash-disparos').innerHTML=disp.slice(0,6).map(d=>'<div class="timeline-item"><div class="timeline-dot" style="background:'+d.color+'"></div><div class="timeline-content"><div class="timeline-name">'+d.nome+' '+catBadge(d.cat)+'</div><div class="timeline-date">'+d.canal+' · '+fmtFull(d.data)+'</div></div></div>').join('')||'<p style="color:var(--gray-400);font-size:12px;">Nenhum disparo futuro.</p>';
+}
+
+// ── USUARIOS ──────────────────────────────────────────────────────
+function renderUsuarios(){
+  const tbody=document.getElementById('usuarios-tbody');tbody.innerHTML='';
+  USERS.forEach(u=>{
+    const tr=document.createElement('tr');
+    const lastAccess=u.acessos&&u.acessos.length>0?u.acessos[0]:'Nunca';
+    tr.innerHTML='<td><div class="usuario-avatar-cell"><div class="usuario-avatar-small">'+(u.foto?'<img src="'+u.foto+'">':u.nome.charAt(0))+'</div><div class="usuario-info"><div class="usuario-name">'+u.nome+'</div><div class="usuario-email">'+u.email+'</div></div></div></td><td>'+u.email+'</td><td><span class="usuario-role '+(u.role==='admin'?'admin':'user')+'">'+( u.role==='admin'?'Administrador':'Usuário')+'</span></td><td class="usuario-acesso">'+lastAccess+'</td><td><div class="usuario-actions"><button class="btn-usuario-action" onclick="openEditUserModal('+u.id+')">✏️</button><button class="btn-usuario-action" onclick="viewUserDetails('+u.id+')">👁️</button>'+(currentUser.id!==u.id?'<button class="btn-usuario-action btn-usuario-delete" onclick="deleteUser('+u.id+')">🗑️</button>':'')+'</div></td>';
+    tbody.appendChild(tr);
+  });
+}
+
+let editingUserId=null;
+function openEditUserModal(userId){
+  const user=USERS.find(u=>u.id===userId);if(!user)return;
+  editingUserId=userId;
+  document.getElementById('edit-user-name').value=user.nome;
+  document.getElementById('edit-user-email').value=user.email;
+  document.getElementById('edit-user-role').value=user.role;
+  document.getElementById('edit-user-senha').value='';
+  document.getElementById('modal-edit-user').classList.add('open');
+}
+function closeEditUserModal(){document.getElementById('modal-edit-user').classList.remove('open');editingUserId=null;}
+
+function viewUserDetails(userId){
+  const user=USERS.find(u=>u.id===userId);if(!user)return;
+  alert('Usuário: '+user.nome+'\nE-mail: '+user.email+'\nPerfil: '+(user.role==='admin'?'Administrador':'Usuário')+'\nÚltimos Acessos:\n'+((user.acessos||[]).slice(0,3).join('\n')||'Nenhum acesso registrado'));
+}
+async function deleteUser(userId){
+  if(userId===currentUser.id){showToast('Você não pode deletar sua própria conta!','error');return;}
+  if(confirm('Tem certeza que deseja deletar este usuário?')){
+    showLoading();
+    try{
+      await dbUserDelete(userId);
+      const idx=USERS.findIndex(u=>u.id===userId);
+      if(idx>=0)USERS.splice(idx,1);
+      renderUsuarios();showToast('Usuário deletado com sucesso!');
+    }catch(e){showToast('Erro ao deletar usuário: '+e.message,'error');}
+    finally{hideLoading();}
+  }
+}
+
+// ── EXPORTAR ──────────────────────────────────────────────────────
+function exportarCalendario(){
+  const mes=MONTHS_PT[currentMonth],ano=currentYear;
+  const rows=getFiltered('cal').map(c=>'<tr><td><strong>'+c.name+'</strong></td><td>'+(CAT_LABELS[c.categoria]||c.categoria)+'</td><td>'+fmtFull(c.inicio)+' – '+fmtFull(c.fim)+'</td><td>'+((c.inbound?.wa||[]).map(fmtFull).join(', ')||'—')+'</td><td>'+((c.inbound?.email||[]).map(fmtFull).join(', ')||'—')+'</td><td>'+((c.inbound?.sms||[]).map(fmtFull).join(', ')||'—')+'</td></tr>').join('');
+  const html='<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Calendário '+mes+' '+ano+'</title><style>body{font-family:Arial,sans-serif;padding:24px;}h1{font-size:20px;margin-bottom:18px;}table{width:100%;border-collapse:collapse;font-size:12px;}th{background:#F0F2F7;padding:10px;text-align:left;font-size:10px;text-transform:uppercase;border:1px solid #E2E6EF;}td{padding:10px;border:1px solid #E2E6EF;vertical-align:top;}tr:nth-child(even) td{background:#F8F9FC;}</style></head><body><h1>Calendário · '+mes+' '+ano+' · Fotus</h1><table><thead><tr><th>Campanha</th><th>Categoria</th><th>Vigência</th><th>WhatsApp</th><th>E-mail</th><th>SMS</th></tr></thead><tbody>'+rows+'</tbody></table></body></html>';
+  const a=document.createElement('a');
+  a.setAttribute('href','data:text/html;charset=utf-8,'+encodeURIComponent(html));
+  a.setAttribute('download','calendario-fotus-'+mes.toLowerCase()+'-'+ano+'.html');
+  a.style.display='none';document.body.appendChild(a);a.click();
+  setTimeout(()=>document.body.removeChild(a),100);
+}
+
+// ── COLOR PICKER ──────────────────────────────────────────────────
+function buildColorPicker(cur){
+  selectedColor=cur||COLORS[0];
+  const sw=document.getElementById('color-swatches');sw.innerHTML='';
+  COLORS.forEach(hex=>{
+    const dot=document.createElement('div');dot.className='color-dot'+(hex.toLowerCase()===selectedColor.toLowerCase()?' selected':'');
+    dot.style.background=hex;dot.title=hex;
+    dot.onclick=()=>{setPickerColor(hex);sw.querySelectorAll('.color-dot').forEach(d=>d.classList.remove('selected'));dot.classList.add('selected');};
+    sw.appendChild(dot);
+  });
+  document.getElementById('color-native').value=selectedColor;
+  document.getElementById('color-hex-input').value=selectedColor;
+  document.getElementById('color-preview').style.background=selectedColor;
+}
+function setPickerColor(hex){selectedColor=hex;document.getElementById('color-native').value=hex;document.getElementById('color-hex-input').value=hex;document.getElementById('color-preview').style.background=hex;}
+function onNativeColor(hex){setPickerColor(hex);document.getElementById('color-swatches').querySelectorAll('.color-dot').forEach(d=>d.classList.remove('selected'));}
+function onHexInput(hex){if(/^#[0-9A-F]{6}$/i.test(hex))setPickerColor(hex);}
+
+// ── CATEGORIA ─────────────────────────────────────────────────────
+function selectCat(cat){
+  selectedCat=cat;
+  ['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(c===cat?' sel-'+c:'');});
+}
+
+// ── CANAL DATES ───────────────────────────────────────────────────
+function addCanalDate(canal,value=''){
+  const c=document.getElementById('canal-'+canal);
+  const row=document.createElement('div');row.className='canal-date-row';
+  row.innerHTML='<input class="form-input" type="date" value="'+value+'"><button class="btn-remove-date" onclick="this.parentElement.remove();">✕</button>';
+  c.appendChild(row);
+}
+function getCanalDates(canal){return[...document.getElementById('canal-'+canal).querySelectorAll('input')].map(i=>i.value).filter(Boolean);}
+function clearCanals(){
+  ['inbound_wa','inbound_email','inbound_sms','rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros','performance_meta_ads','performance_google_ads'].forEach(c=>document.getElementById('canal-'+c).innerHTML='');
+  // Clear performance date ranges
+  ['perf-meta-inicio','perf-meta-fim','perf-google-inicio','perf-google-fim'].forEach(id=>document.getElementById(id).value='');
+}
+
+// ── FORM MODAL ────────────────────────────────────────────────────
+function openNewModal(){
+  if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem criar campanhas','error');return;}
+  editingId=null;
+  document.getElementById('form-title').textContent='Detalhes da Campanha';
+  document.getElementById('btn-form-save').textContent='GRAVAR CAMPANHA';
+  document.getElementById('btn-form-save').className='btn-save';
+  document.getElementById('btn-delete-camp').style.display='none';
+  ['f-nome','f-inicio','f-fim','f-briefing','f-defesa','f-tags'].forEach(id=>document.getElementById(id).value='');
+  clearCanals();buildColorPicker(COLORS[0]);selectCat('COMERCIAL');
+  document.getElementById('modal-form').classList.add('open');
+}
+function openEditModal(id){
+  if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem editar campanhas','error');return;}
+  const c=campaigns.find(x=>x.id===id);if(!c)return;
+  editingId=id;
+  document.getElementById('form-title').textContent='Atualizar Campanha';
+  document.getElementById('btn-form-save').textContent='SALVAR ALTERAÇÕES';
+  document.getElementById('btn-form-save').className='btn-save update';
+  document.getElementById('btn-delete-camp').style.display='block';
+  document.getElementById('f-nome').value=c.name;
+  document.getElementById('f-inicio').value=c.inicio;
+  document.getElementById('f-fim').value=c.fim;
+  document.getElementById('f-briefing').value=c.briefing||'';
+  document.getElementById('f-defesa').value=c.defesa||'';
+  document.getElementById('f-tags').value=c.tags||'';
+  clearCanals();
+  (c.inbound.wa||[]).forEach(d=>addCanalDate('inbound_wa',d));
+  (c.inbound.email||[]).forEach(d=>addCanalDate('inbound_email',d));
+  (c.inbound.sms||[]).forEach(d=>addCanalDate('inbound_sms',d));
+  (c.rede_social.instagram||[]).forEach(d=>addCanalDate('rede_social_instagram',d));
+  (c.rede_social.facebook||[]).forEach(d=>addCanalDate('rede_social_facebook',d));
+  (c.rede_social.linkedin||[]).forEach(d=>addCanalDate('rede_social_linkedin',d));
+  (c.rede_social.blog||[]).forEach(d=>addCanalDate('rede_social_blog',d));
+  (c.rede_social.outros||[]).forEach(d=>addCanalDate('rede_social_outros',d));
+  (c.performance.meta_ads||[]).forEach(d=>addCanalDate('performance_meta_ads',d));
+  document.getElementById('perf-meta-inicio').value=c.performance.meta_ads_inicio||'';
+  document.getElementById('perf-meta-fim').value=c.performance.meta_ads_fim||'';
+  (c.performance.google_ads||[]).forEach(d=>addCanalDate('performance_google_ads',d));
+  document.getElementById('perf-google-inicio').value=c.performance.google_ads_inicio||'';
+  document.getElementById('perf-google-fim').value=c.performance.google_ads_fim||'';
+  buildColorPicker(c.color);selectCat(c.categoria||'COMERCIAL');
+  document.getElementById('modal-form').classList.add('open');
+}
+function closeFormModal(){document.getElementById('modal-form').classList.remove('open');}
+
+async function saveCampaign(){
+  const name=document.getElementById('f-nome').value.trim();
+  const inicio=document.getElementById('f-inicio').value;
+  const fim=document.getElementById('f-fim').value;
+  if(!name||!inicio||!fim){showToast('Preencha nome e datas','error');return;}
+  if(inicio>fim){showToast('Data início deve ser anterior ao fim','error');return;}
+  const data={
+    name:name.toUpperCase(),color:selectedColor,categoria:selectedCat,inicio,fim,
+    briefing:document.getElementById('f-briefing').value.trim(),
+    defesa:document.getElementById('f-defesa').value.trim(),
+    tags:document.getElementById('f-tags').value.trim(),
+    inbound_wa:getCanalDates('inbound_wa'),
+    inbound_email:getCanalDates('inbound_email'),
+    inbound_sms:getCanalDates('inbound_sms'),
+    rede_social_instagram:getCanalDates('rede_social_instagram'),
+    rede_social_facebook:getCanalDates('rede_social_facebook'),
+    rede_social_linkedin:getCanalDates('rede_social_linkedin'),
+    rede_social_blog:getCanalDates('rede_social_blog'),
+    rede_social_outros:getCanalDates('rede_social_outros'),
+    performance_meta_ads:getCanalDates('performance_meta_ads'),
+    performance_meta_ads_inicio:document.getElementById('perf-meta-inicio').value,
+    performance_meta_ads_fim:document.getElementById('perf-meta-fim').value,
+    performance_google_ads:getCanalDates('performance_google_ads'),
+    performance_google_ads_inicio:document.getElementById('perf-google-inicio').value,
+    performance_google_ads_fim:document.getElementById('perf-google-fim').value
+  };
+  const btn=document.getElementById('btn-form-save');
+  btn.disabled=true;btn.textContent='Salvando...';
+  showLoading();
+  try{
+    if(editingId){
+      await dbUpdate(editingId,data);
+      const idx=campaigns.findIndex(c=>c.id===editingId);
+      if(idx>=0){
+        const updated={...campaigns[idx]};
+        Object.assign(updated,{name:data.name,color:data.color,categoria:data.categoria,inicio:data.inicio,fim:data.fim,briefing:data.briefing,defesa:data.defesa,tags:data.tags});
+        updated.inbound={wa:data.inbound_wa,sms:data.inbound_sms,email:data.inbound_email};
+        updated.rede_social={instagram:data.rede_social_instagram,facebook:data.rede_social_facebook,linkedin:data.rede_social_linkedin,blog:data.rede_social_blog,outros:data.rede_social_outros};
+        updated.performance={meta_ads:data.performance_meta_ads,meta_ads_inicio:data.performance_meta_ads_inicio,meta_ads_fim:data.performance_meta_ads_fim,google_ads:data.performance_google_ads,google_ads_inicio:data.performance_google_ads_inicio,google_ads_fim:data.performance_google_ads_fim};
+        updated.mes_ref=getMesRef(data.inicio);
+        campaigns[idx]=updated;
+      }
+      showToast('Campanha atualizada com sucesso!');
+    }else{
+      const novo=await dbInsert(data);
+      if(novo)campaigns.push(novo);
+      showToast('Campanha gravada com sucesso!');
+    }
+    closeFormModal();renderAll();
+  }catch(e){
+    showToast('Erro ao salvar: '+e.message,'error');
+  }finally{
+    hideLoading();btn.disabled=false;
+    btn.textContent=editingId?'SALVAR ALTERAÇÕES':'GRAVAR CAMPANHA';
+  }
+}
+
+async function deleteCampaign(){
+  if(!confirm('Excluir esta campanha?'))return;
+  showLoading();
+  try{
+    await dbDelete(editingId);
+    campaigns=campaigns.filter(c=>c.id!==editingId);
+    closeFormModal();renderAll();showToast('Campanha excluída.');
+  }catch(e){showToast('Erro ao excluir: '+e.message,'error');}
+  finally{hideLoading();}
+}
+
+// ── DETAIL MODAL ──────────────────────────────────────────────────
+function openDetailModal(id){
+  const c=campaigns.find(x=>x.id===id);if(!c)return;
+  detailId=id;
+  document.getElementById('detail-color-bar').style.background=c.color;
+  document.getElementById('detail-name').textContent=c.name;
+  document.getElementById('detail-cat-badge').innerHTML=catBadge(c.categoria);
+  document.getElementById('detail-vig').textContent=fmtFull(c.inicio)+' – '+fmtFull(c.fim);
+  const st=getStatus(c);
+  document.getElementById('detail-status').innerHTML='<span style="color:'+st.color+';font-weight:600">'+st.label+'</span>';
+  document.getElementById('detail-briefing').textContent=c.briefing||'—';
+  document.getElementById('detail-defesa').textContent=c.defesa||'—';
+  const canais=document.getElementById('detail-canais');canais.innerHTML='';
+  const canalData=[
+    [c.inbound.wa,'WhatsApp','#25D366'],
+    [c.inbound.email,'E-mail','#2196F3'],
+    [c.inbound.sms,'SMS','#FF9800'],
+    [c.rede_social.instagram,'Instagram','#E91E63'],
+    [c.rede_social.facebook,'Facebook','#1877F2'],
+    [c.rede_social.linkedin,'LinkedIn','#0A66C2'],
+    [c.rede_social.blog,'Blog','#6B5CE7'],
+    [c.rede_social.outros,'Outros','#9BA3B8'],
+    [c.performance.meta_ads,'Meta Ads','#1877F2'],
+    [c.performance.google_ads,'Google Ads','#4285F4']
+  ];
+  // Show performance periods if set
+  let perfPeriods='';
+  if(c.performance.meta_ads_inicio&&c.performance.meta_ads_fim){perfPeriods+='<div style="font-size:11px;color:var(--gray-600);margin-top:6px;">Meta Ads: '+fmtFull(c.performance.meta_ads_inicio)+' – '+fmtFull(c.performance.meta_ads_fim)+'</div>';}
+  if(c.performance.google_ads_inicio&&c.performance.google_ads_fim){perfPeriods+='<div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Google Ads: '+fmtFull(c.performance.google_ads_inicio)+' – '+fmtFull(c.performance.google_ads_fim)+'</div>';}
+  canalData.forEach(([dates,lbl,col])=>{
+    (dates||[]).forEach(d=>{const t=document.createElement('span');t.className='canal-tag';t.innerHTML='<span class="dot" style="background:'+col+'"></span>'+lbl+': '+fmtFull(d);canais.appendChild(t);});
+  });
+  if(perfPeriods){const pd=document.createElement('div');pd.innerHTML=perfPeriods;canais.appendChild(pd);}
+  if(!canais.innerHTML)canais.innerHTML='<span style="color:var(--gray-400);font-size:13px;">Nenhum canal configurado.</span>';
+  document.getElementById('btn-edit-from-detail').style.display=(currentUser&&currentUser.role==='user')?'none':'';
+  document.getElementById('modal-detail').classList.add('open');
+}
+function closeDetailModal(){document.getElementById('modal-detail').classList.remove('open');}
+function editFromDetail(){
+  if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem editar campanhas','error');return;}
+  closeDetailModal();openEditModal(detailId);
+}
+
+// ── PROFILE MODAL ─────────────────────────────────────────────────
+function openProfileModal(){
+  if(!currentUser)return;
+  document.getElementById('profile-name').textContent=currentUser.nome;
+  document.getElementById('profile-email').textContent=currentUser.email;
+  document.getElementById('profile-role').textContent=currentUser.role==='admin'?'Administrador':'Usuário';
+  const initial=currentUser.nome.charAt(0);
+  const avatarEl=document.getElementById('profile-avatar-display');
+  if(currentUser.foto){avatarEl.innerHTML='<img src="'+currentUser.foto+'" alt="Avatar">';}
+  else{avatarEl.textContent=initial;}
+  document.getElementById('profile-admin-fields').style.display=currentUser.role==='admin'?'block':'none';
+  if(currentUser.role==='admin'){document.getElementById('profile-name-edit').value=currentUser.nome;}
+  const historyEl=document.getElementById('access-history-list');historyEl.innerHTML='';
+  if(currentUser.acessos&&currentUser.acessos.length>0){
+    currentUser.acessos.slice(0,3).forEach(acesso=>{const item=document.createElement('div');item.className='access-item';item.innerHTML='<div class="access-date">'+acesso+'</div>';historyEl.appendChild(item);});
+  }else{historyEl.innerHTML='<div class="access-item"><div class="access-date">Nenhum acesso registrado</div></div>';}
+  document.getElementById('modal-profile').classList.add('open');
+}
+function closeProfileModal(){
+  document.getElementById('modal-profile').classList.remove('open');
+  document.getElementById('profile-current-password').value='';
+  document.getElementById('profile-new-password').value='';
+  document.getElementById('profile-confirm-password').value='';
+}
+function uploadAvatar(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    currentUser.foto=e.target.result;
+    document.getElementById('profile-avatar-display').innerHTML='<img src="'+e.target.result+'" alt="Avatar">';
+    updateUserMenu();
+    dbUserUpdate(currentUser.id,{foto:e.target.result}).then(()=>{showToast('Foto de perfil atualizada!');}).catch(err=>{showToast('Erro ao salvar foto: '+err.message,'error');});
+  };
+  reader.readAsDataURL(file);
+}
+async function updatePassword(){
+  const current=document.getElementById('profile-current-password').value;
+  const newPass=document.getElementById('profile-new-password').value;
+  const confirmPass=document.getElementById('profile-confirm-password').value;
+  if(!current||!newPass||!confirmPass){showToast('Preencha todos os campos de senha','error');return;}
+  if(current!==currentUser.senha){showToast('Senha atual incorreta','error');return;}
+  if(newPass!==confirmPass){showToast('As novas senhas não conferem','error');return;}
+  if(newPass.length<6){showToast('A nova senha deve ter pelo menos 6 caracteres','error');return;}
+  showLoading();
+  try{
+    await dbUserUpdate(currentUser.id,{senha:newPass});
+    currentUser.senha=newPass;
+    document.getElementById('profile-current-password').value='';
+    document.getElementById('profile-new-password').value='';
+    document.getElementById('profile-confirm-password').value='';
+    showToast('Senha alterada com sucesso!');
+  }catch(e){showToast('Erro ao alterar senha: '+e.message,'error');}
+  finally{hideLoading();}
+}
+async function saveProfileChanges(){
+  showLoading();
+  try{
+    const updateData={};
+    if(currentUser.role==='admin'){
+      const newName=document.getElementById('profile-name-edit').value.trim();
+      if(newName){updateData.nome=newName.toUpperCase();currentUser.nome=newName.toUpperCase();}
+    }
+    if(Object.keys(updateData).length>0){await dbUserUpdate(currentUser.id,updateData);}
+    updateUserMenu();closeProfileModal();showToast('Perfil atualizado com sucesso!');
+  }catch(e){showToast('Erro ao salvar perfil: '+e.message,'error');}
+  finally{hideLoading();}
+}
+function openNewUserModal(){
+  editingUserId=null;
+  document.getElementById('edit-user-name').value='';
+  document.getElementById('edit-user-email').value='';
+  document.getElementById('edit-user-role').value='user';
+  document.getElementById('edit-user-senha').value='';
+  document.getElementById('modal-edit-user-title').textContent='Novo Usuário';
+  document.getElementById('btn-save-user').textContent='CRIAR USUÁRIO';
+  document.getElementById('modal-edit-user').classList.add('open');
+}
+async function saveUserChanges(){
+  showLoading();
+  try{
+    if(editingUserId===null){
+      const email=document.getElementById('edit-user-email').value.trim();
+      const role=document.getElementById('edit-user-role').value;
+      const senha=document.getElementById('edit-user-senha').value.trim()||'senha123';
+      if(!email){showToast('E-mail não pode estar vazio','error');hideLoading();return;}
+      if(USERS.find(u=>u.email===email)){showToast('E-mail já cadastrado','error');hideLoading();return;}
+      const nome=(document.getElementById('edit-user-name').value.trim()||email.split('@')[0]).toUpperCase();
+      const newUser={email,senha,role,nome,foto:null,acessos:[]};
+      const created=await dbUserInsert(newUser);
+      if(created){USERS.push({id:created.id,email:created.email,senha:created.senha,role:created.role,nome:created.nome,foto:created.foto||null,acessos:created.acessos||[]});}
+      showToast('Usuário criado com sucesso!');
+    }else{
+      const user=USERS.find(u=>u.id===editingUserId);if(!user){hideLoading();return;}
+      const newName=document.getElementById('edit-user-name').value.trim().toUpperCase();
+      const newRole=document.getElementById('edit-user-role').value;
+      const newSenha=document.getElementById('edit-user-senha').value.trim();
+      if(!newName){showToast('Nome não pode estar vazio','error');hideLoading();return;}
+      const updateData={nome:newName,role:newRole};
+      if(newSenha)updateData.senha=newSenha;
+      await dbUserUpdate(editingUserId,updateData);
+      user.nome=newName;user.role=newRole;if(newSenha)user.senha=newSenha;
+      showToast('Usuário atualizado com sucesso!');
+    }
+    closeEditUserModal();renderUsuarios();
+  }catch(e){showToast('Erro ao salvar usuário: '+e.message,'error');}
+  finally{hideLoading();}
+}
+
+['modal-form','modal-detail','modal-profile','modal-edit-user'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',e=>{if(e.target===document.getElementById(id))document.getElementById(id).classList.remove('open');});
+});
+</script>
+</body>
+</html>
