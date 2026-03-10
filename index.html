@@ -426,14 +426,14 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="view-toprow">
       <input type="text" class="search-input" id="search-cal" placeholder="🔍 Buscar campanha..." oninput="renderAll()">
       <div class="filter-wrap">
-        <button class="btn-filtro" id="btn-filtro-cal" onclick="togglePanel('cal',event)">
+        <button class="btn-filtro" id="btn-filtro-cal" onclick="togglePanel('cal')">
           ⚙ Filtros
           <span class="filtro-count" id="fcnt-cal" style="display:none">0</span>
           <span class="f-arrow">▾</span>
         </button>
-        <div class="filtro-panel" id="fp-cal">
+        <div class="filtro-panel" id="fp-cal" onclick="event.stopPropagation()">
           <div class="fp-section">
-            <div class="fp-label">Categoria <button class="btn-todos-filtro" onclick="toggleAllFilters('cal','categoria')">Todos</button></div>
+            <div class="fp-label">Categoria</div>
             <div class="fp-chips">
               <button class="fp-chip cat-com" id="fpc-cal-COMERCIAL" onclick="toggleChip('cal','categoria','COMERCIAL')">Comercial</button>
               <button class="fp-chip cat-cont" id="fpc-cal-CONTEUDO" onclick="toggleChip('cal','categoria','CONTEUDO')">Conteúdo</button>
@@ -442,7 +442,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
           </div>
           <div class="fp-divider"></div>
           <div class="fp-section">
-            <div class="fp-label">Estratégia <button class="btn-todos-filtro" onclick="toggleAllFilters('cal','estrategia')">Todos</button></div>
+            <div class="fp-label">Estratégia</div>
             <div class="fp-chips">
               <button class="fp-chip est-inb" id="fpc-cal-inbound" onclick="toggleChip('cal','estrategia','inbound')">Inbound</button>
               <button class="fp-chip est-soc" id="fpc-cal-rede_social" onclick="toggleChip('cal','estrategia','rede_social')">Rede Social</button>
@@ -451,7 +451,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
           </div>
           <div class="fp-divider"></div>
           <div class="fp-section">
-            <div class="fp-label">Canais <button class="btn-todos-filtro" onclick="toggleAllFilters('cal','canal')">Todos</button></div>
+            <div class="fp-label">Canais</div>
             <div class="fp-chips">
               <button class="fp-chip ch-wa" id="fpc-cal-wa" onclick="toggleChip('cal','canal','wa')">WhatsApp</button>
               <button class="fp-chip ch-email" id="fpc-cal-email" onclick="toggleChip('cal','canal','email')">E-mail</button>
@@ -902,8 +902,7 @@ function showToast(msg,type='success'){
 // ── FILTROS ───────────────────────────────────────────────────────
 const fpState={cal:{categorias:[],estrategias:[],canais:[]},res:{categoria:null}};
 
-function togglePanel(ctx,event){
-  if(event){event.stopPropagation();}
+function togglePanel(ctx){
   const panel=document.getElementById('fp-'+ctx);
   const btn=document.getElementById('btn-filtro-'+ctx);
   const isOpen=panel.classList.contains('fp-open');
@@ -914,7 +913,12 @@ function closeAllPanels(){
   document.querySelectorAll('.filtro-panel').forEach(p=>p.classList.remove('fp-open'));
   document.querySelectorAll('.btn-filtro').forEach(b=>b.classList.remove('fp-open'));
 }
-document.addEventListener('click',e=>{if(!e.target.closest('.filter-wrap'))closeAllPanels();});
+// Fecha o painel apenas se o clique for fora de qualquer .filter-wrap ou .filtro-panel
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.filter-wrap') && !e.target.closest('.filtro-panel')){
+    closeAllPanels();
+  }
+});
 
 function toggleChip(ctx,key,val){
   if(ctx==='cal'){
