@@ -871,7 +871,10 @@ async function dbUserDelete(id){
   await sbFetch('users?id=eq.'+id,'DELETE');
 }
 
-loadUsers();
+// Tentar restaurar sessão ao carregar a página
+loadUsers().then(()=>{
+  restoreSession();
+});
 
 // Helper: uppercase preserving Portuguese chars
 function toUpper(str){ return str.toLocaleUpperCase('pt-BR'); }
@@ -1089,6 +1092,45 @@ function doForgotPassword(){
   successEl.style.display='block';
   setTimeout(()=>{backToLogin();},3000);
 }
+// ── SESSÃO (24h) ─────────────────────────────────────────────────
+const SESSION_KEY='fotus_session';
+const SESSION_TTL=24*60*60*1000; // 24 horas em ms
+
+function saveSession(user){
+  const session={userId:user.id,expiresAt:Date.now()+SESSION_TTL};
+  localStorage.setItem(SESSION_KEY,JSON.stringify(session));
+}
+function clearSession(){
+  localStorage.removeItem(SESSION_KEY);
+}
+function getValidSession(){
+  try{
+    const raw=localStorage.getItem(SESSION_KEY);
+    if(!raw)return null;
+    const session=JSON.parse(raw);
+    if(Date.now()>session.expiresAt){clearSession();return null;}
+    return session;
+  }catch(e){clearSession();return null;}
+}
+async function restoreSession(){
+  const session=getValidSession();
+  if(!session)return false;
+  await loadUsers();
+  const user=USERS.find(u=>u.id===session.userId);
+  if(!user){clearSession();return false;}
+  currentUser=user;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('topbar-email').textContent=user.email.toUpperCase();
+  const rb=document.getElementById('role-badge');
+  rb.textContent=user.role==='admin'?'Administrador':'Usuário';
+  rb.className='role-badge '+(user.role==='admin'?'admin':'user');
+  updateUserMenu();
+  applyRoleRestrictions();
+  loadCampaigns().catch(e=>console.error('Erro ao carregar campanhas:',e));
+  return true;
+}
+
 function recordAccess(){
   if(!currentUser)return;
   const now=new Date();
@@ -1106,6 +1148,7 @@ async function doLogin(){
   const user=USERS.find(u=>u.email===email&&u.senha===senha);
   if(!user){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail ou senha incorretos';return;}
   currentUser=user;
+  saveSession(user);
   recordAccess();
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app').style.display='block';
@@ -1141,6 +1184,7 @@ function applyRoleRestrictions(){
 }
 function doLogout(){
   currentUser=null;campaigns=[];
+  clearSession();
   document.getElementById('app').style.display='none';
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('inp-email').value='';
