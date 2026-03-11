@@ -3,9 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FOTUS: PLANNER MARKETING TESTE</title>
+<title>FOTUS: PLANNER MARKETING</title>
 <link rel="icon" href="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" type="image/png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -129,8 +132,13 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .btn-limpar:hover{background:#FFF5F5;}
 
 /* EXPORT BUTTON */
-.btn-export{display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--gray-200);background:white;color:var(--gray-600);transition:all .15s;margin-left:auto;white-space:nowrap;}
+.btn-export{display:flex;align-items:center;gap:6px;padding:9px 16px;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:1.5px solid var(--gray-200);background:white;color:var(--gray-600);transition:all .15s;white-space:nowrap;}
 .btn-export:hover{background:var(--gray-100);border-color:var(--gray-400);}
+.export-dropdown{position:relative;margin-left:auto;}
+.export-menu{display:none;position:absolute;right:0;top:calc(100% + 6px);background:white;border:1.5px solid var(--gray-200);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:999;min-width:180px;overflow:hidden;}
+.export-menu.open{display:block;}
+.export-option{padding:10px 16px;font-size:13px;font-family:'Sora',sans-serif;cursor:pointer;color:var(--gray-700);transition:background .12s;}
+.export-option:hover{background:var(--gray-100);}
 
 /* CALENDÁRIO */
 .cal-layout{display:flex;gap:20px;align-items:flex-start;}
@@ -488,7 +496,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <div class="login-card">
     <div class="logo-badge"><img src="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" alt="Fotus"></div>
     <h1>Acesso ao Painel</h1>
-    <p class="subtitle">FOTUS: PLANNER MARKETING TESTE</p>
+    <p class="subtitle">FOTUS: PLANNER MARKETING</p>
     <input class="inp" type="email" id="inp-email" placeholder="E-mail">
     <input class="inp" type="password" id="inp-senha" placeholder="Senha">
     <button class="btn-login" onclick="doLogin()">ENTRAR</button>
@@ -504,7 +512,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <div class="forgot-card">
     <div class="logo-badge"><img src="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" alt="Fotus"></div>
     <h1>Recuperar Senha</h1>
-    <p class="subtitle">FOTUS: PLANNER MARKETING TESTE</p>
+    <p class="subtitle">FOTUS: PLANNER MARKETING</p>
     <p>Digite seu e-mail para receber instruções de recuperação de senha.</p>
     <input class="inp" type="email" id="inp-forgot-email" placeholder="E-mail cadastrado">
     <button class="btn-login" onclick="doForgotPassword()">ENVIAR INSTRUÇÕES</button>
@@ -521,11 +529,11 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <div class="topbar">
     <div class="topbar-logo">
       <div class="badge" style="background:transparent;padding:0;width:48px;height:48px;"><img src="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" alt="Fotus" style="width:100%;height:100%;object-fit:contain;border-radius:8px;"></div>
-      <div><div class="app-name">FOTUS: PLANNER MARKETING TESTE</div></div>
+      <div><div class="app-name">FOTUS: PLANNER MARKETING</div></div>
     </div>
     <nav class="topbar-nav">
       <button class="nav-btn active" id="nav-cal" onclick="showView('calendario')">Calendário</button>
-      <button class="nav-btn" id="nav-res" onclick="showView('resumo')">Campanhas Comerciais</button>
+      <button class="nav-btn" id="nav-res" onclick="showView('resumo')">Resumo Mensal</button>
       <button class="nav-btn" id="nav-dash" onclick="showView('dashboard')">Dashboard</button>
       <button class="nav-btn" id="nav-usuarios" onclick="showView('usuarios')">Usuários</button>
     </nav>
@@ -565,7 +573,14 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
         <button class="cal-cat-tab tab-cont" id="tab-cat-CONTEUDO" onclick="setCatTab('CONTEUDO')">Conteúdo</button>
         <button class="cal-cat-tab tab-ev" id="tab-cat-EVENTOS" onclick="setCatTab('EVENTOS')">Eventos</button>
       </div>
-      <button class="btn-export" onclick="exportarCalendario()">📥 Exportar Calendário</button>
+      <div class="export-dropdown" id="exp-cal-wrap">
+        <button class="btn-export" onclick="toggleExportMenu('cal')">📥 Exportar <span style="font-size:10px">▼</span></button>
+        <div class="export-menu" id="exp-cal-menu">
+          <div class="export-option" onclick="exportarCalendario('csv')">📄 CSV</div>
+          <div class="export-option" onclick="exportarCalendario('xlsx')">📊 Excel (XLSX)</div>
+          <div class="export-option" onclick="exportarCalendario('pdf')">📑 PDF</div>
+        </div>
+      </div>
     </div>
     <div class="cal-layout">
       <div class="cal-main">
@@ -600,10 +615,10 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <!-- RESUMO -->
   <div class="view" id="view-resumo">
     <div class="view-toprow" id="resumo-toprow">
-      <h2 style="margin:0;font-size:24px;font-weight:700;">Campanhas Comerciais</h2>
+      <h2 style="margin:0;font-size:24px;font-weight:700;">Resumo de Campanhas</h2>
       <input type="text" class="search-input" id="search-res" placeholder="🔍 Buscar campanha..." oninput="renderResumo()" style="margin-left:16px;">
     </div>
-    <h3 style="font-size:16px;font-weight:700;margin-top:32px;margin-bottom:16px;"></h3>
+    <h3 style="font-size:16px;font-weight:700;margin-top:32px;margin-bottom:16px;">Calendário de Campanhas Comerciais</h3>
     <div id="resumo-calendar" style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);"></div>
     <div class="resumo-cols" style="margin-top:32px;">
       <div>
@@ -625,7 +640,14 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <div class="view" id="view-dashboard">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
       <h2 style="font-size:24px;font-weight:700;">Dashboard de Marketing</h2>
-      <button class="btn-export" onclick="exportarDashboard()">📥 Exportar Dashboard</button>
+      <div class="export-dropdown" id="exp-dash-wrap">
+        <button class="btn-export" onclick="toggleExportMenu('dash')">📥 Exportar <span style="font-size:10px">▼</span></button>
+        <div class="export-menu" id="exp-dash-menu">
+          <div class="export-option" onclick="exportarDashboard('csv')">📄 CSV</div>
+          <div class="export-option" onclick="exportarDashboard('xlsx')">📊 Excel (XLSX)</div>
+          <div class="export-option" onclick="exportarDashboard('pdf')">📑 PDF</div>
+        </div>
+      </div>
     </div>
 
     <!-- FILTRO DE PERÍODO -->
@@ -2066,82 +2088,111 @@ async function deleteUser(userId){
 }
 
 // ── EXPORTAR ──────────────────────────────────────────────────────
+// ── EXPORT HELPERS ────────────────────────────────────────────────
+function toggleExportMenu(tipo){
+  const menu=document.getElementById('exp-'+tipo+'-menu');
+  const isOpen=menu.classList.contains('open');
+  document.querySelectorAll('.export-menu').forEach(m=>m.classList.remove('open'));
+  if(!isOpen) menu.classList.add('open');
+}
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.export-dropdown')) document.querySelectorAll('.export-menu').forEach(m=>m.classList.remove('open'));
+});
+
 function csvEscape(v){
   const s=String(v??'').replace(/"/g,'""');
   return /[,;"\n\r]/.test(s)?'"'+s+'"':s;
 }
 function downloadCSV(filename,rows){
   const csv=rows.map(r=>r.map(csvEscape).join(';')).join('\n');
-  const bom='\uFEFF'; // BOM para Excel reconhecer UTF-8
+  const bom='\uFEFF';
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(bom+csv);
   a.download=filename;a.style.display='none';
   document.body.appendChild(a);a.click();
   setTimeout(()=>document.body.removeChild(a),100);
 }
-
-function exportarCalendario(){
-  const mes=MONTHS_PT[currentMonth],ano=currentYear;
-  const header=['Campanha','Categoria','Status','Vigência Início','Vigência Fim','Tags',
-    'WA Disparos','Email Disparos','SMS Disparos',
-    'Instagram','Facebook','LinkedIn','Blog','Outros',
-    'Meta Ads Disparos','Meta Ads Início','Meta Ads Fim',
-    'Google Ads Disparos','Google Ads Início','Google Ads Fim'];
-  const rows=getFiltered('cal').map(c=>[
-    c.name,
-    (Array.isArray(c.categoria)?c.categoria.map(x=>CAT_LABELS[x]||x):CAT_LABELS[c.categoria]||c.categoria),
-    c.status||'ativa',
-    c.inicio, c.fim, c.tags||'',
-    (c.inbound?.wa||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
-    (c.inbound?.email||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
-    (c.inbound?.sms||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
-    (c.rede_social?.instagram||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
-    (c.rede_social?.facebook||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
-    (c.rede_social?.linkedin||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
-    (c.rede_social?.blog||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
-    (c.rede_social?.outros||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
-    (c.performance?.meta_ads||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
-    c.performance?.meta_ads_inicio||'',
-    c.performance?.meta_ads_fim||'',
-    (c.performance?.google_ads||[]).map(x=>typeof x==='object'?(x.nome?x.nome+' ('+x.data+')':x.data):x).join(', '),
-    c.performance?.google_ads_inicio||'',
-    c.performance?.google_ads_fim||''
-  ]);
-  downloadCSV('calendario-fotus-'+mes.toLowerCase()+'-'+ano+'.csv',[header,...rows]);
+function downloadXLSX(filename, sheets){
+  // sheets: [{name, rows}]
+  const wb=XLSX.utils.book_new();
+  sheets.forEach(({name,rows})=>{
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    // Estilo de cabeçalho (largura automática)
+    const cols=rows[0]?.map((_,i)=>({wch:Math.max(12,...rows.map(r=>String(r[i]??'').length))}));
+    if(cols) ws['!cols']=cols;
+    XLSX.utils.book_append_sheet(wb,ws,name.slice(0,31));
+  });
+  XLSX.writeFile(wb,filename);
+}
+function downloadPDF(filename, title, header, rows, landscape=false){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation: landscape?'landscape':'portrait', unit:'mm', format:'a4'});
+  // Cabeçalho
+  doc.setFontSize(14);doc.setFont('helvetica','bold');
+  doc.setTextColor(13,81,142);
+  doc.text('FOTUS — '+title,14,16);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.setTextColor(90,99,117);
+  doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}),14,22);
+  doc.autoTable({
+    startY:28,
+    head:[header],
+    body:rows,
+    styles:{font:'helvetica',fontSize:8,cellPadding:3},
+    headStyles:{fillColor:[13,81,142],textColor:255,fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[240,242,247]},
+    margin:{left:14,right:14},
+  });
+  doc.save(filename);
 }
 
-function exportarDashboard(){
-  const ano=currentYear;
-  const all=campaigns.filter(c=>c.mes_ref&&c.mes_ref.startsWith(ano+''));
-  const rows=[];
-  
-  // Aba 1: Resumo por campanha
-  rows.push(['=== CAMPANHAS COMERCIAIS '+ano+' ===']);
-  rows.push(['Campanha','Categoria','Status','Início','Fim','Briefing','Tags',
-    'WA','Email','SMS','Instagram','Facebook','LinkedIn','Blog','Outros','Meta Ads','Google Ads']);
-  all.forEach(c=>{
-    rows.push([
-      c.name,
-      (Array.isArray(c.categoria)?c.categoria.map(x=>CAT_LABELS[x]||x).join('+'):CAT_LABELS[c.categoria]||c.categoria),
-      c.status||'ativa',
-      c.inicio, c.fim,
-      c.briefing||'', c.tags||'',
-      (c.inbound?.wa||[]).length,
-      (c.inbound?.email||[]).length,
-      (c.inbound?.sms||[]).length,
-      (c.rede_social?.instagram||[]).length,
-      (c.rede_social?.facebook||[]).length,
-      (c.rede_social?.linkedin||[]).length,
-      (c.rede_social?.blog||[]).length,
-      (c.rede_social?.outros||[]).length,
-      (c.performance?.meta_ads||[]).length,
-      (c.performance?.google_ads||[]).length
-    ]);
-  });
+function exportarCalendario(fmt='csv'){
+  document.querySelectorAll('.export-menu').forEach(m=>m.classList.remove('open'));
+  const mes=MONTHS_PT[currentMonth], ano=currentYear;
+  const titulo='Calendário '+mes+' '+ano;
+  const fname='calendario-fotus-'+mes.toLowerCase()+'-'+ano;
+  const header=['Campanha','Categoria','Status','Início','Fim','Tags','WhatsApp','E-mail','SMS','Instagram','Facebook','LinkedIn','Blog','Outros','Meta Ads','Google Ads'];
+  const dArr=d=>Array.isArray(d)?d.join(', '):'';
+  const dataRows=getFiltered('cal').map(c=>[
+    c.name,
+    (Array.isArray(c.categoria)?c.categoria.map(x=>CAT_LABELS[x]||x).join('+'):CAT_LABELS[c.categoria]||c.categoria),
+    c.status||'ativa', c.inicio, c.fim, c.tags||'',
+    dArr(c.inbound?.wa), dArr(c.inbound?.email), dArr(c.inbound?.sms),
+    dArr(c.rede_social?.instagram), dArr(c.rede_social?.facebook), dArr(c.rede_social?.linkedin),
+    dArr(c.rede_social?.blog), dArr(c.rede_social?.outros),
+    dArr(c.performance?.meta_ads?.map(x=>typeof x==='object'?(x.inicio+(x.fim?' → '+x.fim:'')):x)),
+    dArr(c.performance?.google_ads?.map(x=>typeof x==='object'?(x.inicio+(x.fim?' → '+x.fim:'')):x))
+  ]);
+  if(fmt==='csv') downloadCSV(fname+'.csv',[header,...dataRows]);
+  else if(fmt==='xlsx') downloadXLSX(fname+'.xlsx',[{name:titulo,rows:[header,...dataRows]}]);
+  else if(fmt==='pdf') downloadPDF(fname+'.pdf',titulo,header,dataRows,true);
+}
 
-  rows.push([]);
-  rows.push(['=== TOTAIS POR CANAL ===']);
-  rows.push(['Canal','Total de Disparos']);
+async function exportarDashboard(fmt='csv'){
+  document.querySelectorAll('.export-menu').forEach(m=>m.classList.remove('open'));
+  const ano=currentYear;
+  const fname='dashboard-fotus-'+ano;
+
+  // Busca todas as campanhas do ano direto do Supabase
+  showLoading();
+  let all=[];
+  try{
+    const rows=await sbFetch('campaigns?select=*&inicio=gte.'+ano+'-01-01&inicio=lte.'+ano+'-12-31&order=inicio.asc');
+    all=(rows||[]).map(rowToLocal);
+  }catch(e){ showToast('Erro ao buscar campanhas','error'); return; }
+  finally{ hideLoading(); }
+
+  const hCamp=['Campanha','Categoria','Status','Início','Fim','Tags','WA','Email','SMS','Inst','Face','LinkedIn','Blog','Outros','Meta Ads','Google Ads'];
+  const rCamp=all.map(c=>[
+    c.name,
+    (Array.isArray(c.categoria)?c.categoria.map(x=>CAT_LABELS[x]||x).join('+'):CAT_LABELS[c.categoria]||c.categoria),
+    c.status||'ativa', c.inicio, c.fim, c.tags||'',
+    (c.inbound?.wa||[]).length,(c.inbound?.email||[]).length,(c.inbound?.sms||[]).length,
+    (c.rede_social?.instagram||[]).length,(c.rede_social?.facebook||[]).length,(c.rede_social?.linkedin||[]).length,
+    (c.rede_social?.blog||[]).length,(c.rede_social?.outros||[]).length,
+    (c.performance?.meta_ads||[]).length,(c.performance?.google_ads||[]).length
+  ]);
+
   const canaisMap={
     'WhatsApp':all.reduce((s,c)=>s+(c.inbound?.wa||[]).length,0),
     'E-mail':all.reduce((s,c)=>s+(c.inbound?.email||[]).length,0),
@@ -2154,16 +2205,27 @@ function exportarDashboard(){
     'Meta Ads':all.reduce((s,c)=>s+(c.performance?.meta_ads||[]).length,0),
     'Google Ads':all.reduce((s,c)=>s+(c.performance?.google_ads||[]).length,0),
   };
-  Object.entries(canaisMap).forEach(([k,v])=>rows.push([k,v]));
-
-  rows.push([]);
-  rows.push(['=== TOTAIS POR CATEGORIA ===']);
-  rows.push(['Categoria','Campanhas']);
+  const rCanais=Object.entries(canaisMap).map(([k,v])=>[k,v]);
   const cats={COMERCIAL:0,CONTEUDO:0,EVENTOS:0};
   all.forEach(c=>getCats(c).forEach(cat=>{if(cats[cat]!==undefined)cats[cat]++;}));
-  Object.entries(cats).forEach(([k,v])=>rows.push([CAT_LABELS[k]||k,v]));
+  const rCats=Object.entries(cats).map(([k,v])=>[CAT_LABELS[k]||k,v]);
 
-  downloadCSV('dashboard-fotus-'+ano+'.csv',rows);
+  if(fmt==='csv'){
+    const rows=[
+      ['=== CAMPANHAS '+ano+' ==='], hCamp, ...rCamp, [],
+      ['=== TOTAIS POR CANAL ==='],['Canal','Ações'],...rCanais, [],
+      ['=== TOTAIS POR CATEGORIA ==='],['Categoria','Campanhas'],...rCats
+    ];
+    downloadCSV(fname+'.csv',rows);
+  } else if(fmt==='xlsx'){
+    downloadXLSX(fname+'.xlsx',[
+      {name:'Campanhas', rows:[hCamp,...rCamp]},
+      {name:'Totais por Canal', rows:[['Canal','Ações'],...rCanais]},
+      {name:'Totais por Categoria', rows:[['Categoria','Campanhas'],...rCats]}
+    ]);
+  } else if(fmt==='pdf'){
+    downloadPDF(fname+'.pdf','Dashboard '+ano,hCamp,rCamp,true);
+  }
 }
 
 // ── COLOR PICKER ──────────────────────────────────────────────────
