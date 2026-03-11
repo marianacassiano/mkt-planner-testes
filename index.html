@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -6,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FOTUS: PLANNER MARKETING</title>
 <link rel="icon" href="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" type="image/png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -137,6 +137,13 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .cal-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:16px;}
 .cal-sidebar{width:270px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;}
 .dispatch-card{background:white;border-radius:16px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);}
+.cal-cat-tabs{display:flex;gap:6px;}
+.cal-cat-tab{padding:8px 16px;border-radius:10px;border:1.5px solid var(--gray-200);background:white;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;cursor:pointer;color:var(--gray-600);transition:all .15s;white-space:nowrap;}
+.cal-cat-tab:hover{border-color:var(--gray-400);}
+.cal-cat-tab.ativo{background:var(--purple);border-color:var(--purple);color:white;}
+.cal-cat-tab.tab-com.ativo{background:#1E88E5;border-color:#1E88E5;color:white;}
+.cal-cat-tab.tab-cont.ativo{background:#43A047;border-color:#43A047;color:white;}
+.cal-cat-tab.tab-ev.ativo{background:#FB8C00;border-color:#FB8C00;color:white;}
 .cal-month-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
 .cal-month-label{font-size:15px;font-weight:700;letter-spacing:.04em;}
 .cal-nav{display:flex;gap:6px;}
@@ -155,9 +162,14 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .day-cell.empty{background:var(--gray-50);}
 .day-num{font-size:10px;font-weight:700;color:var(--gray-400);margin-bottom:4px;font-family:'DM Mono',monospace;}
 .day-date{font-size:9px;color:var(--gray-400);font-family:'DM Mono',monospace;margin-bottom:5px;}
-.dispatch-bar{font-size:9.5px;font-weight:600;border-radius:4px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:white;transition:opacity .15s;}
-.dispatch-bar.cancelada{background:white!important;color:var(--gray-600)!important;border:1.5px solid;text-decoration:line-through;opacity:0.75!important;}
-.dispatch-bar:hover{opacity:.8;}
+.dispatch-bar{font-size:9.5px;font-weight:600;border-radius:4px;padding:2px 5px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;color:white;transition:opacity .15s;position:relative;}
+.dispatch-bar.cancelada{background:white!important;color:var(--gray-600)!important;border:2px solid #E53935!important;opacity:0.85!important;}
+.dispatch-bar.adiada{background:white!important;color:var(--gray-600)!important;border:2px solid #FFB300!important;opacity:0.85!important;}
+.dispatch-bar.concluida{background:white!important;color:var(--gray-600)!important;border:2px solid #00C07A!important;opacity:0.85!important;}
+.dispatch-bar:hover{opacity:.85;}
+.dispatch-bar:not(.cancelada):not(.adiada):not(.concluida):hover .bar-check-btn{display:flex;}
+.bar-check-btn{display:none;position:absolute;right:2px;top:50%;transform:translateY(-50%);background:rgba(0,192,122,0.15);border:none;border-radius:3px;cursor:pointer;font-size:9px;padding:1px 3px;line-height:1;align-items:center;z-index:10;}
+.bar-check-btn:hover{background:rgba(0,192,122,0.35);}
 
 /* GANTT */
 .gantt-card{background:white;border-radius:16px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow-x:auto;}
@@ -208,6 +220,9 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .resumo-field{margin-bottom:7px;}
 .resumo-field label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);display:block;margin-bottom:2px;}
 .resumo-field span{font-size:12px;font-family:'DM Mono',monospace;color:var(--gray-600);}
+.resumo-defesa{font-size:12px;color:var(--gray-600);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.btn-saiba-mais{display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:6px 14px;border-radius:8px;border:1.5px solid var(--purple-light);background:white;color:var(--purple);font-family:'Sora',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;}
+.btn-saiba-mais:hover{background:var(--purple);color:white;}
 .badge-urgente{position:absolute;top:12px;right:12px;background:var(--red);color:white;font-size:9px;font-weight:700;letter-spacing:.06em;padding:3px 8px;border-radius:6px;text-transform:uppercase;}
 .empty-col{color:var(--gray-400);font-size:13px;font-style:italic;padding:10px 0;}
 
@@ -321,8 +336,95 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .detail-value{font-size:14px;color:var(--gray-800);line-height:1.6;}
 .detail-value.mono{font-family:'DM Mono',monospace;font-size:13px;}
 .canal-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+.perf-date-pair{display:grid;grid-template-columns:1fr 1fr auto auto;gap:8px;align-items:center;margin-bottom:8px;width:100%;}
+.perf-date-pair label{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gray-400);display:block;margin-bottom:2px;}
+.camp-tag{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;background:#F3F0FF;border:1.5px solid #C4B5FD;color:#6D28D9;font-size:11px;font-weight:700;letter-spacing:.03em;}
+.camp-tags-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;}
 .canal-tag{display:inline-flex;align-items:center;gap:6px;background:var(--gray-100);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:var(--gray-600);}
 .canal-tag .dot{width:7px;height:7px;border-radius:50%;}
+
+/* RICH TEXT EDITOR */
+.rte-wrap{border:1.5px solid var(--gray-200);border-radius:10px;overflow:hidden;background:white;transition:border-color .15s;}
+.rte-wrap:focus-within{border-color:var(--purple-light);}
+.rte-toolbar{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--gray-100);background:var(--gray-50);flex-wrap:wrap;}
+.rte-btn{width:28px;height:28px;border:1.5px solid transparent;border-radius:6px;background:transparent;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;color:var(--gray-600);transition:all .12s;flex-shrink:0;}
+.rte-btn:hover{background:white;border-color:var(--gray-200);color:var(--gray-800);}
+.rte-btn.ativo{background:var(--purple);border-color:var(--purple);color:white;}
+.rte-sep{width:1px;height:20px;background:var(--gray-200);margin:0 4px;flex-shrink:0;}
+.rte-color-btn{width:28px;height:28px;border-radius:6px;border:1.5px solid var(--gray-200);cursor:pointer;padding:2px;background:white;display:flex;align-items:center;justify-content:center;}
+.rte-color-btn input[type=color]{width:18px;height:18px;border:none;padding:0;cursor:pointer;border-radius:3px;background:none;}
+.rte-body{min-height:90px;max-height:220px;overflow-y:auto;padding:10px 12px;font-family:'Sora',sans-serif;font-size:13px;color:var(--gray-800);line-height:1.6;outline:none;}
+.rte-body:empty:before{content:attr(data-placeholder);color:var(--gray-300);pointer-events:none;}
+.rte-body p{margin:0 0 4px 0;}
+.rte-body ul,.rte-body ol{margin:4px 0;padding-left:20px;}
+
+/* RICH TEXT VISUALIZAÇÃO */
+.detail-rich{font-size:13px;color:var(--gray-700);line-height:1.7;}
+.detail-rich p{margin:0 0 6px 0;}
+.detail-rich ul,.detail-rich ol{margin:4px 0;padding-left:18px;}
+.detail-rich strong{font-weight:700;}
+.detail-rich em{font-style:italic;}
+
+/* DETALHE MODAL — AÇÕES POR DATA */
+.detail-canal-section{margin-bottom:14px;}
+.detail-canal-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.detail-canal-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.detail-date-row{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;background:var(--gray-50);margin-bottom:4px;}
+.detail-date-row.st-concluida{background:#F0FBF6;border:1.5px solid #00C07A;}
+.detail-date-row.st-cancelada{background:#FFF5F5;border:1.5px solid #E53935;}
+.detail-date-row.st-adiada{background:#FFFBF0;border:1.5px solid #FFB300;}
+.detail-date-label{font-size:12px;font-weight:600;color:var(--gray-700);flex:1;font-family:'DM Mono',monospace;}
+.detail-date-estado{font-size:10px;font-weight:700;margin-right:4px;}
+.detail-state-btns{display:flex;gap:4px;flex-shrink:0;}
+.btn-state{padding:3px 7px;border-radius:6px;border:1.5px solid transparent;font-size:10px;font-weight:700;cursor:pointer;background:white;transition:all .15s;line-height:1.4;}
+.btn-state.concluir{border-color:#00C07A;color:#00C07A;}
+.btn-state.concluir:hover,.btn-state.concluir.ativo{background:#00C07A;color:white;}
+.btn-state.adiar{border-color:#FFB300;color:#FFB300;}
+.btn-state.adiar:hover,.btn-state.adiar.ativo{background:#FFB300;color:white;}
+.btn-state.cancelar{border-color:#E53935;color:#E53935;}
+.btn-state.cancelar:hover,.btn-state.cancelar.ativo{background:#E53935;color:white;}
+.detail-motivo-row{display:none;margin-top:4px;margin-bottom:4px;}
+.detail-motivo-row.visible{display:flex;align-items:center;gap:6px;}
+.detail-motivo-row input{flex:1;padding:5px 10px;border-radius:6px;border:1.5px solid var(--gray-200);font-family:'Sora',sans-serif;font-size:11px;outline:none;}
+.detail-motivo-row input:focus{border-color:var(--purple-light);}
+.btn-motivo-save{padding:4px 10px;border-radius:6px;background:var(--purple);color:white;border:none;font-size:11px;font-weight:700;cursor:pointer;}
+
+/* DASHBOARD FILTRO PERÍODO */
+.dash-periodo{background:white;border-radius:14px;padding:16px 20px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.dash-periodo label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);white-space:nowrap;}
+.dash-periodo input[type=date]{padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);outline:none;cursor:pointer;}
+.dash-periodo input[type=date]:focus{border-color:var(--purple-light);}
+.dash-atalhos{display:flex;gap:6px;flex-wrap:wrap;margin-left:8px;}
+.btn-atalho{padding:6px 12px;border-radius:8px;border:1.5px solid var(--gray-200);background:white;font-family:'Sora',sans-serif;font-size:11px;font-weight:600;cursor:pointer;color:var(--gray-600);transition:all .15s;white-space:nowrap;}
+.btn-atalho:hover{border-color:var(--purple-light);color:var(--purple);}
+.btn-atalho.ativo{background:var(--purple);border-color:var(--purple);color:white;}
+.dash-periodo-sep{color:var(--gray-300);font-size:16px;}
+
+/* CHARTS */
+.dash-chart-wrap{position:relative;width:100%;height:200px;}
+.dash-chart-wrap canvas{width:100%!important;}
+
+/* DASHBOARD INSIGHTS */
+.status-stat-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100);}
+.status-stat-row:last-child{border-bottom:none;}
+.status-stat-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;}
+.status-stat-count{font-size:22px;font-weight:700;}
+.canal-rank-row{display:flex;align-items:center;gap:10px;padding:6px 0;}
+.canal-rank-num{font-size:11px;font-weight:700;color:var(--gray-400);width:16px;text-align:center;}
+.canal-rank-bar-wrap{flex:1;}
+.canal-rank-bar{height:8px;border-radius:4px;transition:width .3s;}
+.canal-rank-label{font-size:11px;font-weight:600;color:var(--gray-600);min-width:80px;}
+.canal-rank-val{font-size:12px;font-weight:700;color:var(--gray-800);min-width:28px;text-align:right;}
+.hoje-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--gray-50);margin-bottom:6px;}
+.hoje-item-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.hoje-item-info{flex:1;}
+.hoje-item-nome{font-size:12px;font-weight:700;color:var(--gray-800);}
+.hoje-item-canal{font-size:11px;color:var(--gray-400);}
+.sem-acao-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--gray-100);}
+.sem-acao-item:last-child{border-bottom:none;}
+.sem-acao-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.sem-acao-nome{font-size:12px;font-weight:600;color:var(--gray-800);}
+.sem-acao-vig{font-size:10px;color:var(--gray-400);font-family:'DM Mono',monospace;}
 
 /* STATUS BADGES */
 .status-bar{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
@@ -457,49 +559,11 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <div class="view active" id="view-calendario">
     <div class="view-toprow">
       <input type="text" class="search-input" id="search-cal" placeholder="🔍 Buscar campanha..." oninput="renderAll()">
-      <div class="filter-wrap">
-        <button class="btn-filtro" id="btn-open-filtro-cal">
-          ⚙ Filtros
-          <span class="filtro-count" id="fcnt-cal" style="display:none">0</span>
-          <span class="f-arrow">▾</span>
-        </button>
-        <div class="filtro-panel" id="fp-cal">
-          <div class="fp-section">
-            <div class="fp-label">Categoria</div>
-            <div class="fp-chips">
-              <button class="fp-chip cat-com" id="fpc-cal-COMERCIAL" data-ctx="cal" data-key="categoria" data-val="COMERCIAL">Comercial</button>
-              <button class="fp-chip cat-cont" id="fpc-cal-CONTEUDO" data-ctx="cal" data-key="categoria" data-val="CONTEUDO">Conteúdo</button>
-              <button class="fp-chip cat-ev" id="fpc-cal-EVENTOS" data-ctx="cal" data-key="categoria" data-val="EVENTOS">Eventos</button>
-            </div>
-          </div>
-          <div class="fp-divider"></div>
-          <div class="fp-section">
-            <div class="fp-label">Estratégia</div>
-            <div class="fp-chips">
-              <button class="fp-chip est-inb" id="fpc-cal-inbound" data-ctx="cal" data-key="estrategia" data-val="inbound">Inbound</button>
-              <button class="fp-chip est-soc" id="fpc-cal-rede_social" data-ctx="cal" data-key="estrategia" data-val="rede_social">Rede Social</button>
-              <button class="fp-chip est-perf" id="fpc-cal-performance" data-ctx="cal" data-key="estrategia" data-val="performance">Performance</button>
-            </div>
-          </div>
-          <div class="fp-divider"></div>
-          <div class="fp-section">
-            <div class="fp-label">Canais</div>
-            <div class="fp-chips">
-              <button class="fp-chip ch-wa" id="fpc-cal-wa" data-ctx="cal" data-key="canal" data-val="wa">WhatsApp</button>
-              <button class="fp-chip ch-email" id="fpc-cal-email" data-ctx="cal" data-key="canal" data-val="email">E-mail</button>
-              <button class="fp-chip ch-sms" id="fpc-cal-sms" data-ctx="cal" data-key="canal" data-val="sms">SMS</button>
-              <button class="fp-chip ch-ig" id="fpc-cal-instagram" data-ctx="cal" data-key="canal" data-val="instagram">Instagram</button>
-              <button class="fp-chip ch-fb" id="fpc-cal-facebook" data-ctx="cal" data-key="canal" data-val="facebook">Facebook</button>
-              <button class="fp-chip ch-li" id="fpc-cal-linkedin" data-ctx="cal" data-key="canal" data-val="linkedin">LinkedIn</button>
-              <button class="fp-chip ch-blog" id="fpc-cal-blog" data-ctx="cal" data-key="canal" data-val="blog">Blog</button>
-              <button class="fp-chip ch-out" id="fpc-cal-outros" data-ctx="cal" data-key="canal" data-val="outros">Outros</button>
-              <button class="fp-chip ch-ma" id="fpc-cal-meta_ads" data-ctx="cal" data-key="canal" data-val="meta_ads">Meta Ads</button>
-              <button class="fp-chip ch-ga" id="fpc-cal-google_ads" data-ctx="cal" data-key="canal" data-val="google_ads">Google Ads</button>
-            </div>
-          </div>
-          <div class="fp-divider"></div>
-          <div class="fp-footer"><button class="btn-limpar" id="btn-limpar-cal">Limpar filtros</button></div>
-        </div>
+      <div class="cal-cat-tabs">
+        <button class="cal-cat-tab ativo" id="tab-cat-TODOS" onclick="setCatTab('TODOS')">Todos</button>
+        <button class="cal-cat-tab tab-com" id="tab-cat-COMERCIAL" onclick="setCatTab('COMERCIAL')">Comercial</button>
+        <button class="cal-cat-tab tab-cont" id="tab-cat-CONTEUDO" onclick="setCatTab('CONTEUDO')">Conteúdo</button>
+        <button class="cal-cat-tab tab-ev" id="tab-cat-EVENTOS" onclick="setCatTab('EVENTOS')">Eventos</button>
       </div>
       <button class="btn-export" onclick="exportarCalendario()">📥 Exportar Calendário</button>
     </div>
@@ -559,18 +623,59 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 
   <!-- DASHBOARD -->
   <div class="view" id="view-dashboard">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
       <h2 style="font-size:24px;font-weight:700;">Dashboard de Marketing</h2>
       <button class="btn-export" onclick="exportarDashboard()">📥 Exportar Dashboard</button>
     </div>
+
+    <!-- FILTRO DE PERÍODO -->
+    <div class="dash-periodo">
+      <label>Período</label>
+      <input type="date" id="dash-de" onchange="renderDashboard()">
+      <span class="dash-periodo-sep">→</span>
+      <input type="date" id="dash-ate" onchange="renderDashboard()">
+      <div class="dash-atalhos">
+        <button class="btn-atalho" onclick="setDashPeriodo('mes')" id="atalho-mes">Mês Atual</button>
+        <button class="btn-atalho" onclick="setDashPeriodo('30d')" id="atalho-30d">Últimos 30 dias</button>
+        <button class="btn-atalho" onclick="setDashPeriodo('3m')" id="atalho-3m">Últimos 3 meses</button>
+        <button class="btn-atalho" onclick="setDashPeriodo('ano')" id="atalho-ano">Este ano</button>
+      </div>
+    </div>
+
     <div class="dash-kpis" id="dash-kpis"></div>
+
+    <!-- GRÁFICOS: linha de evolução + donut categoria -->
     <div class="dash-row">
-      <div class="dash-card"><h3>Campanhas por Categoria</h3><div id="dash-cat-bars"></div></div>
-      <div class="dash-card"><h3>Ações por Canal</h3><div id="dash-canal-stats"></div></div>
+      <div class="dash-card" style="grid-column:span 2">
+        <h3>Evolução de Ações no Período</h3>
+        <div class="dash-chart-wrap" style="height:220px;"><canvas id="chart-evolucao"></canvas></div>
+      </div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-card">
+        <h3>Campanhas por Categoria</h3>
+        <div class="dash-chart-wrap" style="height:200px;"><canvas id="chart-categoria"></canvas></div>
+      </div>
+      <div class="dash-card">
+        <h3>Campanhas por Status</h3>
+        <div class="dash-chart-wrap" style="height:200px;"><canvas id="chart-status"></canvas></div>
+      </div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-card" style="grid-column:span 2">
+        <h3>Ações por Canal</h3>
+        <div class="dash-chart-wrap" style="height:240px;"><canvas id="chart-canais"></canvas></div>
+      </div>
     </div>
     <div class="dash-row">
       <div class="dash-card"><h3>Próximas a Encerrar</h3><div id="dash-encerrar"></div></div>
       <div class="dash-card"><h3>Próximas Ações</h3><div id="dash-disparos"></div></div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-card" style="grid-column:span 2"><h3>⚠️ Ações para Hoje</h3><div id="dash-hoje"></div></div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-card" style="grid-column:span 2"><h3>⚠️ Campanhas sem Ações</h3><div id="dash-sem-acoes"></div></div>
     </div>
   </div>
 
@@ -629,8 +734,42 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <div><label class="form-label">Data Fim</label><input class="form-input" type="date" id="f-fim"></div>
     </div>
     <div class="form-row2">
-      <div><label class="form-label">Briefing / Objetivo</label><textarea class="form-input" id="f-briefing" rows="3" placeholder="O que queremos comunicar?"></textarea></div>
-      <div><label class="form-label">Defesa / Regras</label><textarea class="form-input" id="f-defesa" rows="3" placeholder="Regras, condições e argumentos..."></textarea></div>
+      <div>
+        <label class="form-label">Briefing / Objetivo</label>
+        <div class="rte-wrap" id="rte-briefing-wrap">
+          <div class="rte-toolbar" data-rte="f-briefing">
+            <button type="button" class="rte-btn" title="Negrito" onclick="rteCmd('f-briefing','bold')"><b>B</b></button>
+            <button type="button" class="rte-btn" title="Itálico" onclick="rteCmd('f-briefing','italic')"><i>I</i></button>
+            <button type="button" class="rte-btn" title="Sublinhado" onclick="rteCmd('f-briefing','underline')"><u>U</u></button>
+            <div class="rte-sep"></div>
+            <button type="button" class="rte-btn" title="Lista com marcadores" onclick="rteCmd('f-briefing','insertUnorderedList')">≡</button>
+            <button type="button" class="rte-btn" title="Lista numerada" onclick="rteCmd('f-briefing','insertOrderedList')">①</button>
+            <div class="rte-sep"></div>
+            <div class="rte-color-btn" title="Cor do texto"><input type="color" value="#E53935" onchange="rteColor('f-briefing',this.value)" title="Cor"></div>
+            <div class="rte-sep"></div>
+            <button type="button" class="rte-btn" title="Limpar formatação" onclick="rteCmd('f-briefing','removeFormat')" style="font-size:11px">✕</button>
+          </div>
+          <div class="rte-body" id="f-briefing" contenteditable="true" data-placeholder="O que queremos comunicar?"></div>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Defesa / Regras</label>
+        <div class="rte-wrap" id="rte-defesa-wrap">
+          <div class="rte-toolbar" data-rte="f-defesa">
+            <button type="button" class="rte-btn" title="Negrito" onclick="rteCmd('f-defesa','bold')"><b>B</b></button>
+            <button type="button" class="rte-btn" title="Itálico" onclick="rteCmd('f-defesa','italic')"><i>I</i></button>
+            <button type="button" class="rte-btn" title="Sublinhado" onclick="rteCmd('f-defesa','underline')"><u>U</u></button>
+            <div class="rte-sep"></div>
+            <button type="button" class="rte-btn" title="Lista com marcadores" onclick="rteCmd('f-defesa','insertUnorderedList')">≡</button>
+            <button type="button" class="rte-btn" title="Lista numerada" onclick="rteCmd('f-defesa','insertOrderedList')">①</button>
+            <div class="rte-sep"></div>
+            <div class="rte-color-btn" title="Cor do texto"><input type="color" value="#E53935" onchange="rteColor('f-defesa',this.value)" title="Cor"></div>
+            <div class="rte-sep"></div>
+            <button type="button" class="rte-btn" title="Limpar formatação" onclick="rteCmd('f-defesa','removeFormat')" style="font-size:11px">✕</button>
+          </div>
+          <div class="rte-body" id="f-defesa" contenteditable="true" data-placeholder="Regras, condições e argumentos..."></div>
+        </div>
+      </div>
     </div>
     <div class="form-section">
       <label class="form-label">Tags</label>
@@ -649,6 +788,10 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="canal-block">
       <div class="canal-header"><span class="canal-title">SMS</span><button class="btn-add-canal" onclick="addCanalDate('inbound_sms')">+</button></div>
       <div class="canal-dates" id="canal-inbound_sms"></div>
+    </div>
+    <div class="canal-block">
+      <div class="canal-header"><span class="canal-title">Landing Page</span><button class="btn-add-canal" onclick="addCanalDate('inbound_lp')">+</button></div>
+      <div class="canal-dates" id="canal-inbound_lp"></div>
     </div>
     <hr class="divider">
     <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">Rede Social</h3>
@@ -672,6 +815,10 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <div class="canal-header"><span class="canal-title">Outros</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_outros')">+</button></div>
       <div class="canal-dates" id="canal-rede_social_outros"></div>
     </div>
+    <div class="canal-block">
+      <div class="canal-header"><span class="canal-title">YouTube</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_youtube')">+</button></div>
+      <div class="canal-dates" id="canal-rede_social_youtube"></div>
+    </div>
     <hr class="divider">
     <!-- ═══ ESTRATÉGIA PERFORMANCE ═══ -->
     <h3 style="font-size:14px;font-weight:700;margin:16px 0 12px;color:var(--gray-800);">Performance</h3>
@@ -680,18 +827,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="canal-block">
       <div class="canal-header">
         <span class="canal-title">Meta Ads</span>
-        <button class="btn-add-canal" onclick="addCanalDate('performance_meta_ads')">+</button>
-      </div>
-      <!-- Período de veiculação Meta Ads -->
-      <div class="perf-date-range">
-        <div>
-          <label>Data Início</label>
-          <input class="form-input" type="date" id="perf-meta-inicio">
-        </div>
-        <div>
-          <label>Data Fim</label>
-          <input class="form-input" type="date" id="perf-meta-fim">
-        </div>
+        <button class="btn-add-canal" onclick="addPerfDate('performance_meta_ads')">+</button>
       </div>
       <div class="canal-dates" id="canal-performance_meta_ads"></div>
     </div>
@@ -700,18 +836,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="canal-block">
       <div class="canal-header">
         <span class="canal-title">Google Ads</span>
-        <button class="btn-add-canal" onclick="addCanalDate('performance_google_ads')">+</button>
-      </div>
-      <!-- Período de veiculação Google Ads -->
-      <div class="perf-date-range">
-        <div>
-          <label>Data Início</label>
-          <input class="form-input" type="date" id="perf-google-inicio">
-        </div>
-        <div>
-          <label>Data Fim</label>
-          <input class="form-input" type="date" id="perf-google-fim">
-        </div>
+        <button class="btn-add-canal" onclick="addPerfDate('performance_google_ads')">+</button>
       </div>
       <div class="canal-dates" id="canal-performance_google_ads"></div>
     </div>
@@ -759,14 +884,17 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <button class="modal-close" onclick="closeDetailModal()">✕</button>
     <div class="detail-color-bar" id="detail-color-bar"></div>
     <h2 id="detail-name" style="margin-bottom:6px"></h2>
-    <div id="detail-cat-badge" style="margin-bottom:16px;"></div>
+    <div id="detail-cat-badge" style="margin-bottom:8px;"></div>
+    <div class="camp-tags-row" id="detail-tags-row"></div>
     <div class="form-row2" style="margin-bottom:0">
       <div class="detail-section"><div class="detail-label">Vigência</div><div class="detail-value mono" id="detail-vig"></div></div>
       <div class="detail-section"><div class="detail-label">Status</div><div class="detail-value" id="detail-status"></div></div>
     </div>
     <div class="detail-section"><div class="detail-label">Briefing / Objetivo</div><div class="detail-value" id="detail-briefing"></div></div>
     <div class="detail-section"><div class="detail-label">Defesa / Regras</div><div class="detail-value" id="detail-defesa"></div></div>
-    <div class="detail-section"><div class="detail-label">Ações Programadas</div><div class="canal-tags" id="detail-canais"></div></div>
+    <div id="detail-acoes-section">
+      <div class="detail-section"><div class="detail-label">Ações Programadas</div><div class="canal-tags" id="detail-canais"></div></div>
+    </div>
     <hr class="divider">
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeDetailModal()">Fechar</button>
@@ -883,20 +1011,29 @@ function rowToLocal(r){
     id:r.id,
     name:r.name,
     color:r.color,
-    categoria:r.categoria,
+    categoria:Array.isArray(r.categoria)?r.categoria:(r.categoria?[r.categoria]:[]),
     inicio:r.inicio,
     fim:r.fim,
     briefing:r.briefing||'',
     defesa:r.defesa||'',
     tags:r.tags||'',
-    inbound:{wa:r.inbound_wa||[],sms:r.inbound_sms||[],email:r.inbound_email||[]},
-    rede_social:{instagram:r.rede_social_instagram||[],facebook:r.rede_social_facebook||[],linkedin:r.rede_social_linkedin||[],blog:r.rede_social_blog||[],outros:r.rede_social_outros||[]},
+    inbound:{wa:r.inbound_wa||[],sms:r.inbound_sms||[],email:r.inbound_email||[],lp:r.inbound_lp||[]},
+    rede_social:{instagram:r.rede_social_instagram||[],facebook:r.rede_social_facebook||[],linkedin:r.rede_social_linkedin||[],blog:r.rede_social_blog||[],outros:r.rede_social_outros||[],youtube:r.rede_social_youtube||[]},
     // Meta Ads unificado (compatível com dados antigos: mescla instagram_ads + facebook_ads)
     performance:{
-      meta_ads:r.performance_meta_ads||[...(r.performance_instagram_ads||[]),...(r.performance_facebook_ads||[])],
+      meta_ads:(()=>{
+        const d=r.performance_meta_ads||[...(r.performance_instagram_ads||[]),...(r.performance_facebook_ads||[])];
+        // Se legado (array de strings), converter para [{inicio,fim}]
+        if(d.length>0&&typeof d[0]==='string') return [{inicio:d[0]||'',fim:r.performance_meta_ads_fim||''}];
+        return d;
+      })(),
       meta_ads_inicio:r.performance_meta_ads_inicio||'',
       meta_ads_fim:r.performance_meta_ads_fim||'',
-      google_ads:r.performance_google_ads||[],
+      google_ads:(()=>{
+        const d=r.performance_google_ads||[];
+        if(d.length>0&&typeof d[0]==='string') return [{inicio:d[0]||'',fim:r.performance_google_ads_fim||''}];
+        return d;
+      })(),
       google_ads_inicio:r.performance_google_ads_inicio||'',
       google_ads_fim:r.performance_google_ads_fim||''
     },
@@ -905,8 +1042,16 @@ function rowToLocal(r){
     motivo_adiamento:r.motivo_adiamento||'',
     data_adiamento:r.data_adiamento||'',
     disparos_deslocados:r.disparos_deslocados||{},
-    disparos_cancelados:r.disparos_cancelados||{}
+    disparos_cancelados:r.disparos_cancelados||{},
+    disparos_concluidos:r.disparos_concluidos||{},
+    disparos_adiados:r.disparos_adiados||{}
   };
+}
+
+function renderTags(tagsStr){
+  if(!tagsStr||!tagsStr.trim()) return '';
+  return tagsStr.split(',').map(t=>t.trim()).filter(Boolean)
+    .map(t=>'<span class="camp-tag">'+t+'</span>').join('');
 }
 
 function getMesRef(inicio){
@@ -961,8 +1106,8 @@ function getCats(c){return Array.isArray(c.categoria)?c.categoria:(c.categoria?[
 // Retorna badges de todas as categorias
 function catBadges(cats){return(Array.isArray(cats)?cats:[cats]).filter(Boolean).map(cat=>CAT_LABELS[cat]?'<span class="cat-badge cat-'+cat+'">'+CAT_LABELS[cat]+'</span>':'').join('');}
 const CANAIS={
-  inbound:{wa:'WhatsApp',sms:'SMS',email:'E-mail'},
-  rede_social:{instagram:'Instagram',facebook:'Facebook',linkedin:'LinkedIn',blog:'Blog',outros:'Outros'},
+  inbound:{wa:'WhatsApp',sms:'SMS',email:'E-mail',lp:'Landing Page'},
+  rede_social:{instagram:'Instagram',facebook:'Facebook',linkedin:'LinkedIn',blog:'Blog',outros:'Outros',youtube:'YouTube'},
   performance:{meta_ads:'Meta Ads',google_ads:'Google Ads'}
 };
 
@@ -980,139 +1125,37 @@ function showToast(msg,type='success'){
 }
 
 // ── FILTROS ───────────────────────────────────────────────────────
-const fpState={cal:{categorias:[],estrategias:[],canais:[]},res:{categoria:null}};
+const fpState={res:{categoria:null}};
+let calCatTab='TODOS'; // 'TODOS' | 'COMERCIAL' | 'CONTEUDO' | 'EVENTOS'
 
-function closeAllPanels(){
-  document.querySelectorAll('.filtro-panel').forEach(p=>p.classList.remove('fp-open'));
-  document.querySelectorAll('.btn-filtro').forEach(b=>b.classList.remove('fp-open'));
-}
-// Inicializa eventos do filtro após DOM pronto
-window.addEventListener('load', function(){
-  var btnFiltro = document.getElementById('btn-open-filtro-cal');
-  var panel = document.getElementById('fp-cal');
 
-  // Abrir/fechar painel
-  if(btnFiltro){
-    btnFiltro.addEventListener('click', function(e){
-      e.stopPropagation();
-      var isOpen = panel.classList.contains('fp-open');
-      closeAllPanels();
-      if(!isOpen){
-        panel.classList.add('fp-open');
-        btnFiltro.classList.add('fp-open');
-      }
-    });
-  }
-
-  // Chips via data-attributes — NÃO usa stopPropagation no painel
-  document.addEventListener('click', function(e){
-    // Fechar painel ao clicar fora
-    if(!e.target.closest('#fp-cal') && !e.target.closest('#btn-open-filtro-cal')){
-      closeAllPanels();
-      return;
-    }
-    // Chip clicado
-    var chip = e.target.closest('[data-ctx][data-key][data-val]');
-    if(chip){
-      var ctx = chip.dataset.ctx;
-      var key = chip.dataset.key;
-      var val = chip.dataset.val;
-      toggleChip(ctx, key, val);
-    }
-    // Botão limpar
-    if(e.target.id === 'btn-limpar-cal'){
-      limparFiltros('cal');
-    }
+// ── FILTRO POR CATEGORIA (tabs simples) ──────────────────────────
+function setCatTab(cat){
+  calCatTab = cat;
+  ['TODOS','COMERCIAL','CONTEUDO','EVENTOS'].forEach(k=>{
+    const btn = document.getElementById('tab-cat-'+k);
+    if(btn) btn.classList.toggle('ativo', k===cat);
   });
-});
+  renderAll();
+}
 
-function toggleChip(ctx,key,val){
-  if(ctx==='cal'){
-    const arr=fpState[ctx][key];
-    const idx=arr.indexOf(val);
-    if(idx>-1)arr.splice(idx,1);
-    else arr.push(val);
-  }else{
-    fpState[ctx][key]=fpState[ctx][key]===val?null:val;
-  }
-  syncChips(ctx);renderAll();
-}
-function limparFiltros(ctx){
-  if(ctx==='cal'){
-    fpState[ctx].categorias=[];
-    fpState[ctx].estrategias=[];
-    fpState[ctx].canais=[];
-  }else{
-    Object.keys(fpState[ctx]).forEach(k=>fpState[ctx][k]=null);
-  }
-  syncChips(ctx);renderAll();
-}
-function toggleAllFilters(ctx,key){
-  const s=fpState[ctx];
-  if(key==='categoria'){
-    const allSelected=['COMERCIAL','CONTEUDO','EVENTOS'].every(v=>s.categorias.includes(v));
-    s.categorias=allSelected?[]:['COMERCIAL','CONTEUDO','EVENTOS'];
-  }else if(key==='estrategia'){
-    const allSelected=['inbound','rede_social','performance'].every(v=>s.estrategias.includes(v));
-    s.estrategias=allSelected?[]:['inbound','rede_social','performance'];
-  }else if(key==='canal'){
-    const allCanais=['wa','email','sms','instagram','facebook','linkedin','blog','outros','meta_ads','google_ads'];
-    const allSelected=allCanais.every(v=>s.canais.includes(v));
-    s.canais=allSelected?[]:[...allCanais];
-  }
-  syncChips(ctx);renderAll();
-}
-function syncChips(ctx){
-  const s=fpState[ctx];
-  if(ctx==='cal'){
-    ['COMERCIAL','CONTEUDO','EVENTOS'].forEach(v=>{const el=document.getElementById('fpc-'+ctx+'-'+v);if(el)el.classList.toggle('fpa',s.categorias.includes(v));});
-    ['inbound','rede_social','performance'].forEach(v=>{const el=document.getElementById('fpc-'+ctx+'-'+v);if(el)el.classList.toggle('fpa',s.estrategias.includes(v));});
-    ['wa','email','sms','instagram','facebook','linkedin','blog','outros','meta_ads','google_ads'].forEach(v=>{const el=document.getElementById('fpc-'+ctx+'-'+v);if(el)el.classList.toggle('fpa',s.canais.includes(v));});
-    const n=s.categorias.length+s.estrategias.length+s.canais.length;
-    const cnt=document.getElementById('fcnt-'+ctx);
-    const btn=document.getElementById('btn-open-filtro-'+ctx)||document.getElementById('btn-filtro-'+ctx);
-    cnt.style.display=n>0?'inline-flex':'none';cnt.textContent=n;
-    btn.classList.toggle('has-filter',n>0);
-  }else{
-    ['COMERCIAL','CONTEUDO','EVENTOS'].forEach(v=>{const el=document.getElementById('fpc-'+ctx+'-'+v);if(el)el.classList.toggle('fpa',s.categoria===v);});
-    const n=Object.values(s).filter(v=>v!==null).length;
-    const cnt=document.getElementById('fcnt-'+ctx);
-    const btn=document.getElementById('btn-open-filtro-'+ctx)||document.getElementById('btn-filtro-'+ctx);
-    if(cnt){cnt.style.display=n>0?'inline-flex':'none';cnt.textContent=n;}
-    if(btn)btn.classList.toggle('has-filter',n>0);
-  }
-}
+
+
+
+
 function getFiltered(ctx){
-  const s=fpState[ctx];
   const searchEl=document.getElementById(ctx==='cal'?'search-cal':'search-res');
   const q=searchEl?searchEl.value.trim().toLocaleLowerCase('pt-BR'):'';
   const isUser=currentUser&&currentUser.role==='user';
   return campaigns.filter(c=>{
     if(isUser&&!getCats(c).includes('COMERCIAL'))return false;
     if(ctx==='cal'){
-      if(s.categorias.length>0&&!s.categorias.some(cat=>getCats(c).includes(cat)))return false;
-      if(s.estrategias.length>0){
-        const hasEst=s.estrategias.some(e=>{
-          if(e==='inbound')return(c.inbound.wa||[]).length||(c.inbound.email||[]).length||(c.inbound.sms||[]).length;
-          if(e==='rede_social')return(c.rede_social.instagram||[]).length||(c.rede_social.facebook||[]).length||(c.rede_social.linkedin||[]).length||(c.rede_social.blog||[]).length||(c.rede_social.outros||[]).length;
-          if(e==='performance')return(c.performance.meta_ads||[]).length||(c.performance.google_ads||[]).length;
-          return false;
-        });
-        if(!hasEst)return false;
-      }
-      if(s.canais.length>0){
-        const canalMap={
-          wa:'inbound.wa',email:'inbound.email',sms:'inbound.sms',
-          instagram:'rede_social.instagram',facebook:'rede_social.facebook',linkedin:'rede_social.linkedin',blog:'rede_social.blog',outros:'rede_social.outros',
-          meta_ads:'performance.meta_ads',google_ads:'performance.google_ads'
-        };
-        const hasCanal=s.canais.some(ch=>{const path=canalMap[ch];const parts=path.split('.');return(c[parts[0]][parts[1]]||[]).length;});
-        if(!hasCanal)return false;
-      }
+      if(calCatTab!=='TODOS'&&!getCats(c).includes(calCatTab))return false;
     }else{
-      if(s.categoria&&!getCats(c).includes(s.categoria))return false;
+      const s=fpState[ctx];
+      if(s&&s.categoria&&!getCats(c).includes(s.categoria))return false;
     }
-    if(q&&!c.name.toLocaleLowerCase('pt-BR').includes(q.toLocaleLowerCase('pt-BR')))return false;
+    if(q&&!c.name.toLocaleLowerCase('pt-BR').includes(q))return false;
     return true;
   });
 }
@@ -1135,10 +1178,11 @@ async function loadCampaigns(){
 
 async function dbInsert(data){
   const payload={
-    name:data.name,color:data.color,categoria:data.categoria,
+    name:data.name,color:data.color,
+    categoria:Array.isArray(data.categoria)?[...data.categoria]:(data.categoria?[data.categoria]:[]),
     inicio:data.inicio,fim:data.fim,briefing:data.briefing||'',defesa:data.defesa||'',tags:data.tags||'',
-    inbound_wa:data.inbound_wa||[],inbound_email:data.inbound_email||[],inbound_sms:data.inbound_sms||[],
-    rede_social_instagram:data.rede_social_instagram||[],rede_social_facebook:data.rede_social_facebook||[],rede_social_linkedin:data.rede_social_linkedin||[],rede_social_blog:data.rede_social_blog||[],rede_social_outros:data.rede_social_outros||[],
+    inbound_wa:data.inbound_wa||[],inbound_email:data.inbound_email||[],inbound_sms:data.inbound_sms||[],inbound_lp:data.inbound_lp||[],
+    rede_social_instagram:data.rede_social_instagram||[],rede_social_facebook:data.rede_social_facebook||[],rede_social_linkedin:data.rede_social_linkedin||[],rede_social_blog:data.rede_social_blog||[],rede_social_outros:data.rede_social_outros||[],rede_social_youtube:data.rede_social_youtube||[],
     performance_meta_ads:data.performance_meta_ads||[],
     performance_meta_ads_inicio:data.performance_meta_ads_inicio||'',
     performance_meta_ads_fim:data.performance_meta_ads_fim||'',
@@ -1158,10 +1202,11 @@ async function dbInsert(data){
 
 async function dbUpdate(id,data){
   const payload={
-    name:data.name,color:data.color,categoria:data.categoria,
+    name:data.name,color:data.color,
+    categoria:Array.isArray(data.categoria)?[...data.categoria]:(data.categoria?[data.categoria]:[]),
     inicio:data.inicio,fim:data.fim,briefing:data.briefing||'',defesa:data.defesa||'',tags:data.tags||'',
-    inbound_wa:data.inbound_wa||[],inbound_email:data.inbound_email||[],inbound_sms:data.inbound_sms||[],
-    rede_social_instagram:data.rede_social_instagram||[],rede_social_facebook:data.rede_social_facebook||[],rede_social_linkedin:data.rede_social_linkedin||[],rede_social_blog:data.rede_social_blog||[],rede_social_outros:data.rede_social_outros||[],
+    inbound_wa:data.inbound_wa||[],inbound_email:data.inbound_email||[],inbound_sms:data.inbound_sms||[],inbound_lp:data.inbound_lp||[],
+    rede_social_instagram:data.rede_social_instagram||[],rede_social_facebook:data.rede_social_facebook||[],rede_social_linkedin:data.rede_social_linkedin||[],rede_social_blog:data.rede_social_blog||[],rede_social_outros:data.rede_social_outros||[],rede_social_youtube:data.rede_social_youtube||[],
     performance_meta_ads:data.performance_meta_ads||[],
     performance_meta_ads_inicio:data.performance_meta_ads_inicio||'',
     performance_meta_ads_fim:data.performance_meta_ads_fim||'',
@@ -1324,10 +1369,13 @@ function showView(v){
   document.getElementById('nav-dash').classList.toggle('active',v==='dashboard');
   document.getElementById('nav-usuarios').classList.toggle('active',v==='usuarios');
   if(v==='resumo')renderResumo();
-  if(v==='dashboard')renderDashboard();
+  if(v==='dashboard'){initDashPeriodo();renderDashboard();}
   if(v==='usuarios')renderUsuarios();
 }
-function renderAll(){renderDispatch();renderGantt();renderSidebar();renderResumo();if(document.getElementById('view-dashboard').classList.contains('active'))renderDashboard();}
+function renderAll(){renderDispatch();renderGantt();renderSidebar();renderResumo();if(document.getElementById('view-dashboard').classList.contains('active')){
+    initDashPeriodo();
+    renderDashboard();
+  }}
 
 // ── HELPERS ───────────────────────────────────────────────────────
 function fmt(d){const[y,m,dd]=d.split('-');return dd+'/'+m;}
@@ -1402,23 +1450,41 @@ function renderWeekRow(week,filtered,cont,today){
           const isAdiada=cp.status==='adiada';
           const isDisparoCancelado=!isCampCancelada&&cp.disparos_cancelados&&cp.disparos_cancelados[day.str];
           const motivoDisp=isDisparoCancelado?cp.disparos_cancelados[day.str]:'';
-          bar.className='dispatch-bar'+((isCampCancelada||isDisparoCancelado)?' cancelada':'');
+          const isDisparoConcluido=!isCampCancelada&&!isDisparoCancelado&&cp.disparos_concluidos&&cp.disparos_concluidos[day.str];
+          const isDisparoAdiado=!isCampCancelada&&!isDisparoCancelado&&!isDisparoConcluido&&cp.disparos_adiados&&cp.disparos_adiados[day.str]!==undefined&&cp.disparos_adiados[day.str]!==null&&cp.disparos_adiados&&Object.prototype.hasOwnProperty.call(cp.disparos_adiados,day.str);
+
           if(isCampCancelada){
-            bar.style.borderColor=cp.color;
-            bar.textContent='❌ '+lbl;
+            bar.className='dispatch-bar cancelada';
+            bar.textContent='❌ '+cp.name+' · '+lbl;
             bar.title='Campanha cancelada · '+cp.name+' · '+lbl;
           }else if(isDisparoCancelado){
-            bar.style.borderColor=cp.color;
-            bar.textContent='🚫 '+lbl;
+            bar.className='dispatch-bar cancelada';
+            bar.textContent='❌ '+cp.name+' · '+lbl;
             bar.title='Ação cancelada'+(motivoDisp?' · '+motivoDisp:'')+' · '+cp.name+' · '+lbl;
+          }else if(isDisparoAdiado){
+            bar.className='dispatch-bar adiada';
+            const motivoAdio=cp.disparos_adiados[day.str]||'';
+            bar.textContent='⏳ '+cp.name+' · '+lbl;
+            bar.title='Ação adiada'+(motivoAdio?' · '+motivoAdio:'')+' · '+cp.name+' · '+lbl;
           }else if(isAdiada){
-            bar.style.background='#FFB74D';
-            bar.textContent='⏳ '+lbl;
+            bar.className='dispatch-bar adiada';
+            bar.textContent='⏳ '+cp.name+' · '+lbl;
             bar.title='Campanha adiada · '+cp.name+' · '+lbl;
+          }else if(isDisparoConcluido){
+            bar.className='dispatch-bar concluida';
+            bar.textContent='✅ '+cp.name+' · '+lbl;
+            bar.title='Ação concluída · '+cp.name+' · '+lbl;
           }else{
+            bar.className='dispatch-bar';
             bar.style.background=darken(cp.color,dk);
-            bar.textContent=lbl;
+            bar.textContent=cp.name+' · '+lbl;
             bar.title=cp.name+' · '+lbl;
+            const checkBtn=document.createElement('button');
+            checkBtn.className='bar-check-btn';
+            checkBtn.textContent='✅';
+            checkBtn.title='Marcar como concluída';
+            checkBtn.onclick=(e)=>{e.stopPropagation();toggleConcluido(cp.id,day.str);};
+            bar.appendChild(checkBtn);
           }
           bar.onclick=()=>openDetailModal(cp.id);cell.appendChild(bar);
         }
@@ -1501,7 +1567,17 @@ function renderResumo(){
     list.forEach((c,i)=>{
       const diff=Math.round((toDate(c.fim)-today)/86400000);const urg=diff>=0&&diff<=1;
       const card=document.createElement('div');card.className='resumo-card';card.style.animationDelay=(i*.07)+'s';
-      card.innerHTML=(urg?'<span class="badge-urgente">Acaba em '+diff+' dia'+(diff!==1?'s':'')+'</span>':'')+catBadge(c.categoria)+'<div class="resumo-card-name"><span class="dot" style="background:'+c.color+'"></span>'+c.name+'</div><div class="resumo-field"><label>Vigência</label><span>'+fmtFull(c.inicio)+' – '+fmtFull(c.fim)+'</span></div>'+(c.briefing?'<div class="resumo-field"><label>Briefing</label><span>'+c.briefing+'</span></div>':'')+'<div class="resumo-field"><label>Defesa</label><span>'+(c.defesa||'Sem defesa.')+'</span></div>';
+      const tagsHtml=renderTags(c.tags||'');
+      // Defesa como texto puro para truncar no card (sem HTML)
+      const defesaTexto=(c.defesa||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+      card.innerHTML=
+        (urg?'<span class="badge-urgente">Acaba em '+diff+' dia'+(diff!==1?'s':'')+'</span>':'')+
+        catBadge(c.categoria)+
+        '<div class="resumo-card-name"><span class="dot" style="background:'+c.color+'"></span>'+c.name+'</div>'+
+        (tagsHtml?'<div class="camp-tags-row" style="margin-bottom:10px">'+tagsHtml+'</div>':'')+
+        '<div class="resumo-field"><label>Vigência</label><span>'+fmtFull(c.inicio)+' – '+fmtFull(c.fim)+'</span></div>'+
+        (defesaTexto?'<div class="resumo-field"><label>Defesa</label><div class="resumo-defesa">'+defesaTexto+'</div></div>':'')+
+        '<button class="btn-saiba-mais" onclick="event.stopPropagation();openDetailModal('+c.id+')">Saiba mais →</button>'
       card.onclick=()=>openDetailModal(c.id);col.appendChild(card);
     });
   });
@@ -1541,19 +1617,73 @@ function renderResumoCalendar(){
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────
+// ── PERÍODO DO DASHBOARD ─────────────────────────────────────────
+let _dashAtalhoAtivo = 'mes';
+
+function setDashPeriodo(tipo){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const ts = toStr(today);
+  let de, ate = ts;
+
+  if(tipo==='mes'){
+    de = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';
+    const lastDay = new Date(today.getFullYear(), today.getMonth()+1, 0);
+    ate = toStr(lastDay);
+  } else if(tipo==='30d'){
+    const d = new Date(today); d.setDate(d.getDate()-30);
+    de = toStr(d);
+  } else if(tipo==='3m'){
+    const d = new Date(today); d.setMonth(d.getMonth()-3);
+    de = toStr(d);
+  } else if(tipo==='ano'){
+    de = today.getFullYear()+'-01-01';
+    ate = today.getFullYear()+'-12-31';
+  }
+
+  document.getElementById('dash-de').value = de;
+  document.getElementById('dash-ate').value = ate;
+  _dashAtalhoAtivo = tipo;
+
+  // Highlight atalho ativo
+  ['mes','30d','3m','ano'].forEach(k=>{
+    const btn = document.getElementById('atalho-'+k);
+    if(btn) btn.classList.toggle('ativo', k===tipo);
+  });
+
+  renderDashboard();
+}
+
+function initDashPeriodo(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const de = today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';
+  const lastDay = new Date(today.getFullYear(), today.getMonth()+1, 0);
+  const ate = toStr(lastDay);
+  document.getElementById('dash-de').value = de;
+  document.getElementById('dash-ate').value = ate;
+  const btn = document.getElementById('atalho-mes');
+  if(btn) btn.classList.add('ativo');
+}
+
 function renderDashboard(){
+  // Consolidar dados do mês atual em background
+  setTimeout(()=>consolidarMesAtual(),1500);
   const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);
-  const all=campaigns;
-  const ativas=all.filter(c=>c.inicio<=ts&&c.fim>=ts);
-  const enc=all.filter(c=>c.fim<ts);const breve=all.filter(c=>c.inicio>ts);
+
+  // ── Período selecionado ──
+  const de=document.getElementById('dash-de')?.value||'';
+  const ate=document.getElementById('dash-ate')?.value||ts;
+  const all=campaigns.filter(c=>(!de||c.fim>=de)&&c.inicio<=ate);
+
+  // KPIs filtrados pelo período
+  const ativas=all.filter(c=>c.status!=='cancelada'&&c.inicio<=ts&&c.fim>=ts);
+  const enc=all.filter(c=>c.status!=='cancelada'&&c.fim<ts);
+  const breve=all.filter(c=>c.status==='ativa'&&c.inicio>ts);
   const td=all.reduce((a,c)=>a+(c.inbound?.wa||[]).length+(c.inbound?.email||[]).length+(c.inbound?.sms||[]).length+(c.rede_social?.instagram||[]).length+(c.rede_social?.facebook||[]).length+(c.rede_social?.linkedin||[]).length+(c.rede_social?.blog||[]).length+(c.rede_social?.outros||[]).length+(c.performance?.meta_ads||[]).length+(c.performance?.google_ads||[]).length,0);
-  document.getElementById('dash-kpis').innerHTML='<div class="kpi-card"><div class="kpi-label">Total Campanhas</div><div class="kpi-value" style="color:var(--purple)">'+all.length+'</div><div class="kpi-sub">'+ativas.length+' ativas agora</div></div><div class="kpi-card"><div class="kpi-label">Ativas</div><div class="kpi-value" style="color:var(--green)">'+ativas.length+'</div><div class="kpi-sub">'+breve.length+' em breve</div></div><div class="kpi-card"><div class="kpi-label">Encerradas</div><div class="kpi-value" style="color:var(--gray-400)">'+enc.length+'</div><div class="kpi-sub">este período</div></div><div class="kpi-card"><div class="kpi-label">Total Ações</div><div class="kpi-value" style="color:var(--orange)">'+td+'</div><div class="kpi-sub">em todos os canais</div></div>';
+  document.getElementById('dash-kpis').innerHTML='<div class="kpi-card"><div class="kpi-label">Total Campanhas</div><div class="kpi-value" style="color:var(--purple)">'+all.length+'</div><div class="kpi-sub">no período</div></div><div class="kpi-card"><div class="kpi-label">Ativas</div><div class="kpi-value" style="color:var(--green)">'+ativas.length+'</div><div class="kpi-sub">'+breve.length+' em breve</div></div><div class="kpi-card"><div class="kpi-label">Encerradas</div><div class="kpi-value" style="color:var(--gray-400)">'+enc.length+'</div><div class="kpi-sub">no período</div></div><div class="kpi-card"><div class="kpi-label">Total Ações</div><div class="kpi-value" style="color:var(--orange)">'+td+'</div><div class="kpi-sub">em todos os canais</div></div>';
+  // ── Dados de canais ──
   const cc={COMERCIAL:0,CONTEUDO:0,EVENTOS:0};all.forEach(c=>{getCats(c).forEach(cat=>{if(cc[cat]!==undefined)cc[cat]++;});});
-  const mx=Math.max(...Object.values(cc),1);
-  const ccol={COMERCIAL:'#1E88E5',CONTEUDO:'#43A047',EVENTOS:'#FB8C00'};
-  document.getElementById('dash-cat-bars').innerHTML=Object.entries(cc).map(([k,n])=>'<div class="bar-item"><div class="bar-label">'+CAT_LABELS[k]+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.round(n/mx*100)+'%;background:'+ccol[k]+'"></div></div><div class="bar-count">'+n+'</div></div>').join('');
   const wa=all.reduce((a,c)=>a+(c.inbound?.wa||[]).length,0),em=all.reduce((a,c)=>a+(c.inbound?.email||[]).length,0),sm=all.reduce((a,c)=>a+(c.inbound?.sms||[]).length,0),ig=all.reduce((a,c)=>a+(c.rede_social?.instagram||[]).length,0),fb=all.reduce((a,c)=>a+(c.rede_social?.facebook||[]).length,0),li=all.reduce((a,c)=>a+(c.rede_social?.linkedin||[]).length,0),bl=all.reduce((a,c)=>a+(c.rede_social?.blog||[]).length,0),ou=all.reduce((a,c)=>a+(c.rede_social?.outros||[]).length,0),ma=all.reduce((a,c)=>a+(c.performance?.meta_ads||[]).length,0),ga=all.reduce((a,c)=>a+(c.performance?.google_ads||[]).length,0);
-  document.getElementById('dash-canal-stats').innerHTML='<div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#25D366"></div>WhatsApp</div><div><div class="canal-stat-num">'+wa+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#2196F3"></div>E-mail</div><div><div class="canal-stat-num">'+em+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#FF9800"></div>SMS</div><div><div class="canal-stat-num">'+sm+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#E91E63"></div>Instagram</div><div><div class="canal-stat-num">'+ig+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#1877F2"></div>Facebook</div><div><div class="canal-stat-num">'+fb+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#0A66C2"></div>LinkedIn</div><div><div class="canal-stat-num">'+li+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#6B5CE7"></div>Blog</div><div><div class="canal-stat-num">'+bl+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#999"></div>Outros</div><div><div class="canal-stat-num">'+ou+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#1877F2"></div>Meta Ads</div><div><div class="canal-stat-num">'+ma+'</div><div class="canal-stat-sub">ações</div></div></div><div class="canal-stat-row"><div class="canal-stat-name"><div class="canal-stat-dot" style="background:#4285F4"></div>Google Ads</div><div><div class="canal-stat-num">'+ga+'</div><div class="canal-stat-sub">ações</div></div></div>';
+  // canal stats replaced by chart below
   const pe=[...ativas].sort((a,b)=>a.fim.localeCompare(b.fim)).slice(0,5);
   document.getElementById('dash-encerrar').innerHTML=pe.length?pe.map(c=>{const diff=Math.round((toDate(c.fim)-today)/86400000);return'<div class="timeline-item"><div class="timeline-dot" style="background:'+c.color+'"></div><div class="timeline-content"><div class="timeline-name">'+c.name+' '+catBadge(c.categoria)+'</div><div class="timeline-date">Encerra '+fmtFull(c.fim)+' · '+(diff===0?'hoje':diff+' dia(s)')+'</div></div></div>';}).join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';
   const disp=[];
@@ -1570,7 +1700,317 @@ function renderDashboard(){
     (c.performance?.google_ads||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Google Ads [PERF-GOO]',color:'#4285F4',data:d,cat:c.categoria});});
   });
   disp.sort((a,b)=>a.data.localeCompare(b.data));
-  document.getElementById('dash-disparos').innerHTML=disp.slice(0,6).map(d=>'<div class="timeline-item"><div class="timeline-dot" style="background:'+d.color+'"></div><div class="timeline-content"><div class="timeline-name">'+d.nome+' '+catBadge(d.cat)+'</div><div class="timeline-date">'+d.canal+' · '+fmtFull(d.data)+'</div></div></div>').join('')||'<p style="color:var(--gray-400);font-size:12px;">Nenhum disparo futuro.</p>';
+  document.getElementById('dash-disparos').innerHTML=disp.slice(0,6).map(d=>'<div class="timeline-item"><div class="timeline-dot" style="background:'+d.color+'"></div><div class="timeline-content"><div class="timeline-name">'+d.nome+' '+catBadge(d.cat)+'</div><div class="timeline-date">'+d.canal+' · '+fmtFull(d.data)+'</div></div></div>').join('')||'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação futura.</p>';
+
+  // status e rank replaced by charts below
+
+  // ── INSIGHT 3: Ações para hoje ──
+  const hoje=[];
+  const canalMap=[
+    [c=>c.inbound?.wa||[],'WhatsApp','#25D366'],
+    [c=>c.inbound?.email||[],'E-mail','#2196F3'],
+    [c=>c.inbound?.sms||[],'SMS','#FF9800'],
+    [c=>c.rede_social?.instagram||[],'Instagram','#E91E63'],
+    [c=>c.rede_social?.facebook||[],'Facebook','#1877F2'],
+    [c=>c.rede_social?.linkedin||[],'LinkedIn','#0A66C2'],
+    [c=>c.rede_social?.blog||[],'Blog','#6B5CE7'],
+    [c=>c.rede_social?.outros||[],'Outros','#999'],
+    [c=>c.performance?.meta_ads||[],'Meta Ads','#1877F2'],
+    [c=>c.performance?.google_ads||[],'Google Ads','#4285F4'],
+  ];
+  all.forEach(c=>{
+    canalMap.forEach(([getter,nome,cor])=>{
+      if((getter(c)||[]).includes(ts)) hoje.push({campanha:c.name,color:c.color,canal:nome,cor});
+    });
+  });
+  document.getElementById('dash-hoje').innerHTML=hoje.length
+    ?hoje.map(h=>'<div class="hoje-item"><div class="hoje-item-dot" style="background:'+h.color+'"></div><div class="hoje-item-info"><div class="hoje-item-nome">'+h.campanha+'</div><div class="hoje-item-canal">'+h.canal+'</div></div><div class="canal-stat-dot" style="background:'+h.cor+';width:8px;height:8px;border-radius:50%;"></div></div>').join('')
+    :'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação programada para hoje.</p>';
+
+  // ── INSIGHT 4: Campanhas sem ações cadastradas ──
+  const semAcoes=all.filter(c=>{
+    if(c.status==='cancelada'||c.fim<ts) return false;
+    const total=canalMap.reduce((s,[getter])=>s+(getter(c)||[]).length,0);
+    return total===0;
+  });
+  document.getElementById('dash-sem-acoes').innerHTML=semAcoes.length
+    ?semAcoes.map(c=>'<div class="sem-acao-item"><div class="sem-acao-dot" style="background:'+c.color+'"></div><div><div class="sem-acao-nome">'+c.name+'</div><div class="sem-acao-vig">'+fmt(c.inicio)+' – '+fmt(c.fim)+'</div></div></div>').join('')
+    :'<p style="color:var(--green);font-size:12px;font-weight:600;">✅ Todas as campanhas têm ações.</p>';
+
+  // ══ GRÁFICOS ══════════════════════════════════════════════════════
+
+  // Helper: destruir chart anterior se existir
+  function destroyChart(id){
+    const existing=Chart.getChart(id);
+    if(existing)existing.destroy();
+  }
+
+  // ── GRÁFICO 1: Evolução de ações no período (linha) ──
+  const allAcoes=[];
+  campaigns.forEach(c=>{
+    canalMap.forEach(([getter,nome,cor])=>{
+      (getter(c)||[]).forEach(d=>{
+        if((!de||d>=de)&&d<=ate) allAcoes.push({data:d,canal:nome});
+      });
+    });
+  });
+  allAcoes.sort((a,b)=>a.data.localeCompare(b.data));
+
+  // Agrupar por semana ou mês dependendo do intervalo
+  const deDt=de?new Date(de):new Date(allAcoes[0]?.data||ts);
+  const ateDt=new Date(ate);
+  const diffDias=Math.round((ateDt-deDt)/86400000);
+  const agruparPor=diffDias<=62?'semana':'mes';
+
+  const evolLabels=[];const evolData=[];
+  if(allAcoes.length>0){
+    const grupos={};
+    allAcoes.forEach(a=>{
+      let key;
+      if(agruparPor==='semana'){
+        const d=new Date(a.data);
+        const dom=new Date(d);dom.setDate(d.getDate()-d.getDay());
+        key=toStr(dom);
+      }else{
+        key=a.data.slice(0,7);
+      }
+      grupos[key]=(grupos[key]||0)+1;
+    });
+    Object.entries(grupos).sort(([a],[b])=>a.localeCompare(b)).forEach(([k,v])=>{
+      evolLabels.push(agruparPor==='semana'?'Sem '+fmtFull(k):MONTHS_PT[parseInt(k.split('-')[1])-1]+'/'+k.split('-')[0].slice(2));
+      evolData.push(v);
+    });
+  }
+
+  destroyChart('chart-evolucao');
+  new Chart(document.getElementById('chart-evolucao'),{
+    type:'line',
+    data:{labels:evolLabels,datasets:[{label:'Ações',data:evolData,borderColor:'#0D518E',backgroundColor:'rgba(13,81,142,0.08)',tension:0.4,fill:true,pointBackgroundColor:'#0D518E',pointRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:'#F0F2F7'}},x:{grid:{display:false}}}}
+  });
+
+  // ── GRÁFICO 2: Campanhas por Categoria (donut) ──
+  destroyChart('chart-categoria');
+  new Chart(document.getElementById('chart-categoria'),{
+    type:'doughnut',
+    data:{labels:['Comercial','Conteúdo','Eventos'],datasets:[{data:[cc.COMERCIAL,cc.CONTEUDO,cc.EVENTOS],backgroundColor:['#1E88E5','#43A047','#FB8C00'],borderWidth:2,borderColor:'white'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Sora',size:11},padding:12}},tooltip:{callbacks:{label:ctx=>ctx.label+': '+ctx.raw+' campanha'+(ctx.raw!==1?'s':'')}}}}
+  });
+
+  // ── GRÁFICO 3: Campanhas por Status (barras verticais) ──
+  const stAtivaCount=all.filter(c=>c.status==='ativa'&&c.inicio<=ts&&c.fim>=ts).length;
+  const stBreve=all.filter(c=>c.status==='ativa'&&c.inicio>ts).length;
+  const stAdiada=all.filter(c=>c.status==='adiada').length;
+  const stCancelada=all.filter(c=>c.status==='cancelada').length;
+  const stEncerrada=all.filter(c=>c.status!=='cancelada'&&c.fim<ts).length;
+  destroyChart('chart-status');
+  new Chart(document.getElementById('chart-status'),{
+    type:'bar',
+    data:{labels:['Ativas','Em Breve','Adiadas','Canceladas','Encerradas'],datasets:[{data:[stAtivaCount,stBreve,stAdiada,stCancelada,stEncerrada],backgroundColor:['#00C07A','#0D518E','#FB8C00','#E53935','#9BA3B8'],borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1},grid:{color:'#F0F2F7'}},x:{grid:{display:false}}}}
+  });
+
+  // ── GRÁFICO 4: Ações por Canal (barras horizontais) ──
+  const canalChartData=[
+    {nome:'WhatsApp', val:wa, cor:'#25D366'},
+    {nome:'E-mail',   val:em, cor:'#2196F3'},
+    {nome:'Instagram',val:ig, cor:'#E91E63'},
+    {nome:'Meta Ads', val:ma, cor:'#1877F2'},
+    {nome:'LinkedIn', val:li, cor:'#0A66C2'},
+    {nome:'Facebook', val:fb, cor:'#3b5998'},
+    {nome:'Google Ads',val:ga,cor:'#4285F4'},
+    {nome:'SMS',      val:sm, cor:'#FF9800'},
+    {nome:'Blog',     val:bl, cor:'#6B5CE7'},
+    {nome:'Outros',   val:ou, cor:'#9BA3B8'},
+  ].filter(c=>c.val>0).sort((a,b)=>b.val-a.val);
+  destroyChart('chart-canais');
+  new Chart(document.getElementById('chart-canais'),{
+    type:'bar',
+    data:{labels:canalChartData.map(c=>c.nome),datasets:[{data:canalChartData.map(c=>c.val),backgroundColor:canalChartData.map(c=>c.cor),borderRadius:6,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,ticks:{stepSize:1},grid:{color:'#F0F2F7'}},y:{grid:{display:false},ticks:{font:{family:'Sora',size:11}}}}}
+  });
+}
+
+// ── ESTADO DE DATAS (concluida / adiada / cancelada) ─────────────
+async function setDateState(campId, data, novoEstado, btnEl){
+  const cp=campaigns.find(c=>c.id===campId);if(!cp)return;
+  if(!cp.disparos_concluidos)cp.disparos_concluidos={};
+  if(!cp.disparos_cancelados)cp.disparos_cancelados={};
+  if(!cp.disparos_adiados)cp.disparos_adiados={};
+
+  // Toggle: se já está nesse estado, remove
+  const jaEsta=(
+    (novoEstado==='concluida'&&cp.disparos_concluidos[data])||
+    (novoEstado==='cancelada'&&cp.disparos_cancelados[data])||
+    (novoEstado==='adiada'&&cp.disparos_adiados[data])
+  );
+
+  // Limpar todos os estados dessa data
+  delete cp.disparos_concluidos[data];
+  delete cp.disparos_cancelados[data];
+  delete cp.disparos_adiados[data];
+
+  // Linha de motivo
+  const motivoInput=document.getElementById('motivo-'+campId+'-'+data.replace(/-/g,''));
+  const motivoRow=motivoInput?.closest('.detail-motivo-row');
+
+  if(!jaEsta){
+    if(novoEstado==='concluida') cp.disparos_concluidos[data]=true;
+    if(novoEstado==='cancelada') cp.disparos_cancelados[data]='';
+    if(novoEstado==='adiada')    cp.disparos_adiados[data]='';
+    if(motivoRow){
+      motivoRow.classList.toggle('visible', novoEstado!=='concluida');
+      const color=novoEstado==='cancelada'?'#E53935':'#FFB300';
+      motivoRow.querySelector('input').style.borderColor=color;
+    }
+  } else {
+    if(motivoRow) motivoRow.classList.remove('visible');
+  }
+
+  // Atualizar visual da linha
+  const dateRow=btnEl?.closest('.detail-date-row');
+  if(dateRow){
+    dateRow.className="detail-date-row"+(jaEsta?"":novoEstado==="concluida"?" st-concluida":novoEstado==="cancelada"?" st-cancelada":" st-adiada");
+    const estadoSpan=dateRow.querySelector('.detail-date-estado');
+    if(estadoSpan) estadoSpan.remove();
+    if(!jaEsta){
+      const lbl=document.createElement('span');
+      lbl.className='detail-date-estado';
+      lbl.style.color=novoEstado==='concluida'?'#00C07A':novoEstado==='cancelada'?'#E53935':'#FFB300';
+      lbl.textContent=novoEstado==='concluida'?'✅ Concluída':novoEstado==='cancelada'?'❌ Cancelada':'⏳ Adiada';
+      dateRow.querySelector('.detail-date-label').after(lbl);
+    }
+    // Atualizar botões ativos
+    dateRow.querySelectorAll('.btn-state').forEach(b=>b.classList.remove('ativo'));
+    if(!jaEsta) btnEl.classList.add('ativo');
+  }
+
+  try{
+    await sbFetch('campaigns?id=eq.'+campId,'PATCH',{
+      disparos_concluidos:cp.disparos_concluidos,
+      disparos_cancelados:cp.disparos_cancelados,
+      disparos_adiados:cp.disparos_adiados
+    });
+    renderDispatch();
+  }catch(e){showToast('Erro ao salvar: '+e.message,'error');}
+}
+
+async function saveMotivo(campId, data){
+  const cp=campaigns.find(c=>c.id===campId);if(!cp)return;
+  const motivoInput=document.getElementById('motivo-'+campId+'-'+data.replace(/-/g,''));
+  if(!motivoInput)return;
+  const motivo=motivoInput.value.trim();
+  if(cp.disparos_cancelados&&cp.disparos_cancelados[data]!==undefined) cp.disparos_cancelados[data]=motivo;
+  if(cp.disparos_adiados&&cp.disparos_adiados[data]!==undefined)       cp.disparos_adiados[data]=motivo;
+  try{
+    await sbFetch('campaigns?id=eq.'+campId,'PATCH',{
+      disparos_cancelados:cp.disparos_cancelados,
+      disparos_adiados:cp.disparos_adiados
+    });
+    showToast('Motivo salvo!');
+    renderDispatch();
+  }catch(e){showToast('Erro ao salvar motivo: '+e.message,'error');}
+}
+
+// ── RICH TEXT EDITOR ─────────────────────────────────────────────
+function rteCmd(id, cmd){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.focus();
+  document.execCommand(cmd, false, null);
+  el.focus();
+}
+function rteColor(id, color){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.focus();
+  document.execCommand('foreColor', false, color);
+  el.focus();
+}
+
+// ── TOGGLE CONCLUÍDO (calendário — hover) ─────────────────────────
+async function toggleConcluido(campId, data){
+  const cp = campaigns.find(c=>c.id===campId);
+  if(!cp) return;
+  if(!cp.disparos_concluidos) cp.disparos_concluidos = {};
+  if(cp.disparos_concluidos[data]){
+    delete cp.disparos_concluidos[data];
+  } else {
+    cp.disparos_concluidos[data] = true;
+  }
+  try{
+    await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_concluidos: cp.disparos_concluidos});
+    renderDispatch();
+  }catch(e){
+    showToast('Erro ao salvar: '+e.message,'error');
+  }
+}
+
+// ── CONSOLIDAÇÃO MENSAL ───────────────────────────────────────────
+async function consolidarMes(mesRef){
+  // mesRef: 'YYYY-MM' — padrão do mes_ref das campanhas
+  const [ano, mes] = mesRef.split('-').map(Number);
+  const ms = mesRef+'-01';
+  const me = mesRef+'-'+String(new Date(ano,mes,0).getDate()).padStart(2,'0');
+  const today = toStr(new Date());
+
+  const do_mes = campaigns.filter(c=>c.mes_ref&&c.mes_ref===mesRef);
+  const all_no_mes = campaigns.filter(c=>c.inicio<=me&&c.fim>=ms);
+
+  const canalMap = [
+    [c=>c.inbound?.wa||[],     'whatsapp'],
+    [c=>c.inbound?.email||[],  'email'],
+    [c=>c.inbound?.sms||[],    'sms'],
+    [c=>c.rede_social?.instagram||[], 'instagram'],
+    [c=>c.rede_social?.facebook||[],  'facebook'],
+    [c=>c.rede_social?.linkedin||[],  'linkedin'],
+    [c=>c.rede_social?.blog||[],      'blog'],
+    [c=>c.rede_social?.outros||[],    'outros'],
+    [c=>c.performance?.meta_ads||[],  'meta_ads'],
+    [c=>c.performance?.google_ads||[],'google_ads'],
+  ];
+
+  const payload = {
+    mes_ref: mesRef,
+    total_campanhas:      all_no_mes.length,
+    campanhas_ativas:     all_no_mes.filter(c=>c.status==='ativa'&&c.inicio<=today&&c.fim>=today).length,
+    campanhas_em_breve:   all_no_mes.filter(c=>c.status==='ativa'&&c.inicio>today).length,
+    campanhas_encerradas: all_no_mes.filter(c=>c.status!=='cancelada'&&c.fim<today).length,
+    campanhas_adiadas:    all_no_mes.filter(c=>c.status==='adiada').length,
+    campanhas_canceladas: all_no_mes.filter(c=>c.status==='cancelada').length,
+    campanhas_sem_acoes:  all_no_mes.filter(c=>{
+      if(c.status==='cancelada'||c.fim<today) return false;
+      return canalMap.reduce((s,[g])=>s+(g(c)||[]).length,0)===0;
+    }).length,
+    acoes_whatsapp:   all_no_mes.reduce((s,c)=>s+(c.inbound?.wa||[]).length,0),
+    acoes_email:      all_no_mes.reduce((s,c)=>s+(c.inbound?.email||[]).length,0),
+    acoes_sms:        all_no_mes.reduce((s,c)=>s+(c.inbound?.sms||[]).length,0),
+    acoes_instagram:  all_no_mes.reduce((s,c)=>s+(c.rede_social?.instagram||[]).length,0),
+    acoes_facebook:   all_no_mes.reduce((s,c)=>s+(c.rede_social?.facebook||[]).length,0),
+    acoes_linkedin:   all_no_mes.reduce((s,c)=>s+(c.rede_social?.linkedin||[]).length,0),
+    acoes_blog:       all_no_mes.reduce((s,c)=>s+(c.rede_social?.blog||[]).length,0),
+    acoes_outros:     all_no_mes.reduce((s,c)=>s+(c.rede_social?.outros||[]).length,0),
+    acoes_meta_ads:   all_no_mes.reduce((s,c)=>s+(c.performance?.meta_ads||[]).length,0),
+    acoes_google_ads: all_no_mes.reduce((s,c)=>s+(c.performance?.google_ads||[]).length,0),
+    total_acoes:      all_no_mes.reduce((s,c)=>s+canalMap.reduce((t,[g])=>t+(g(c)||[]).length,0),0),
+    campanhas_comercial: all_no_mes.filter(c=>getCats(c).includes('COMERCIAL')).length,
+    campanhas_conteudo:  all_no_mes.filter(c=>getCats(c).includes('CONTEUDO')).length,
+    campanhas_eventos:   all_no_mes.filter(c=>getCats(c).includes('EVENTOS')).length,
+    atualizado_em: new Date().toISOString()
+  };
+
+  try{
+    // Upsert: atualiza se já existe, insere se não
+    await sbFetch('dashboard_mensal?mes_ref=eq.'+mesRef,'DELETE');
+    await sbFetch('dashboard_mensal','POST',payload);
+  }catch(e){
+    console.warn('Erro ao consolidar mês '+mesRef+':',e.message);
+  }
+}
+
+async function consolidarMesAtual(){
+  const mesRef = currentYear+'-'+String(currentMonth+1).padStart(2,'0');
+  await consolidarMes(mesRef);
 }
 
 // ── USUARIOS ──────────────────────────────────────────────────────
@@ -1760,6 +2200,37 @@ function selectCat(cat){
 }
 
 // ── CANAL DATES ───────────────────────────────────────────────────
+function addPerfDate(canal, inicio='', fim=''){
+  const c = document.getElementById('canal-'+canal);
+  const wrapper = document.createElement('div'); wrapper.className='perf-pair-wrapper'; wrapper.style.width='100%';
+
+  const pair = document.createElement('div'); pair.className='perf-date-pair';
+
+  // Início
+  const colIn = document.createElement('div');
+  colIn.innerHTML='<label>Data Início</label>';
+  const inpIn = document.createElement('input');
+  inpIn.className='form-input inp-perf-inicio'; inpIn.type='date'; inpIn.value=inicio;
+  colIn.appendChild(inpIn);
+
+  // Fim
+  const colFim = document.createElement('div');
+  colFim.innerHTML='<label>Data Fim</label>';
+  const inpFim = document.createElement('input');
+  inpFim.className='form-input inp-perf-fim'; inpFim.type='date'; inpFim.value=fim;
+  colFim.appendChild(inpFim);
+
+  // Botão remover
+  const btnRemove = document.createElement('button');
+  btnRemove.className='btn-remove-date'; btnRemove.type='button'; btnRemove.textContent='✕';
+  btnRemove.style.alignSelf='flex-end'; btnRemove.style.marginBottom='2px';
+  btnRemove.onclick=()=>wrapper.remove();
+
+  pair.appendChild(colIn); pair.appendChild(colFim); pair.appendChild(btnRemove);
+  wrapper.appendChild(pair);
+  c.appendChild(wrapper);
+}
+
 function addCanalDate(canal, value='', cancelado=false, motivoCancelamento=''){
   const c = document.getElementById('canal-'+canal);
   const wrapper = document.createElement('div'); wrapper.style.width='100%';
@@ -1797,6 +2268,15 @@ function addCanalDate(canal, value='', cancelado=false, motivoCancelamento=''){
   wrapper.appendChild(row); wrapper.appendChild(justRow);
   c.appendChild(wrapper);
 }
+function getPerfDates(canal){
+  return [...document.getElementById('canal-'+canal).querySelectorAll('.perf-pair-wrapper')].map(w=>{
+    const ini=w.querySelector('.inp-perf-inicio');
+    const fim=w.querySelector('.inp-perf-fim');
+    if(ini&&fim&&(ini.value||fim.value)) return {inicio:ini.value||'',fim:fim.value||''};
+    return null;
+  }).filter(Boolean);
+}
+
 function getCanalDates(canal){
   return [...document.getElementById('canal-'+canal).querySelectorAll('.canal-date-row')].map(row=>{
     const inp=row.querySelector('.inp-data');
@@ -1817,9 +2297,9 @@ function getCanalCancelados(canal){
   return result;
 }
 function clearCanals(){
-  ['inbound_wa','inbound_email','inbound_sms','rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros','performance_meta_ads','performance_google_ads'].forEach(c=>document.getElementById('canal-'+c).innerHTML='');
+  ['inbound_wa','inbound_email','inbound_sms','inbound_lp','rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros','rede_social_youtube','performance_meta_ads','performance_google_ads'].forEach(c=>document.getElementById('canal-'+c).innerHTML='');
   // Clear performance date ranges
-  ['perf-meta-inicio','perf-meta-fim','perf-google-inicio','perf-google-fim'].forEach(id=>document.getElementById(id).value='');
+  // perf dates são limpos pelo clearCanals (canal-dates innerHTML)
 }
 
 // ── FORM MODAL ────────────────────────────────────────────────────
@@ -1830,7 +2310,8 @@ function openNewModal(){
   document.getElementById('btn-form-save').textContent='GRAVAR CAMPANHA';
   document.getElementById('btn-form-save').className='btn-save';
   document.getElementById('btn-delete-camp').style.display='none';
-  ['f-nome','f-inicio','f-fim','f-briefing','f-defesa','f-tags'].forEach(id=>document.getElementById(id).value='');
+  ['f-nome','f-inicio','f-fim','f-tags'].forEach(id=>document.getElementById(id).value='');
+  ['f-briefing','f-defesa'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='';});
   document.getElementById('status-section').style.display='none';
   clearCanals();buildColorPicker(getUniqueColor());selectedCat=['COMERCIAL'];['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(c==='COMERCIAL'?' sel-COMERCIAL':'');});
   document.getElementById('modal-form').classList.add('open');
@@ -1846,24 +2327,37 @@ function openEditModal(id){
   document.getElementById('f-nome').value=c.name;
   document.getElementById('f-inicio').value=c.inicio;
   document.getElementById('f-fim').value=c.fim;
-  document.getElementById('f-briefing').value=c.briefing||'';
-  document.getElementById('f-defesa').value=c.defesa||'';
+  const bEl=document.getElementById('f-briefing');if(bEl)bEl.innerHTML=c.briefing||'';
+  const dEl=document.getElementById('f-defesa');if(dEl)dEl.innerHTML=c.defesa||'';
   document.getElementById('f-tags').value=c.tags||'';
   clearCanals();
   (c.inbound.wa||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_wa',d,!!dc[d],dc[d]||'');});
   (c.inbound.email||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_email',d,!!dc[d],dc[d]||'');});
   (c.inbound.sms||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_sms',d,!!dc[d],dc[d]||'');});
+  (c.inbound.lp||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_lp',d,!!dc[d],dc[d]||'');});
   (c.rede_social.instagram||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_instagram',d,!!dc[d],dc[d]||'');});
   (c.rede_social.facebook||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_facebook',d,!!dc[d],dc[d]||'');});
   (c.rede_social.linkedin||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_linkedin',d,!!dc[d],dc[d]||'');});
   (c.rede_social.blog||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_blog',d,!!dc[d],dc[d]||'');});
   (c.rede_social.outros||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_outros',d,!!dc[d],dc[d]||'');});
-  (c.performance.meta_ads||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('performance_meta_ads',d,!!dc[d],dc[d]||'');});
-  document.getElementById('perf-meta-inicio').value=c.performance.meta_ads_inicio||'';
-  document.getElementById('perf-meta-fim').value=c.performance.meta_ads_fim||'';
-  (c.performance.google_ads||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('performance_google_ads',d,!!dc[d],dc[d]||'');});
-  document.getElementById('perf-google-inicio').value=c.performance.google_ads_inicio||'';
-  document.getElementById('perf-google-fim').value=c.performance.google_ads_fim||'';
+  (c.rede_social.youtube||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_youtube',d,!!dc[d],dc[d]||'');});
+  // Carregar pares Meta Ads
+  const metaDates = c.performance.meta_ads||[];
+  if(Array.isArray(metaDates) && metaDates.length>0 && typeof metaDates[0]==='object'){
+    metaDates.forEach(p=>addPerfDate('performance_meta_ads', p.inicio||'', p.fim||''));
+  } else if(metaDates.length>0){
+    // legado: array de strings — criar um par com início=data[0]
+    addPerfDate('performance_meta_ads', metaDates[0]||'', c.performance.meta_ads_fim||'');
+  }
+
+  // Carregar pares Google Ads
+  const googleDates = c.performance.google_ads||[];
+  if(Array.isArray(googleDates) && googleDates.length>0 && typeof googleDates[0]==='object'){
+    googleDates.forEach(p=>addPerfDate('performance_google_ads', p.inicio||'', p.fim||''));
+  } else if(googleDates.length>0){
+    addPerfDate('performance_google_ads', googleDates[0]||'', c.performance.google_ads_fim||'');
+  }
+
   // Status
   document.getElementById('status-section').style.display='block';
   selectedStatus=c.status||'ativa';
@@ -1890,18 +2384,20 @@ async function saveCampaign(){
   if(!name||!inicio||!fim){showToast('Preencha nome e datas','error');return;}
   if(inicio>fim){showToast('Data início deve ser anterior ao fim','error');return;}
   const data={
-    name:toUpper(name),color:selectedColor,categoria:selectedCat.length===1?selectedCat[0]:selectedCat,status:selectedStatus,inicio,fim,
-    briefing:document.getElementById('f-briefing').value.trim(),
-    defesa:document.getElementById('f-defesa').value.trim(),
+    name:toUpper(name),color:selectedColor,categoria:[...selectedCat],status:selectedStatus,inicio,fim,
+    briefing:document.getElementById('f-briefing').innerHTML.trim(),
+    defesa:document.getElementById('f-defesa').innerHTML.trim(),
     tags:document.getElementById('f-tags').value.trim(),
     inbound_wa:getCanalDates('inbound_wa'),
     inbound_email:getCanalDates('inbound_email'),
     inbound_sms:getCanalDates('inbound_sms'),
+    inbound_lp:getCanalDates('inbound_lp'),
     rede_social_instagram:getCanalDates('rede_social_instagram'),
     rede_social_facebook:getCanalDates('rede_social_facebook'),
     rede_social_linkedin:getCanalDates('rede_social_linkedin'),
     rede_social_blog:getCanalDates('rede_social_blog'),
     rede_social_outros:getCanalDates('rede_social_outros'),
+    rede_social_youtube:getCanalDates('rede_social_youtube'),
     disparos_cancelados:{
       ...getCanalCancelados('inbound_wa'),
       ...getCanalCancelados('inbound_email'),
@@ -1917,12 +2413,12 @@ async function saveCampaign(){
     motivo_adiamento:selectedStatus==='adiada'?document.getElementById('f-motivo-adiamento').value:'',
     data_adiamento:selectedStatus==='adiada'?document.getElementById('f-data-adiamento').value:'',
     disparos_deslocados:{},
-    performance_meta_ads:getCanalDates('performance_meta_ads'),
-    performance_meta_ads_inicio:document.getElementById('perf-meta-inicio').value,
-    performance_meta_ads_fim:document.getElementById('perf-meta-fim').value,
-    performance_google_ads:getCanalDates('performance_google_ads'),
-    performance_google_ads_inicio:document.getElementById('perf-google-inicio').value,
-    performance_google_ads_fim:document.getElementById('perf-google-fim').value
+    performance_meta_ads:getPerfDates('performance_meta_ads'),
+    performance_meta_ads_inicio:'',
+    performance_meta_ads_fim:'',
+    performance_google_ads:getPerfDates('performance_google_ads'),
+    performance_google_ads_inicio:'',
+    performance_google_ads_fim:''
   };
   // Deslocamento de disparos
   const novaDataDisparos=document.getElementById('f-deslocar-disparos')?.value;
@@ -1945,8 +2441,8 @@ async function saveCampaign(){
       if(idx>=0){
         const updated={...campaigns[idx]};
         Object.assign(updated,{name:data.name,color:data.color,categoria:data.categoria,inicio:data.inicio,fim:data.fim,briefing:data.briefing,defesa:data.defesa,tags:data.tags});
-        updated.inbound={wa:data.inbound_wa,sms:data.inbound_sms,email:data.inbound_email};
-        updated.rede_social={instagram:data.rede_social_instagram,facebook:data.rede_social_facebook,linkedin:data.rede_social_linkedin,blog:data.rede_social_blog,outros:data.rede_social_outros};
+        updated.inbound={wa:data.inbound_wa,sms:data.inbound_sms,email:data.inbound_email,lp:data.inbound_lp};
+        updated.rede_social={instagram:data.rede_social_instagram,facebook:data.rede_social_facebook,linkedin:data.rede_social_linkedin,blog:data.rede_social_blog,outros:data.rede_social_outros,youtube:data.rede_social_youtube};
         updated.performance={meta_ads:data.performance_meta_ads,meta_ads_inicio:data.performance_meta_ads_inicio,meta_ads_fim:data.performance_meta_ads_fim,google_ads:data.performance_google_ads,google_ads_inicio:data.performance_google_ads_inicio,google_ads_fim:data.performance_google_ads_fim};
         updated.mes_ref=getMesRef(data.inicio);
         campaigns[idx]=updated;
@@ -1984,11 +2480,17 @@ function openDetailModal(id){
   document.getElementById('detail-color-bar').style.background=c.color;
   document.getElementById('detail-name').textContent=c.name;
   document.getElementById('detail-cat-badge').innerHTML=catBadge(c.categoria);
+  const tagsRow=document.getElementById('detail-tags-row');
+  if(tagsRow) tagsRow.innerHTML=renderTags(c.tags||'');
   document.getElementById('detail-vig').textContent=fmtFull(c.inicio)+' – '+fmtFull(c.fim);
   const st=getStatus(c);
   document.getElementById('detail-status').innerHTML='<span style="color:'+st.color+';font-weight:600">'+st.label+'</span>';
-  document.getElementById('detail-briefing').textContent=c.briefing||'—';
-  document.getElementById('detail-defesa').textContent=c.defesa||'—';
+  const brifEl=document.getElementById('detail-briefing');
+  brifEl.className='detail-rich';
+  brifEl.innerHTML=c.briefing||'<span style="color:var(--gray-400)">—</span>';
+  const defEl=document.getElementById('detail-defesa');
+  defEl.className='detail-rich';
+  defEl.innerHTML=c.defesa||'<span style="color:var(--gray-400)">—</span>';
   const canais=document.getElementById('detail-canais');canais.innerHTML='';
   const canalData=[
     [c.inbound.wa,'WhatsApp','#25D366'],
@@ -2006,12 +2508,51 @@ function openDetailModal(id){
   let perfPeriods='';
   if(c.performance.meta_ads_inicio&&c.performance.meta_ads_fim){perfPeriods+='<div style="font-size:11px;color:var(--gray-600);margin-top:6px;">Meta Ads: '+fmtFull(c.performance.meta_ads_inicio)+' – '+fmtFull(c.performance.meta_ads_fim)+'</div>';}
   if(c.performance.google_ads_inicio&&c.performance.google_ads_fim){perfPeriods+='<div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Google Ads: '+fmtFull(c.performance.google_ads_inicio)+' – '+fmtFull(c.performance.google_ads_fim)+'</div>';}
+  let hasAny=false;
   canalData.forEach(([dates,lbl,col])=>{
-    (dates||[]).forEach(d=>{const t=document.createElement('span');t.className='canal-tag';t.innerHTML='<span class="dot" style="background:'+col+'"></span>'+lbl+': '+fmtFull(d);canais.appendChild(t);});
+    if(!(dates&&dates.length))return;
+    hasAny=true;
+    const sec=document.createElement('div');sec.className='detail-canal-section';
+    sec.innerHTML='<div class="detail-canal-title"><div class="detail-canal-dot" style="background:'+col+'"></div>'+lbl+'</div>';
+    dates.forEach(d=>{
+      const isConcluida=!!(c.disparos_concluidos&&c.disparos_concluidos[d]);
+      const isCancelada=!!(c.disparos_cancelados&&c.disparos_cancelados[d]);
+      const isAdiada=!!(c.disparos_adiados&&c.disparos_adiados[d]);
+      const stClass=isConcluida?'st-concluida':isCancelada?'st-cancelada':isAdiada?'st-adiada':'';
+      const stLabel=isConcluida?'<span class="detail-date-estado" style="color:#00C07A">✅ Concluída</span>':
+                    isCancelada?'<span class="detail-date-estado" style="color:#E53935">❌ Cancelada</span>':
+                    isAdiada?'<span class="detail-date-estado" style="color:#FFB300">⏳ Adiada</span>':'';
+      const row=document.createElement('div');
+      row.className='detail-date-row '+stClass;
+      row.innerHTML=
+        '<span class="detail-date-label">'+fmtFull(d)+'</span>'+
+        stLabel+
+        '<div class="detail-state-btns">'+
+          '<button class="btn-state concluir'+(isConcluida?' ativo':'')+'" onclick="setDateState('+c.id+',&quot;'+d+'&quot;,&quot;concluida&quot;,this)">✅</button>'+
+          '<button class="btn-state adiar'+(isAdiada?' ativo':'')+'" onclick="setDateState('+c.id+',&quot;'+d+'&quot;,&quot;adiada&quot;,this)">⏳</button>'+
+          '<button class="btn-state cancelar'+(isCancelada?' ativo':'')+'" onclick="setDateState('+c.id+',&quot;'+d+'&quot;,&quot;cancelada&quot;,this)">❌</button>'+
+        '</div>';
+      // Linha de motivo (cancelar/adiar)
+      const motivoRow=document.createElement('div');
+      motivoRow.className='detail-motivo-row'+(isCancelada||isAdiada?' visible':'');
+      const motivoVal=isCancelada?(c.disparos_cancelados[d]||''):isAdiada?(c.disparos_adiados[d]||''):'';
+      const motivoColor=isCancelada?'#E53935':'#FFB300';
+      motivoRow.innerHTML=
+        '<input type="text" placeholder="Motivo (opcional)" value="'+motivoVal+'" style="border-color:'+motivoColor+'" id="motivo-'+c.id+'-'+d.replace(/-/g,'')+'">'+
+        '<button class="btn-motivo-save" onclick="saveMotivo('+c.id+',&quot;'+d+'&quot;)">Salvar</button>';
+      sec.appendChild(row);
+      sec.appendChild(motivoRow);
+    });
+    canais.appendChild(sec);
   });
   if(perfPeriods){const pd=document.createElement('div');pd.innerHTML=perfPeriods;canais.appendChild(pd);}
-  if(!canais.innerHTML)canais.innerHTML='<span style="color:var(--gray-400);font-size:13px;">Nenhum canal configurado.</span>';
-  document.getElementById('btn-edit-from-detail').style.display=(currentUser&&currentUser.role==='user')?'none':'';
+  if(!hasAny)canais.innerHTML='<span style="color:var(--gray-400);font-size:13px;">Nenhum canal configurado.</span>';
+  const isUserRole = currentUser && currentUser.role === 'user';
+  // Botão editar — só admin
+  document.getElementById('btn-edit-from-detail').style.display = isUserRole ? 'none' : '';
+  // Seção de ações programadas — só admin
+  const detailAcoesSection = document.getElementById('detail-acoes-section');
+  if(detailAcoesSection) detailAcoesSection.style.display = isUserRole ? 'none' : '';
   document.getElementById('modal-detail').classList.add('open');
 }
 function closeDetailModal(){document.getElementById('modal-detail').classList.remove('open');}
