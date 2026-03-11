@@ -1168,7 +1168,7 @@ async function loadCampaigns(){
     const monthStart=mesStr+'-01';
     const dim=new Date(currentYear,currentMonth+1,0).getDate();
     const monthEnd=mesStr+'-'+String(dim).padStart(2,'0');
-    const rows=await sbFetch('campaigns?select=*&or=(inicio.lte.'+monthEnd+',fim.gte.'+monthStart+')&order=inicio.asc');
+    const rows=await sbFetch('campaigns?select=*&inicio=lte.'+monthEnd+'&fim=gte.'+monthStart+'&order=inicio.asc');
     campaigns=(rows||[]).map(rowToLocal);
     renderAll();
   }catch(e){
