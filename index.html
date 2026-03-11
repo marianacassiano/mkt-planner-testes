@@ -2148,12 +2148,89 @@ function downloadPDF(filename, title, header, rows, landscape=false){
 
 function exportarCalendario(fmt='csv'){
   document.querySelectorAll('.export-menu').forEach(m=>m.classList.remove('open'));
-  const mes=MONTHS_PT[currentMonth], ano=currentYear;
-  const titulo='Calendário '+mes+' '+ano;
-  const fname='calendario-fotus-'+mes.toLowerCase()+'-'+ano;
-  const header=['Campanha','Categoria','Status','Início','Fim','Tags','WhatsApp','E-mail','SMS','Instagram','Facebook','LinkedIn','Blog','Outros','Meta Ads','Google Ads'];
+  // Abre modal de período antes de exportar
+  const ano=currentYear, mes=currentMonth;
+  const de=ano+'-'+String(mes+1).padStart(2,'0')+'-01';
+  const ate=ano+'-'+String(mes+1).padStart(2,'0')+'-'+String(new Date(ano,mes+1,0).getDate()).padStart(2,'0');
+  document.getElementById('modal-export-cal')?.remove();
+  const ov=document.createElement('div');
+  ov.id='modal-export-cal';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  ov.innerHTML=`<div style="background:white;border-radius:16px;padding:32px;width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.2);font-family:'Sora',sans-serif;">
+    <div style="font-size:16px;font-weight:700;color:#0D518E;margin-bottom:4px;">📥 Exportar Calendário</div>
+    <div style="font-size:12px;color:#9BA3B8;margin-bottom:24px;">Formato: <strong>${fmt.toUpperCase()}</strong></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#5A6375;display:block;margin-bottom:6px;">Data início</label>
+        <input type="date" id="exp-cal-de" value="${de}" style="width:100%;padding:9px 12px;border:1.5px solid #E2E6EF;border-radius:8px;font-family:'Sora',sans-serif;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#5A6375;display:block;margin-bottom:6px;">Data fim</label>
+        <input type="date" id="exp-cal-ate" value="${ate}" style="width:100%;padding:9px 12px;border:1.5px solid #E2E6EF;border-radius:8px;font-family:'Sora',sans-serif;font-size:13px;">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="document.getElementById('modal-export-cal').remove()" style="padding:9px 20px;border-radius:8px;border:1.5px solid #E2E6EF;background:white;font-family:'Sora',sans-serif;font-size:13px;cursor:pointer;color:#5A6375;">Cancelar</button>
+      <button onclick="confirmarExportCal('${fmt}')" style="padding:9px 20px;border-radius:8px;border:none;background:#0D518E;color:white;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Baixar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+}
+
+async function confirmarExportCal(fmt){
+  const de=document.getElementById('exp-cal-de').value;
+  const ate=document.getElementById('exp-cal-ate').value;
+  document.getElementById('modal-export-cal')?.remove();
+  if(!de||!ate){ showToast('Selecione o período','error'); return; }
+
+  showLoading();
+  let all=[];
+  try{
+    const rows=await sbFetch('campaigns?select=*&inicio=lte.'+ate+'&fim=gte.'+de+'&order=inicio.asc');
+    all=(rows||[]).map(rowToLocal);
+  }catch(e){ showToast('Erro ao buscar campanhas','error'); return; }
+  finally{ hideLoading(); }
+
+  const deLabel=de.split('-').reverse().join('/');
+  const ateLabel=ate.split('-').reverse().join('/');
+  const titulo='Calendário '+deLabel+' a '+ateLabel;
+  const fname='calendario-fotus-'+de+'_'+ate;
   const dArr=d=>Array.isArray(d)?d.join(', '):'';
-  const dataRows=getFiltered('cal').map(c=>[
+
+  // PDF usa colunas reduzidas para caber em A4 paisagem
+  if(fmt==='pdf'){
+    const hPdf=['Campanha','Categoria','Status','Início','Fim','WhatsApp','E-mail','SMS'];
+    const rPdf=all.map(c=>[
+      c.name,
+      (Array.isArray(c.categoria)?c.categoria.map(x=>CAT_LABELS[x]||x).join('+'):CAT_LABELS[c.categoria]||c.categoria),
+      c.status||'ativa', c.inicio, c.fim,
+      dArr(c.inbound?.wa), dArr(c.inbound?.email), dArr(c.inbound?.sms)
+    ]);
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    doc.setFontSize(14);doc.setFont('helvetica','bold');doc.setTextColor(13,81,142);
+    doc.text('FOTUS — '+titulo,14,14);
+    doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(90,99,117);
+    doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}),14,21);
+    doc.autoTable({
+      startY:27,head:[hPdf],body:rPdf,
+      styles:{font:'helvetica',fontSize:9,cellPadding:4,overflow:'linebreak'},
+      headStyles:{fillColor:[13,81,142],textColor:255,fontStyle:'bold',fontSize:9},
+      columnStyles:{
+        0:{cellWidth:50},1:{cellWidth:24},2:{cellWidth:18},
+        3:{cellWidth:22},4:{cellWidth:22},5:{cellWidth:45},6:{cellWidth:45},7:{cellWidth:35}
+      },
+      alternateRowStyles:{fillColor:[240,242,247]},
+      margin:{left:10,right:10},
+    });
+    doc.save(fname+'.pdf');
+    return;
+  }
+
+  // CSV e XLSX — todas as colunas
+  const header=['Campanha','Categoria','Status','Início','Fim','Tags','WhatsApp','E-mail','SMS','Instagram','Facebook','LinkedIn','Blog','Outros','Meta Ads','Google Ads'];
+  const dataRows=all.map(c=>[
     c.name,
     (Array.isArray(c.categoria)?c.categoria.map(x=>CAT_LABELS[x]||x).join('+'):CAT_LABELS[c.categoria]||c.categoria),
     c.status||'ativa', c.inicio, c.fim, c.tags||'',
@@ -2164,23 +2241,56 @@ function exportarCalendario(fmt='csv'){
     dArr(c.performance?.google_ads?.map(x=>typeof x==='object'?(x.inicio+(x.fim?' → '+x.fim:'')):x))
   ]);
   if(fmt==='csv') downloadCSV(fname+'.csv',[header,...dataRows]);
-  else if(fmt==='xlsx') downloadXLSX(fname+'.xlsx',[{name:titulo,rows:[header,...dataRows]}]);
-  else if(fmt==='pdf') downloadPDF(fname+'.pdf',titulo,header,dataRows,true);
+  else if(fmt==='xlsx') downloadXLSX(fname+'.xlsx',[{name:titulo.slice(0,31),rows:[header,...dataRows]}]);
 }
 
 async function exportarDashboard(fmt='csv'){
   document.querySelectorAll('.export-menu').forEach(m=>m.classList.remove('open'));
   const ano=currentYear;
-  const fname='dashboard-fotus-'+ano;
+  const de=ano+'-01-01', ate=ano+'-12-31';
+  document.getElementById('modal-export-dash')?.remove();
+  const ov=document.createElement('div');
+  ov.id='modal-export-dash';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  ov.innerHTML=`<div style="background:white;border-radius:16px;padding:32px;width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.2);font-family:'Sora',sans-serif;">
+    <div style="font-size:16px;font-weight:700;color:#0D518E;margin-bottom:4px;">📥 Exportar Dashboard</div>
+    <div style="font-size:12px;color:#9BA3B8;margin-bottom:24px;">Formato: <strong>${fmt.toUpperCase()}</strong></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:24px;">
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#5A6375;display:block;margin-bottom:6px;">Data início</label>
+        <input type="date" id="exp-dash-de" value="${de}" style="width:100%;padding:9px 12px;border:1.5px solid #E2E6EF;border-radius:8px;font-family:'Sora',sans-serif;font-size:13px;">
+      </div>
+      <div>
+        <label style="font-size:11px;font-weight:600;color:#5A6375;display:block;margin-bottom:6px;">Data fim</label>
+        <input type="date" id="exp-dash-ate" value="${ate}" style="width:100%;padding:9px 12px;border:1.5px solid #E2E6EF;border-radius:8px;font-family:'Sora',sans-serif;font-size:13px;">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="document.getElementById('modal-export-dash').remove()" style="padding:9px 20px;border-radius:8px;border:1.5px solid #E2E6EF;background:white;font-family:'Sora',sans-serif;font-size:13px;cursor:pointer;color:#5A6375;">Cancelar</button>
+      <button onclick="confirmarExportDash('${fmt}')" style="padding:9px 20px;border-radius:8px;border:none;background:#0D518E;color:white;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Baixar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.remove(); });
+}
 
-  // Busca todas as campanhas do ano direto do Supabase
+async function confirmarExportDash(fmt){
+  const de=document.getElementById('exp-dash-de').value;
+  const ate=document.getElementById('exp-dash-ate').value;
+  document.getElementById('modal-export-dash')?.remove();
+  if(!de||!ate){ showToast('Selecione o período','error'); return; }
+
   showLoading();
   let all=[];
   try{
-    const rows=await sbFetch('campaigns?select=*&inicio=gte.'+ano+'-01-01&inicio=lte.'+ano+'-12-31&order=inicio.asc');
+    const rows=await sbFetch('campaigns?select=*&inicio=lte.'+ate+'&fim=gte.'+de+'&order=inicio.asc');
     all=(rows||[]).map(rowToLocal);
   }catch(e){ showToast('Erro ao buscar campanhas','error'); return; }
   finally{ hideLoading(); }
+
+  const deLabel=de.split('-').reverse().join('/');
+  const ateLabel=ate.split('-').reverse().join('/');
+  const fname='dashboard-fotus-'+de+'_'+ate;
 
   const hCamp=['Campanha','Categoria','Status','Início','Fim','Tags','WA','Email','SMS','Inst','Face','LinkedIn','Blog','Outros','Meta Ads','Google Ads'];
   const rCamp=all.map(c=>[
@@ -2212,7 +2322,7 @@ async function exportarDashboard(fmt='csv'){
 
   if(fmt==='csv'){
     const rows=[
-      ['=== CAMPANHAS '+ano+' ==='], hCamp, ...rCamp, [],
+      ['=== CAMPANHAS '+deLabel+' a '+ateLabel+' ==='], hCamp, ...rCamp, [],
       ['=== TOTAIS POR CANAL ==='],['Canal','Ações'],...rCanais, [],
       ['=== TOTAIS POR CATEGORIA ==='],['Categoria','Campanhas'],...rCats
     ];
@@ -2224,7 +2334,37 @@ async function exportarDashboard(fmt='csv'){
       {name:'Totais por Categoria', rows:[['Categoria','Campanhas'],...rCats]}
     ]);
   } else if(fmt==='pdf'){
-    downloadPDF(fname+'.pdf','Dashboard '+ano,hCamp,rCamp,true);
+    const hPdf=['Campanha','Categoria','Status','Início','Fim','WA','Email','SMS'];
+    const rPdf=all.map(c=>[
+      c.name,
+      (Array.isArray(c.categoria)?c.categoria.map(x=>CAT_LABELS[x]||x).join('+'):CAT_LABELS[c.categoria]||c.categoria),
+      c.status||'ativa', c.inicio, c.fim,
+      (c.inbound?.wa||[]).length, (c.inbound?.email||[]).length, (c.inbound?.sms||[]).length
+    ]);
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    doc.setFontSize(14);doc.setFont('helvetica','bold');doc.setTextColor(13,81,142);
+    doc.text('FOTUS — Dashboard '+deLabel+' a '+ateLabel,14,14);
+    doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(90,99,117);
+    doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'}),14,21);
+    doc.autoTable({
+      startY:27, head:[hPdf], body:rPdf,
+      styles:{font:'helvetica',fontSize:9,cellPadding:4,overflow:'linebreak'},
+      headStyles:{fillColor:[13,81,142],textColor:255,fontStyle:'bold'},
+      columnStyles:{0:{cellWidth:55},1:{cellWidth:26},2:{cellWidth:20},3:{cellWidth:22},4:{cellWidth:22},5:{cellWidth:28},6:{cellWidth:28},7:{cellWidth:28}},
+      alternateRowStyles:{fillColor:[240,242,247]},
+      margin:{left:10,right:10},
+    });
+    // Segunda página: totais
+    doc.addPage();
+    doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(13,81,142);
+    doc.text('Totais por Canal',14,14);
+    doc.autoTable({startY:20,head:[['Canal','Ações']],body:rCanais,styles:{fontSize:9},headStyles:{fillColor:[13,81,142],textColor:255},margin:{left:14}});
+    const y2=doc.lastAutoTable.finalY+12;
+    doc.setFontSize(12);doc.setFont('helvetica','bold');doc.setTextColor(13,81,142);
+    doc.text('Totais por Categoria',14,y2);
+    doc.autoTable({startY:y2+6,head:[['Categoria','Campanhas']],body:rCats,styles:{fontSize:9},headStyles:{fillColor:[13,81,142],textColor:255},margin:{left:14}});
+    doc.save(fname+'.pdf');
   }
 }
 
