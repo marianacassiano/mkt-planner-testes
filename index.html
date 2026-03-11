@@ -615,7 +615,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <!-- RESUMO -->
   <div class="view" id="view-resumo">
     <div class="view-toprow" id="resumo-toprow">
-      <h2 style="margin:0;font-size:24px;font-weight:700;">Resumo de Campanhas</h2>
+      <h2 style="margin:0;font-size:24px;font-weight:700;">Campanhas Comerciais</h2>
       <input type="text" class="search-input" id="search-res" placeholder="🔍 Buscar campanha..." oninput="renderResumo()" style="margin-left:16px;">
     </div>
     <h3 style="font-size:16px;font-weight:700;margin-top:32px;margin-bottom:16px;">Calendário de Campanhas Comerciais</h3>
@@ -2802,12 +2802,116 @@ function uploadAvatar(file){
   if(!file)return;
   const reader=new FileReader();
   reader.onload=function(e){
-    currentUser.foto=e.target.result;
-    document.getElementById('profile-avatar-display').innerHTML='<img src="'+e.target.result+'" alt="Avatar">';
-    updateUserMenu();
-    dbUserUpdate(currentUser.id,{foto:e.target.result}).then(()=>{showToast('Foto de perfil atualizada!');}).catch(err=>{showToast('Erro ao salvar foto: '+err.message,'error');});
+    abrirCropFoto(e.target.result);
   };
   reader.readAsDataURL(file);
+}
+
+function abrirCropFoto(src){
+  document.getElementById('modal-crop-foto')?.remove();
+  const ov=document.createElement('div');
+  ov.id='modal-crop-foto';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  ov.innerHTML=`
+    <div style="background:white;border-radius:16px;padding:28px;width:420px;font-family:'Sora',sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="font-size:15px;font-weight:700;color:#0D518E;margin-bottom:4px;">✂️ Ajustar Foto</div>
+      <div style="font-size:12px;color:#9BA3B8;margin-bottom:16px;">Arraste para centralizar · Scroll para zoom</div>
+      <div id="crop-viewport" style="width:280px;height:280px;border-radius:50%;overflow:hidden;margin:0 auto 16px;border:3px solid #0D518E;cursor:grab;position:relative;background:#f0f2f7;">
+        <img id="crop-img" src="${src}" draggable="false" style="position:absolute;transform-origin:top left;user-select:none;max-width:none;">
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <span style="font-size:11px;color:#9BA3B8;">🔍</span>
+        <input type="range" id="crop-zoom" min="0.5" max="3" step="0.01" value="1" style="flex:1;accent-color:#0D518E;">
+        <span style="font-size:11px;color:#9BA3B8;">🔎</span>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button onclick="document.getElementById('modal-crop-foto').remove()" style="padding:9px 20px;border-radius:8px;border:1.5px solid #E2E6EF;background:white;font-family:'Sora',sans-serif;font-size:13px;cursor:pointer;color:#5A6375;">Cancelar</button>
+        <button onclick="confirmarCropFoto()" style="padding:9px 20px;border-radius:8px;border:none;background:#0D518E;color:white;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;">Salvar Foto</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+
+  const vp=document.getElementById('crop-viewport');
+  const img=document.getElementById('crop-img');
+  const zoom=document.getElementById('crop-zoom');
+  const VW=280, VH=280;
+  let scale=1, ox=0, oy=0, dragging=false, startX, startY, startOx, startOy;
+
+  function applyTransform(){
+    img.style.transform=`translate(${ox}px,${oy}px) scale(${scale})`;
+  }
+  function clampOffset(){
+    const iw=img.naturalWidth*scale, ih=img.naturalHeight*scale;
+    ox=Math.min(0,Math.max(ox,VW-iw));
+    oy=Math.min(0,Math.max(oy,VH-ih));
+  }
+
+  img.onload=function(){
+    // Fit image to fill viewport initially
+    scale=Math.max(VW/img.naturalWidth, VH/img.naturalHeight);
+    zoom.min=scale; zoom.value=scale;
+    ox=(VW-img.naturalWidth*scale)/2;
+    oy=(VH-img.naturalHeight*scale)/2;
+    applyTransform();
+  };
+
+  zoom.oninput=function(){
+    const newScale=parseFloat(this.value);
+    // Zoom centrado no meio do viewport
+    const cx=VW/2, cy=VH/2;
+    ox=cx-(cx-ox)*(newScale/scale);
+    oy=cy-(cy-oy)*(newScale/scale);
+    scale=newScale;
+    clampOffset();
+    applyTransform();
+  };
+
+  vp.addEventListener('mousedown',e=>{
+    dragging=true; startX=e.clientX; startY=e.clientY; startOx=ox; startOy=oy;
+    vp.style.cursor='grabbing'; e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    ox=startOx+(e.clientX-startX); oy=startOy+(e.clientY-startY);
+    clampOffset(); applyTransform();
+  });
+  document.addEventListener('mouseup',()=>{ dragging=false; vp.style.cursor='grab'; });
+
+  // Touch support
+  vp.addEventListener('touchstart',e=>{
+    dragging=true; startX=e.touches[0].clientX; startY=e.touches[0].clientY; startOx=ox; startOy=oy; e.preventDefault();
+  },{passive:false});
+  document.addEventListener('touchmove',e=>{
+    if(!dragging)return;
+    ox=startOx+(e.touches[0].clientX-startX); oy=startOy+(e.touches[0].clientY-startY);
+    clampOffset(); applyTransform();
+  });
+  document.addEventListener('touchend',()=>{ dragging=false; });
+}
+
+function confirmarCropFoto(){
+  const img=document.getElementById('crop-img');
+  const zoom=parseFloat(document.getElementById('crop-zoom').value);
+  const style=img.style.transform;
+  // Extrair translate do transform
+  const match=style.match(/translate\(([^,]+)px,([^p]+)px\)/);
+  const tx=match?parseFloat(match[1]):0;
+  const ty=match?parseFloat(match[2]):0;
+
+  const VW=280, VH=280;
+  const canvas=document.createElement('canvas');
+  canvas.width=280; canvas.height=280;
+  const ctx=canvas.getContext('2d');
+  // Clipar em círculo
+  ctx.beginPath(); ctx.arc(140,140,140,0,Math.PI*2); ctx.clip();
+  ctx.drawImage(img, -tx/zoom, -ty/zoom, img.naturalWidth, img.naturalHeight, 0, 0, img.naturalWidth*zoom, img.naturalHeight*zoom);
+  const dataUrl=canvas.toDataURL('image/jpeg',0.85);
+
+  document.getElementById('modal-crop-foto').remove();
+  currentUser.foto=dataUrl;
+  document.getElementById('profile-avatar-display').innerHTML='<img src="'+dataUrl+'" alt="Avatar">';
+  updateUserMenu();
+  dbUserUpdate(currentUser.id,{foto:dataUrl}).then(()=>showToast('Foto de perfil atualizada!')).catch(err=>showToast('Erro ao salvar foto: '+err.message,'error'));
 }
 async function updatePassword(){
   const current=document.getElementById('profile-current-password').value;
