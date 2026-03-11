@@ -1664,15 +1664,24 @@ function initDashPeriodo(){
   if(btn) btn.classList.add('ativo');
 }
 
-function renderDashboard(){
-  // Consolidar dados do mês atual em background
-  setTimeout(()=>consolidarMesAtual(),1500);
+async function renderDashboard(){
   const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);
 
   // ── Período selecionado ──
   const de=document.getElementById('dash-de')?.value||'';
   const ate=document.getElementById('dash-ate')?.value||ts;
-  const all=campaigns.filter(c=>(!de||c.fim>=de)&&c.inicio<=ate);
+
+  // Busca direto do Supabase pelo período — independente do mês do calendário
+  showLoading();
+  let allRaw=[];
+  try{
+    allRaw=await sbFetch('campaigns?select=*&inicio=lte.'+ate+(de?'&fim=gte.'+de:'')+'&order=inicio.asc');
+  }catch(e){ console.warn('Erro ao buscar campanhas do dashboard:',e.message); }
+  finally{ hideLoading(); }
+  const all=(allRaw||[]).map(rowToLocal);
+
+  // Consolidar mês atual em background com dados frescos
+  setTimeout(()=>consolidarMesAtual(),1000);
 
   // KPIs filtrados pelo período
   const ativas=all.filter(c=>c.status!=='cancelada'&&c.inicio<=ts&&c.fim>=ts);
@@ -1747,7 +1756,7 @@ function renderDashboard(){
 
   // ── GRÁFICO 1: Evolução de ações no período (linha) ──
   const allAcoes=[];
-  campaigns.forEach(c=>{
+  all.forEach(c=>{
     canalMap.forEach(([getter,nome,cor])=>{
       (getter(c)||[]).forEach(d=>{
         if((!de||d>=de)&&d<=ate) allAcoes.push({data:d,canal:nome});
@@ -1954,8 +1963,10 @@ async function consolidarMes(mesRef){
   const me = mesRef+'-'+String(new Date(ano,mes,0).getDate()).padStart(2,'0');
   const today = toStr(new Date());
 
-  const do_mes = campaigns.filter(c=>c.mes_ref&&c.mes_ref===mesRef);
-  const all_no_mes = campaigns.filter(c=>c.inicio<=me&&c.fim>=ms);
+  // Busca campanhas do mês direto do Supabase
+  let rows=[];
+  try{ rows=await sbFetch('campaigns?select=*&inicio=lte.'+me+'&fim=gte.'+ms); }catch(e){ return; }
+  const all_no_mes=(rows||[]).map(rowToLocal);
 
   const canalMap = [
     [c=>c.inbound?.wa||[],     'whatsapp'],
