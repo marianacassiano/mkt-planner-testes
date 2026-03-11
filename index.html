@@ -600,7 +600,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <!-- RESUMO -->
   <div class="view" id="view-resumo">
     <div class="view-toprow" id="resumo-toprow">
-      <h2 style="margin:0;font-size:24px;font-weight:700;">Resumo de Campanhas</h2>
+      <h2 style="margin:0;font-size:24px;font-weight:700;">Campanhas Comerciais</h2>
       <input type="text" class="search-input" id="search-res" placeholder="🔍 Buscar campanha..." oninput="renderResumo()" style="margin-left:16px;">
     </div>
     <h3 style="font-size:16px;font-weight:700;margin-top:32px;margin-bottom:16px;">Calendário de Campanhas Comerciais</h3>
@@ -2116,7 +2116,7 @@ function exportarDashboard(){
   const rows=[];
   
   // Aba 1: Resumo por campanha
-  rows.push(['=== RESUMO DE CAMPANHAS '+ano+' ===']);
+  rows.push(['=== CAMPANHAS COMERCIAIS '+ano+' ===']);
   rows.push(['Campanha','Categoria','Status','Início','Fim','Briefing','Tags',
     'WA','Email','SMS','Instagram','Facebook','LinkedIn','Blog','Outros','Meta Ads','Google Ads']);
   all.forEach(c=>{
