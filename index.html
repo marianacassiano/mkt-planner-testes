@@ -533,7 +533,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     </div>
     <nav class="topbar-nav">
       <button class="nav-btn active" id="nav-cal" onclick="showView('calendario')">Calendário</button>
-      <button class="nav-btn" id="nav-res" onclick="showView('resumo')">Resumo Mensal</button>
+      <button class="nav-btn" id="nav-res" onclick="showView('resumo')">Campanhas Comerciais</button>
       <button class="nav-btn" id="nav-dash" onclick="showView('dashboard')">Dashboard</button>
       <button class="nav-btn" id="nav-usuarios" onclick="showView('usuarios')">Usuários</button>
     </nav>
@@ -615,8 +615,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <!-- RESUMO -->
   <div class="view" id="view-resumo">
     <div class="view-toprow" id="resumo-toprow">
-      <h2 style="margin:0;font-size:24px;font-weight:700;">Campanhas Comerciais</h2>
-      <input type="text" class="search-input" id="search-res" placeholder="🔍 Buscar campanha..." oninput="renderResumo()" style="margin-left:16px;">
+      <input type="text" class="search-input" id="search-res" placeholder="🔍 Buscar campanha..." oninput="renderResumo()" style="margin-left:0;">
     </div>
     <h3 style="font-size:16px;font-weight:700;margin-top:32px;margin-bottom:16px;">Calendário de Campanhas Comerciais</h3>
     <div id="resumo-calendar" style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);"></div>
@@ -2819,10 +2818,13 @@ function abrirCropFoto(src){
       <div id="crop-viewport" style="width:280px;height:280px;border-radius:50%;overflow:hidden;margin:0 auto 16px;border:3px solid #0D518E;cursor:grab;position:relative;background:#f0f2f7;">
         <img id="crop-img" src="${src}" draggable="false" style="position:absolute;transform-origin:top left;user-select:none;max-width:none;">
       </div>
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
         <span style="font-size:11px;color:#9BA3B8;">🔍</span>
         <input type="range" id="crop-zoom" min="0.5" max="3" step="0.01" value="1" style="flex:1;accent-color:#0D518E;">
         <span style="font-size:11px;color:#9BA3B8;">🔎</span>
+      </div>
+      <div style="text-align:center;margin-bottom:20px;">
+        <button onclick="centralizarCropFoto()" style="padding:7px 18px;border-radius:8px;border:1.5px solid #0D518E;background:white;color:#0D518E;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;cursor:pointer;">⊙ Centralizar</button>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button onclick="document.getElementById('modal-crop-foto').remove()" style="padding:9px 20px;border-radius:8px;border:1.5px solid #E2E6EF;background:white;font-family:'Sora',sans-serif;font-size:13px;cursor:pointer;color:#5A6375;">Cancelar</button>
@@ -2845,6 +2847,9 @@ function abrirCropFoto(src){
     ox=Math.min(0,Math.max(ox,VW-iw));
     oy=Math.min(0,Math.max(oy,VH-ih));
   }
+
+  // Expõe estado global para o botão Centralizar
+  window._cropState={get ox(){return ox;}, set ox(v){ox=v;}, get oy(){return oy;}, set oy(v){oy=v;}, get scale(){return scale;}, VW, VH, applyTransform:()=>applyTransform(), clamp:()=>clampOffset(), get img(){return img;}};
 
   img.onload=function(){
     // Fit image to fill viewport initially
@@ -2887,6 +2892,16 @@ function abrirCropFoto(src){
     clampOffset(); applyTransform();
   });
   document.addEventListener('touchend',()=>{ dragging=false; });
+}
+
+function centralizarCropFoto(){
+  const s=window._cropState;
+  if(!s) return;
+  const iw=s.img.naturalWidth*s.scale, ih=s.img.naturalHeight*s.scale;
+  s.ox=(s.VW-iw)/2;
+  s.oy=(s.VH-ih)/2;
+  s.clamp();
+  s.applyTransform();
 }
 
 function confirmarCropFoto(){
