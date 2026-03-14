@@ -1607,15 +1607,9 @@ function renderTabIdeias(cont) {
   }
 
   cont.innerHTML = `
-  <div class="intel-grid-2">
-    <div class="intel-card">
-      <div class="intel-card-title" style="margin-bottom:16px;">📅 Ideias para essa Semana</div>
-      <div id="intel-ideias-lista"></div>
-    </div>
-    <div class="intel-card">
-      <div class="intel-card-title" style="margin-bottom:16px;">🗓️ Sugestão de Calendário</div>
-      <div id="intel-calendario-sugestao"></div>
-    </div>
+  <div class="intel-card">
+    <div class="intel-card-title" style="margin-bottom:16px;">📅 Ideias para essa Semana</div>
+    <div id="intel-ideias-lista"></div>
   </div>
   <div style="font-size:11px;color:var(--gray-400);text-align:right;margin-top:8px;font-family:'DM Mono',monospace;">
     Gerado em: ${new Date(stored.timestamp).toLocaleString('pt-BR')}
@@ -1637,26 +1631,7 @@ function renderTabIdeias(cont) {
     </div>`;
   });
 
-  const calEl = document.getElementById('intel-calendario-sugestao');
-  const calendario = stored.calendario || [];
-  
-  // Se for array, usa diretamente; se for objeto, converte
-  const calendarArray = Array.isArray(calendario) ? calendario : Object.entries(calendario).map(([dia, item]) => ({ dia, ...item }));
-  
-  calendarArray.forEach((item, i) => {
-    const dia = item.dia || '';
-    const conteudo = item.descricao || item.conteudo || '';
-    const tipo = item.tipo || 'Post';
-    const cor = TIPO_COLORS[tipo] || '#9BA3B8';
-    if (conteudo) {
-      calEl.innerHTML += `
-      <div class="intel-cal-row">
-        <span class="intel-cal-dia">${dia}</span>
-        <span class="intel-cal-tipo" style="background:${cor}20;color:${cor};">${tipo}</span>
-        <span class="intel-cal-desc">${conteudo}</span>
-      </div>`;
-    }
-  });
+
 }
 
 // ── TAB: ALERTAS ──────────────────────────────────────────────────
