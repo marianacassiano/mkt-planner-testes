@@ -1766,7 +1766,7 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-70b-versatile',
+        model: 'gemma2-9b-it',
         messages: [{ role: 'system', content: 'Você é um especialista em inteligência de mercado solar. Responda sempre em JSON válido.' }, { role: 'user', content: userPrompt }],
         max_tokens: 2000,
         temperature: 0.7,
@@ -1813,7 +1813,7 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
 function toggleConfigPanel(){const p=document.getElementById('config-panel');p.classList.toggle('open');if(p.classList.contains('open')){const s=localStorage.getItem('groq_api_key');if(s)document.getElementById('groq-key-input').value=s;}}
 function saveGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Chave não pode estar vazia','error');return;}localStorage.setItem('groq_api_key',k);showConfigStatus('✅ Chave salva!','success');setTimeout(()=>{document.getElementById('config-panel').classList.remove('open');},1500);}
 function clearGroqKey(){if(confirm('Limpar chave?')){localStorage.removeItem('groq_api_key');document.getElementById('groq-key-input').value='';showConfigStatus('Chave removida','error');}}
-async function testGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Insira uma chave','error');return;}showConfigStatus('Testando...','error');try{const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Authorization':`Bearer ${k}`,'Content-Type':'application/json'},body:JSON.stringify({model:'llama-3.1-70b-versatile',messages:[{role:'user',content:'Teste'}],max_tokens:10})});if(r.ok){showConfigStatus('✅ Chave válida!','success');}else{const e=await r.json();showConfigStatus('❌ '+e.error.message,'error');}}catch(e){showConfigStatus('❌ Erro: '+e.message,'error');}}
+async function testGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Insira uma chave','error');return;}showConfigStatus('Testando...','error');try{const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Authorization':`Bearer ${k}`,'Content-Type':'application/json'},body:JSON.stringify({model:'gemma2-9b-it',messages:[{role:'user',content:'Teste'}],max_tokens:10})});if(r.ok){showConfigStatus('✅ Chave válida!','success');}else{const e=await r.json();showConfigStatus('❌ '+e.error.message,'error');}}catch(e){showConfigStatus('❌ Erro: '+e.message,'error');}}
 function showConfigStatus(m,t){const s=document.getElementById('config-status');s.textContent=m;s.className='config-status '+t;}
 </script>
 <div id="config-panel" class="config-panel"><button class="config-close" onclick="toggleConfigPanel()">✕</button><h2>⚙️ Configuração</h2><div id="config-status"></div><label>Chave Groq API</label><input type="password" id="groq-key-input" placeholder="gsk_..." /><button onclick="saveGroqKey()">Salvar Chave</button><button onclick="testGroqKey()" style="background: var(--teal);">Testar Chave</button><button onclick="clearGroqKey()" style="background: var(--red);">Limpar Chave</button></div></body>
