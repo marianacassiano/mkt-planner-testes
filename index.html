@@ -1728,9 +1728,9 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
     // Obter chave Groq do Supabase
     let groqKey = null;
     try {
-      const rows = await sbFetch('groq_config?userId=eq.' + currentUser.id + '&select=groqApiKey');
+      const rows = await sbFetch('groq_config?userid=eq.' + currentUser.id + '&select=groqapikey');
       if (rows && rows.length > 0) {
-        groqKey = rows[0].groqApiKey;
+        groqKey = rows[0].groqapikey;
       }
     } catch (e) {
       console.error('Erro ao buscar chave Groq:', e);
