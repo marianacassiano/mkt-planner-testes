@@ -9,8 +9,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -677,32 +675,6 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   .intel-section-row{flex-direction:column;}
 }
 
-
-    .config-panel {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: 350px;
-      height: 100vh;
-      background: white;
-      border-left: 1px solid var(--gray-200);
-      padding: 20px;
-      box-shadow: -2px 0 8px rgba(0,0,0,0.1);
-      z-index: 10000;
-      overflow-y: auto;
-      transform: translateX(100%);
-      transition: transform 0.3s ease;
-    }
-    .config-panel.open { transform: translateX(0); }
-    .config-panel h2 { font-size: 16px; font-weight: 700; margin-bottom: 20px; color: var(--purple); }
-    .config-panel label { font-size: 12px; font-weight: 600; color: var(--gray-600); display: block; margin-bottom: 6px; }
-    .config-panel input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: 13px; font-family: 'Sora', sans-serif; margin-bottom: 12px; }
-    .config-panel button { width: 100%; padding: 12px; background: var(--purple); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
-    .config-panel button:hover { background: #0A4070; }
-    .config-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-600); width: auto; padding: 0; margin: 0; }
-    .config-status { padding: 12px; border-radius: 8px; font-size: 12px; margin-bottom: 12px; }
-    .config-status.success { background: #E8F5E9; color: #1B5E20; }
-    .config-status.error { background: #FFEBEE; color: #B71C1C; }
 </style>
 </head>
 <body>
@@ -718,7 +690,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <p class="subtitle">FOTUS: PLANNER MARKETING</p>
     <input class="inp" type="email" id="inp-email" placeholder="E-mail">
     <input class="inp" type="password" id="inp-senha" placeholder="Senha">
-    <button class="btn-login" id="btn-login">ENTRAR</button>
+    <button class="btn-login" onclick="doLogin()">ENTRAR</button>
     <p class="login-error" id="login-error">E-mail ou senha incorretos.</p>
     <div class="login-footer">
       <a onclick="showForgotPassword()"></a>
@@ -758,7 +730,6 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <button class="nav-btn" id="nav-usuarios" onclick="showView('usuarios')">Usuários</button>
     </nav>
     <div class="topbar-actions">
-      <button onclick="toggleConfigPanel()" style="padding:8px 16px;background:var(--orange);color:white;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;margin-right:10px;">⚙️ Configurar</button>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
         <span class="role-badge" id="role-badge"></span>
         <span id="topbar-user-email" style="font-size:10px;color:var(--gray-400);font-family:'DM Mono',monospace;"></span>
@@ -1227,7 +1198,6 @@ function applyRoleRestrictions(){const isUser=currentUser.role==='user';const _n
   document.getElementById('nav-cal').style.display=isUser?'none':'';document.getElementById('nav-dash').style.display=isUser?'none':'';document.getElementById('nav-usuarios').style.display=isUser?'none':'';document.getElementById('btn-nova-camp').style.display=isUser?'none':'';if(isUser)showView('resumo');}
 function doLogout(){currentUser=null;campaigns=[];clearSession();document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('inp-email').value='';document.getElementById('inp-senha').value='';['nav-cal','nav-dash','nav-usuarios','nav-intel','btn-nova-camp'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});}
 document.getElementById('inp-senha').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-document.getElementById('btn-login').addEventListener('click',doLogin);
 function showView(v){['calendario','resumo','dashboard','intel','usuarios'].forEach(n=>document.getElementById('view-'+n).classList.toggle('active',v===n));document.getElementById('nav-cal').classList.toggle('active',v==='calendario');document.getElementById('nav-res').classList.toggle('active',v==='resumo');document.getElementById('nav-dash').classList.toggle('active',v==='dashboard');document.getElementById('nav-usuarios').classList.toggle('active',v==='usuarios');
   const _ni=document.getElementById('nav-intel');if(_ni)_ni.classList.toggle('active',v==='intel');if(v==='resumo')renderResumo();if(v==='dashboard'){initDashPeriodo();renderDashboard();}if(v==='usuarios')renderUsuarios();
   if(v==='intel'){renderIntelView();}}
@@ -1557,12 +1527,10 @@ function renderTabRadar(cont) {
 
   // Preenche temas
   const temasEl = document.getElementById('intel-radar-temas');
-  const temas = stored.temas || stored.radar?.temas || [];
-  temas.forEach((t, i) => {
-    const nome = t.tema || t.nome || 'Tema';
+  (stored.temas || []).forEach((t, i) => {
     temasEl.innerHTML += `<div class="intel-tema-row">
       <span class="intel-tema-num">${i+1}</span>
-      <span class="intel-tema-label">${nome}</span>
+      <span class="intel-tema-label">${t.tema}</span>
       <div class="intel-tema-bar-wrap"><div class="intel-tema-bar" style="width:${t.score}%;background:${t.cor||'#0D518E'}"></div></div>
       <span class="intel-tema-score">${t.score}%</span>
     </div>`;
@@ -1570,69 +1538,72 @@ function renderTabRadar(cont) {
 
   // Engajamento
   const engEl = document.getElementById('intel-radar-engagement');
-  const engajamento = stored.engajamento || stored.radar?.engajamento || [];
-  engajamento.forEach(e => {
-    const nome = e.tema || e.nome || 'Tema';
-    const taxa = e.taxa || e.taxa_de_engajamento || 0;
+  (stored.engajamento || []).forEach(e => {
     engEl.innerHTML += `<div class="intel-tema-row">
-      <span class="intel-tema-label" style="flex:1;">${nome}</span>
-      <span style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:${taxa > 5 ? 'var(--green)' : 'var(--gray-600)'};">` + `${taxa}%</span>
+      <span class="intel-tema-label" style="flex:1;">${e.tema}</span>
+      <span style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:${e.taxa > 5 ? 'var(--green)' : 'var(--gray-600)'};">${e.taxa}%</span>
     </div>`;
   });
 
   // Formatos
   const fmtEl = document.getElementById('intel-radar-formatos');
-  const formatos = stored.formatos || stored.radar?.formatos || [];
-  formatos.forEach(f => {
-    const nome = f.formato || f.nome || 'Formato';
-    const icone = f.icone || '📱';
-    const descricao = f.descricao || '';
-    const mult = f.multiplicador || f.performance || '1x';
+  (stored.formatos || []).forEach(f => {
     fmtEl.innerHTML += `<div class="intel-formato-row">
-      <span class="intel-formato-icon">${icone}</span>
-      <div style="flex:1;"><div style="font-size:13px;font-weight:700;">${nome}</div><div style="font-size:11px;color:var(--gray-400);">${descricao}</div></div>
-      <span class="intel-formato-mult">${mult}</span>
+      <span class="intel-formato-icon">${f.icone}</span>
+      <div style="flex:1;"><div style="font-size:13px;font-weight:700;">${f.formato}</div><div style="font-size:11px;color:var(--gray-400);">${f.descricao}</div></div>
+      <span class="intel-formato-mult">${f.multiplicador}</span>
     </div>`;
   });
 
-  document.getElementById('intel-radar-analise').innerHTML = stored.analise || stored.radar?.analise || '';
+  document.getElementById('intel-radar-analise').innerHTML = stored.analise || '';
 }
 
 // ── TAB: IDEIAS ───────────────────────────────────────────────────
 function renderTabIdeias(cont) {
   const stored = JSON.parse(localStorage.getItem('fotus_intel_ideias') || 'null');
-  
   if (!stored) {
     cont.innerHTML = intelEmptyState('💡', 'Nenhuma ideia gerada ainda', 'Execute a análise para receber sugestões personalizadas de conteúdo para a Fotus.');
     return;
   }
 
   cont.innerHTML = `
-  <div class="intel-card">
-    <div class="intel-card-title" style="margin-bottom:16px;">📅 Ideias para essa Semana</div>
-    <div id="intel-ideias-lista"></div>
+  <div class="intel-grid-2">
+    <div class="intel-card">
+      <div class="intel-card-title" style="margin-bottom:16px;">📅 Ideias para essa Semana</div>
+      <div id="intel-ideias-lista"></div>
+    </div>
+    <div class="intel-card">
+      <div class="intel-card-title" style="margin-bottom:16px;">🗓️ Sugestão de Calendário</div>
+      <div id="intel-calendario-sugestao"></div>
+    </div>
   </div>
   <div style="font-size:11px;color:var(--gray-400);text-align:right;margin-top:8px;font-family:'DM Mono',monospace;">
     Gerado em: ${new Date(stored.timestamp).toLocaleString('pt-BR')}
   </div>`;
 
-  const TIPO_COLORS = { Reels:'#E53935', Carrossel:'#1E88E5', Story:'#FB8C00', Post:'#43A047', Video:'#E53935', Infografico:'#1E88E5', Artigo:'#FB8C00' };
+  const TIPO_COLORS = { Reels:'#E53935', Carrossel:'#1E88E5', Story:'#FB8C00', Post:'#43A047' };
   const ideiasEl = document.getElementById('intel-ideias-lista');
-  const ideias = stored.ideias || [];
-  ideias.forEach(ideia => {
-    const titulo = ideia.titulo || ideia.nome || 'Ideia';
-    const descricao = ideia.descricao || '';
-    const tipo = ideia.tipo || 'Post';
-    const cor = TIPO_COLORS[tipo] || '#9BA3B8';
+  (stored.ideias || []).forEach(ideia => {
+    const cor = TIPO_COLORS[ideia.tipo] || '#9BA3B8';
     ideiasEl.innerHTML += `
     <div class="intel-ideia-card">
-      <span class="intel-ideia-tipo" style="background:${cor}20;color:${cor};">${tipo}</span>
-      <div class="intel-ideia-titulo">${titulo}</div>
-      <div class="intel-ideia-desc">${descricao}</div>
+      <span class="intel-ideia-tipo" style="background:${cor}20;color:${cor};">${ideia.tipo}</span>
+      <div class="intel-ideia-titulo">${ideia.titulo}</div>
+      <div class="intel-ideia-desc">${ideia.descricao}</div>
+      ${ideia.motivo ? `<div class="intel-ideia-motivo">💡 ${ideia.motivo}</div>` : ''}
     </div>`;
   });
 
-
+  const calEl = document.getElementById('intel-calendario-sugestao');
+  const DIAS = ['Segunda','Terça','Quarta','Quinta','Sexta'];
+  (stored.calendario || []).forEach((item, i) => {
+    calEl.innerHTML += `
+    <div class="intel-cal-row">
+      <span class="intel-cal-dia">${DIAS[i % DIAS.length]}</span>
+      <span class="intel-cal-tipo" style="background:${TIPO_COLORS[item.tipo]||'#9BA3B8'}20;color:${TIPO_COLORS[item.tipo]||'#9BA3B8'};">${item.tipo}</span>
+      <span class="intel-cal-desc">${item.descricao}</span>
+    </div>`;
+  });
 }
 
 // ── TAB: ALERTAS ──────────────────────────────────────────────────
@@ -1693,9 +1664,8 @@ async function runIntelAnalysis() {
   if (icon) icon.textContent = '⏳';
   showToast('Iniciando análise do mercado solar...', 'success');
 
-    const perfis = intelConcorrentes.map(c => `@${c.username} (${c.nome || c.username}, ${c.categoria})`).join(', ');
-    const perfisTexto = perfis || 'perfis genéricos do mercado solar brasileiro';
-    const competitors = intelConcorrentes || [];
+  const perfis = intelConcorrentes.map(c => `@${c.username} (${c.nome || c.username}, ${c.categoria})`).join(', ');
+  const perfisTexto = perfis || 'perfis genéricos do mercado solar brasileiro';
 
   try {
     // ── PROMPT SISTEMA ────────────────────────────────────────────
@@ -1704,215 +1674,86 @@ async function runIntelAnalysis() {
 Sua tarefa é analisar o cenário atual do mercado solar brasileiro nas redes sociais e gerar insights acionáveis para a Fotus Distribuidora Solar, distribuidora de equipamentos solares em Vila Velha, ES.
 
 SEMPRE responda em JSON puro e válido, sem markdown, sem explicações fora do JSON.
-TODOS OS CAMPOS SÃO OBRIGATÓRIOS - NUNCA DEIXE CAMPOS VAZIOS.
 
 Formato obrigatório:
 {
   "radar": {
-    "temas": [{"tema": "Tema 1", "score": 85, "cor": "#0D518E"}, {"tema": "Tema 2", "score": 78, "cor": "#FAB515"}, {"tema": "Tema 3", "score": 72, "cor": "#0D518E"}, {"tema": "Tema 4", "score": 65, "cor": "#FAB515"}, {"tema": "Tema 5", "score": 58, "cor": "#0D518E"}, {"tema": "Tema 6", "score": 51, "cor": "#FAB515"}, {"tema": "Tema 7", "score": 45, "cor": "#0D518E"}],
-    "engajamento": [{"tema": "Tema 1", "taxa": 8.5}, {"tema": "Tema 2", "taxa": 7.2}, {"tema": "Tema 3", "taxa": 6.8}, {"tema": "Tema 4", "taxa": 5.9}, {"tema": "Tema 5", "taxa": 5.1}, {"tema": "Tema 6", "taxa": 4.3}],
-    "formatos": [{"formato": "Reels", "icone": "🎬", "descricao": "Vídeos curtos 30-60s", "multiplicador": "2.7x"}, {"formato": "Carrossel", "icone": "📸", "descricao": "Múltiplas imagens", "multiplicador": "2.1x"}, {"formato": "Stories", "icone": "📱", "descricao": "Conteúdo efêmero", "multiplicador": "1.8x"}, {"formato": "Posts", "icone": "📝", "descricao": "Conteúdo estático", "multiplicador": "1.4x"}],
-    "analise": "Parágrafo completo com análise detalhada dos trends do mercado solar (mínimo 200 palavras). Explique: o que está crescendo, o que está caindo, comportamento do consumidor, oportunidades e desafios."
+    "temas": [
+      {"tema": "Nome do tema", "score": 85, "cor": "#0D518E"},
+      ...até 7 temas
+    ],
+    "engajamento": [
+      {"tema": "Tema", "taxa": 7.2},
+      ...até 6 itens
+    ],
+    "formatos": [
+      {"formato": "Reels", "icone": "🎬", "descricao": "Curtos de 30-60s", "multiplicador": "2.7x"},
+      ...até 4 formatos
+    ],
+    "analise": "Texto HTML com análise detalhada dos trends do mercado solar, o que está crescendo, o que está caindo, comportamento do consumidor. Use <strong> e <p>. Mínimo 200 palavras."
   },
-  "ideias": [{"tipo": "Reels", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Carrossel", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Reels", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Stories", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Posts", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Reels", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}],
-  "calendario": [{"dia": "Segunda", "tipo": "Reels", "descricao": "Descrição do conteúdo"}, {"dia": "Terça", "tipo": "Carrossel", "descricao": "Descrição do conteúdo"}, {"dia": "Quarta", "tipo": "Reels", "descricao": "Descrição do conteúdo"}, {"dia": "Quinta", "tipo": "Stories", "descricao": "Descrição do conteúdo"}, {"dia": "Sexta", "tipo": "Posts", "descricao": "Descrição do conteúdo"}],
-  "alertas": [{"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "alta", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}, {"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "alta", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}, {"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "media", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}, {"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "media", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}]
+  "ideias": {
+    "ideias": [
+      {"tipo": "Reels", "titulo": "Título chamativo do post", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"},
+      ...6 ideias variadas entre Reels, Carrossel, Story, Post
+    ],
+    "calendario": [
+      {"tipo": "Reels", "descricao": "Breve descrição"},
+      ...5 itens, um por dia útil
+    ]
+  },
+  "alertas": {
+    "alertas": [
+      {"titulo": "Título do alerta", "descricao": "Descrição", "prioridade": "alta|media|baixa", "data": "Mar/2026", "acao": "O que a Fotus deve fazer"},
+      ...3 a 5 alertas
+    ]
+  }
 }`;
 
     const userPrompt = `Analise o cenário atual do mercado solar brasileiro no Instagram e redes sociais.
 
-Perfis monitorados: \${perfisTexto}
+Perfis monitorados: ${perfisTexto}
 
-GERE OBRIGATORIAMENTE:
-1. Radar com EXATAMENTE 7 temas (scores 0-100, cores alternando #0D518E e #FAB515)
-2. Engajamento com EXATAMENTE 6 temas
-3. EXATAMENTE 4 formatos de conteúdo (Reels, Carrossel, Stories, Posts)
-4. Análise detalhada em parágrafo completo (200+ palavras)
-5. EXATAMENTE 6 ideias de conteúdo (2 Reels, 1 Carrossel, 1 Stories, 1 Posts, 1 Reels)
-6. Calendário semanal com EXATAMENTE 5 dias úteis
-7. EXATAMENTE 4 alertas com descrições em parágrafo completo (150+ palavras cada)
+Com base nas tendências atuais de 2026 do setor fotovoltaico no Brasil, gere:
+1. Radar de temas mais quentes (scores de 0-100)
+2. Taxas de engajamento estimadas por tema
+3. Formatos de conteúdo que mais performam
+4. Análise detalhada do mercado
+5. 6 ideias de conteúdo personalizadas para a Fotus Distribuidora Solar (distribuidora B2B em Vila Velha, ES, que vende para integradores)
+6. Calendário semanal de postagens
+7. Alertas de tendências emergentes que a Fotus deve aproveitar
 
-IMPORTANTE - NUNCA DEIXE CAMPOS VAZIOS:
-- Descrições de alertas devem ser parágrafos completos, não bullets
-- Cada ideia deve ter todos os 4 campos preenchidos (tipo, titulo, descricao, motivo)
-- Cada alerta deve ter descrição longa, ação específica e prioridade
-- Analise deve ter 200+ palavras
-- Cada descrição de alerta deve ter 150+ palavras
+Considere: mercado brasileiro, públicos B2B (integradores solares), tendências de financiamento, políticas de incentivo, e o crescimento do segmento residencial e comercial.`;
 
-Considere: mercado brasileiro, públicos B2B (integradores solares), tendências de financiamento, políticas de incentivo, crescimento residencial e comercial.`;;
-
-    // Obter chave Groq do Supabase
-    let groqKey = localStorage.getItem('groq_api_key');
-    if (!groqKey) {
-      showToast('Chave Groq não configurada. Clique em ⚙️ Configurar', 'error');
-      throw new Error('Chave Groq não configurada');
-    }
-
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await fetch('/api/anthropic', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${groqKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'system', content: 'Você é um especialista em inteligência de mercado solar. Responda sempre em JSON válido.' }, { role: 'user', content: userPrompt }],
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 4000,
-        temperature: 0.7,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
       })
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Erro Groq:', errorText);
-      throw new Error('Erro na API: ' + response.status + ' - ' + errorText);
-    }
+    if (!response.ok) throw new Error('Erro na API: ' + response.status);
     const data = await response.json();
 
     // Extrai o texto final (após tool use)
-    let jsonText = data.choices[0].message.content;
-    console.log('Resposta bruta:', jsonText);
+    let jsonText = '';
+    data.content.forEach(block => {
+      if (block.type === 'text') jsonText += block.text;
+    });
 
     // Limpa e parseia
     jsonText = jsonText.trim().replace(/^```json\s*/,'').replace(/\s*```$/,'').replace(/^```\s*/,'');
-    
-    // Remove caracteres de controle problemáticos
-    jsonText = jsonText.replace(/[\x00-\x1F\x7F]/g, ' ');
-    
-    // Converte vírgulas decimais em pontos (formato brasileiro para JSON)
-    jsonText = jsonText.replace(/(:\s*)(\d+),(\d+)/g, '$1$2.$3');
-    
-    let result;
-    try {
-      result = JSON.parse(jsonText);
-    } catch (e) {
-      console.log('Erro ao parsear JSON:', e.message);
-      // Tenta extrair JSON entre chaves
-      const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try {
-          result = JSON.parse(jsonMatch[0]);
-        } catch (e2) {
-          // Tenta limpar mais agressivamente
-          let cleaned = jsonMatch[0]
-            .replace(/,\s*}/g, '}')
-            .replace(/,\s*]/g, ']')
-            .replace(/'/g, '"')
-            .replace(/([\w\}\]])\s*([\w\"{\[])/g, '$1,$2')
-            .replace(/,,+/g, ',');
-          
-          try {
-            result = JSON.parse(cleaned);
-          } catch (e3) {
-            console.error('JSON após limpeza:', cleaned.substring(0, 300));
-            throw new Error('Não conseguiu parsear resposta como JSON: ' + e3.message);
-          }
-        }
-      } else {
-        throw new Error('Não conseguiu parsear resposta como JSON: ' + e.message);
-      }
-    }
-    
-    // Mapeia a resposta do Groq para múltiplas estruturas
-    const radarData = result['Radar de Temas Mais Quentes'] || result['Radar'] || result['radar'] || result.radar_de_temas || result.temas || {};
-    const engajamentoData = result['Taxas de Engajamento Estimadas por Tema'] || result['Engajamento'] || result['engajamento'] || result.taxas_de_engajamento || {};
-    const formatosData = result['Formatos de Conteúdo que Mais Performam'] || result['Formatos de Conteúdo'] || result['formatos'] || result.formatos_de_conteudo || {};
-    const analiseData = result['Análise Detalhada do Mercado'] || result['Análise'] || result['analise'] || result.analise_detalhada_do_mercado || {};
-    const ideiasArray = result['Ideias de Conteúdo Personalizadas para a Fotus Distribuidora Solar'] || result['Ideias de Conteúdo'] || result['ideias'] || result.ideias_de_conteudo?.ideias || result.ideias_de_conteudo || [];
-    const calendarioArray = result['Calendário Semanal de Postagens'] || result['Calendário'] || result['calendario'] || result.calendario_semanal_de_postagens || {};
-    const alertasArray = result['Alertas de Tendências Emergentes'] || result['Alertas'] || result['alertas'] || result.alertas_de_tendencias_emergentes?.tendencias || result.alertas_de_tendencias_emergentes || [];
-    
-    let temas = [];
-    if (Array.isArray(radarData)) {
-      temas = radarData.map(t => ({ tema: t.Tema || t.tema || 'Tema', score: t.Score || t.score || 0, cor: t.Cor || t.cor || '#0D518E' }));
-    } else if (radarData.Tema && radarData['Score (0-100)']) {
-      temas = radarData.Tema.map((t, i) => ({ tema: t, score: radarData['Score (0-100)'][i] }));
-    } else if (radarData.temas) {
-      temas = radarData.temas;
-    }
-    
-    let engajamento = [];
-    if (Array.isArray(engajamentoData)) {
-      engajamento = engajamentoData.map(e => ({ tema: e.Tema || e.tema || 'Tema', taxa: e.Score || e.taxa || e['Taxa de Engajamento'] || 0 }));
-    } else if (engajamentoData.Tema && engajamentoData['Taxa de Engajamento (%)']) {
-      engajamento = engajamentoData.Tema.map((t, i) => ({ tema: t, taxa: engajamentoData['Taxa de Engajamento (%)'][i] }));
-    } else if (engajamentoData.temas) {
-      engajamento = engajamentoData.temas;
-    }
-    
-    let formatos = [];
-    if (Array.isArray(formatosData)) {
-      formatos = formatosData.map(f => ({ formato: f.Formato || f.formato || f, icone: f.Ícone || f.icone || '📝', descricao: f.Descrição || f.descricao || '', multiplicador: f.Multiplicador || f.multiplicador || '1x' }));
-    } else if (formatosData.Formato && formatosData['Taxa de Engajamento (%)']) {
-      formatos = formatosData.Formato.map((f, i) => ({ formato: f, desempenho: formatosData['Taxa de Engajamento (%)'][i] }));
-    } else if (formatosData.formatos) {
-      formatos = formatosData.formatos;
-    }
-    
-    let ideias = [];
-    if (Array.isArray(ideiasArray)) {
-      ideias = ideiasArray.map(i => ({ tipo: i.Tipo || i.tipo || 'Post', titulo: i.Título || i.titulo || 'Título', descricao: i.Descrição || i.descricao || '', motivo: i.Motivo || i.motivo || '' }));
-    } else if (ideiasArray.ideias) {
-      ideias = ideiasArray.ideias;
-    }
-    
-    let calendario = [];
-    if (Array.isArray(calendarioArray)) {
-      calendario = calendarioArray.map(c => ({ dia: c.Dia || c.dia || '', tipo: c.Tipo || c.tipo || 'Post', descricao: c.Atividade || c.Descrição || c.descricao || '' }));
-    } else if (calendarioArray.calendario && Array.isArray(calendarioArray.calendario)) {
-      calendario = calendarioArray.calendario;
-    } else if (calendarioArray.dias && Array.isArray(calendarioArray.dias)) {
-      calendario = calendarioArray.dias.map(c => ({ dia: c.dia || '', tipo: c.tipo || 'Post', descricao: c.conteudo || c.descricao || '' }));
-    } else if (typeof calendarioArray === 'object') {
-      // Converter objeto para array
-      calendario = Object.entries(calendarioArray).map(([key, val]) => ({
-        dia: key,
-        tipo: val.tipo || 'Post',
-        descricao: val.conteudo || val.descricao || ''
-      }));
-    }
-    
-    let alertasArray2 = [];
-    if (Array.isArray(alertasArray)) {
-      alertasArray2 = alertasArray.map(a => ({ titulo: a.Título || a.titulo || a.Descrição?.substring(0, 50) || 'Alerta', descricao: a.Descrição || a.descricao || '', prioridade: a.Prioridade || a.prioridade || 'media', acao: a.Ação || a.acao || '' }));
-    } else if (alertasArray.tendencias) {
-      alertasArray2 = alertasArray.tendencias;
-    }
-    
-    // Extrair análise como string, não como objeto
-    let analiseTexto = '';
-    if (typeof analiseData === 'string') {
-      analiseTexto = analiseData;
-    } else if (analiseData.Mercado) {
-      analiseTexto = analiseData.Mercado;
-    } else if (analiseData.mercado) {
-      analiseTexto = analiseData.mercado;
-    } else if (analiseData.resumo) {
-      analiseTexto = analiseData.resumo;
-    } else if (analiseData['Resumo']) {
-      analiseTexto = analiseData['Resumo'];
-    }
-    
-    const radar = {
-      temas: temas,
-      engajamento: engajamento,
-      formatos: formatos,
-      analise: analiseTexto || 'Análise em processamento...'
-    };
-    
-    const ideiasObj = {
-      ideias: ideias,
-      calendario: calendario
-    };
-    
-    const alertasObj = {
-      alertas: alertasArray2
-    };
+    const result = JSON.parse(jsonText);
 
     const now = new Date().toISOString();
-    
-    // Salvar no Supabase
-    await saveAnalysisToSupabase(radar, ideiasObj, alertasObj, intelConcorrentes, now);
+    localStorage.setItem('fotus_intel_radar',  JSON.stringify({ ...result.radar,  timestamp: now }));
+    localStorage.setItem('fotus_intel_ideias', JSON.stringify({ ...result.ideias, timestamp: now }));
+    localStorage.setItem('fotus_intel_alertas',JSON.stringify({ ...result.alertas,timestamp: now }));
 
     intelLastAnalysis = now;
     const lastEl = document.getElementById('intel-last-run');
@@ -1931,97 +1772,6 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
   }
 }
 
-
-function toggleConfigPanel(){const p=document.getElementById('config-panel');p.classList.toggle('open');if(p.classList.contains('open')){const s=localStorage.getItem('groq_api_key');if(s)document.getElementById('groq-key-input').value=s;}}
-function saveGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Chave não pode estar vazia','error');return;}localStorage.setItem('groq_api_key',k);showConfigStatus('✅ Chave salva!','success');setTimeout(()=>{document.getElementById('config-panel').classList.remove('open');},1500);}
-function clearGroqKey(){if(confirm('Limpar chave?')){localStorage.removeItem('groq_api_key');document.getElementById('groq-key-input').value='';showConfigStatus('Chave removida','error');}}
-async function testGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Insira uma chave','error');return;}showConfigStatus('Testando...','error');try{const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Authorization':`Bearer ${k}`,'Content-Type':'application/json'},body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:'Teste'}],max_tokens:10})});if(r.ok){showConfigStatus('✅ Chave válida!','success');}else{const e=await r.json();showConfigStatus('❌ '+e.error.message,'error');}}catch(e){showConfigStatus('❌ Erro: '+e.message,'error');}}
-function showConfigStatus(m,t){const s=document.getElementById('config-status');s.textContent=m;s.className='config-status '+t;}
-
-// ── SUPABASE INTEGRATION ──────────────────────────────────────────
-const SUPABASE_URL = 'https://ldtebkdzmgxzuroflvci.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_dxN9Z7gJKISqPybEoQJDlQ_LXW8swVB';
-const { createClient } = window.supabase;
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
-
-async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, timestamp) {
-  try {
-    // Salvar sem autenticação (público)
-    const analysisData = {
-      radar_data: radar,
-      ideias_data: ideias,
-      alertas_data: alertas,
-      competitors: competitors || [],
-      analysis_date: timestamp || new Date().toISOString(),
-      created_at: new Date().toISOString()
-    };
-
-    const { data, error } = await supabaseClient
-      .from('intel_analyses')
-      .insert([analysisData]);
-
-    if (error) {
-      console.error('Erro ao salvar análise no Supabase:', error);
-        showToast('⚠️ Análise salva localmente (Supabase indisponível)', 'warning');
-    } else {
-      console.log('✅ Análise salva no Supabase:', data);
-      showToast('✅ Análise salva no Supabase!', 'success');
-    }
-  } catch (e) {
-    console.error('Erro ao salvar no Supabase:', e);
-    showToast('⚠️ Análise salva localmente (erro de conexão)', 'warning');
-  }
-}
-
-}
-
-async function saveCompetitorToSupabase(username, nome, categoria) {
-  try {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) return;
-
-    const { data, error } = await supabaseClient
-      .from('intel_competitors')
-      .insert([{
-        user_id: user.id,
-        username: username,
-        nome: nome,
-        categoria: categoria,
-        instagram_url: `https://instagram.com/${username}`
-      }]);
-
-    if (error) {
-      console.error('Erro ao salvar concorrente:', error);
-    } else {
-      console.log('✅ Concorrente salvo no Supabase');
-    }
-  } catch (e) {
-    console.error('Erro ao salvar concorrente:', e);
-  }
-}
-
-async function loadAnalysesFromSupabase() {
-  try {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) return [];
-
-    const { data, error } = await supabaseClient
-      .from('intel_analyses')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('analysis_date', { ascending: false });
-
-    if (error) {
-      console.error('Erro ao carregar análises:', error);
-      return [];
-    }
-    return data || [];
-  } catch (e) {
-    console.error('Erro ao carregar análises:', e);
-    return [];
-  }
-}
-
 </script>
-<div id="config-panel" class="config-panel"><button class="config-close" onclick="toggleConfigPanel()">✕</button><h2>⚙️ Configuração</h2><div id="config-status"></div><label>Chave Groq API</label><input type="password" id="groq-key-input" placeholder="gsk_..." /><button onclick="saveGroqKey()">Salvar Chave</button><button onclick="testGroqKey()" style="background: var(--teal);">Testar Chave</button><button onclick="clearGroqKey()" style="background: var(--red);">Limpar Chave</button></div></body>
+</body>
 </html>
