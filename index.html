@@ -1715,8 +1715,9 @@ async function runIntelAnalysis() {
   if (icon) icon.textContent = '⏳';
   showToast('Iniciando análise do mercado solar...', 'success');
 
-  const perfis = intelConcorrentes.map(c => `@${c.username} (${c.nome || c.username}, ${c.categoria})`).join(', ');
-  const perfisTexto = perfis || 'perfis genéricos do mercado solar brasileiro';
+    const perfis = intelConcorrentes.map(c => `@${c.username} (${c.nome || c.username}, ${c.categoria})`).join(', ');
+    const perfisTexto = perfis || 'perfis genéricos do mercado solar brasileiro';
+    const competitors = intelConcorrentes || [];
 
   try {
     // ── PROMPT SISTEMA ────────────────────────────────────────────
@@ -1920,7 +1921,7 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
     localStorage.setItem('fotus_intel_alertas',JSON.stringify({ ...alertasObj,timestamp: now }));
     
     // Salvar no Supabase
-    await saveAnalysisToSupabase(radar, ideiasObj, alertasObj, competitors, now);
+    await saveAnalysisToSupabase(radar, ideiasObj, alertasObj, intelConcorrentes, now);
 
     intelLastAnalysis = now;
     const lastEl = document.getElementById('intel-last-run');
@@ -1970,12 +1971,34 @@ async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, times
 
     if (error) {
       console.error('Erro ao salvar análise no Supabase:', error);
+      saveAnalysisToLocalStorage(radar, ideias, alertas, competitors, timestamp);
+      showToast('⚠️ Análise salva localmente (Supabase indisponível)', 'warning');
     } else {
       console.log('✅ Análise salva no Supabase:', data);
       showToast('✅ Análise salva no Supabase!', 'success');
     }
   } catch (e) {
     console.error('Erro ao salvar no Supabase:', e);
+    saveAnalysisToLocalStorage(radar, ideias, alertas, competitors, timestamp);
+    showToast('⚠️ Análise salva localmente (erro de conexão)', 'warning');
+  }
+}
+
+function saveAnalysisToLocalStorage(radar, ideias, alertas, competitors, timestamp) {
+  try {
+    const analyses = JSON.parse(localStorage.getItem('intel_analyses_local') || '[]');
+    analyses.push({
+      radar_data: radar,
+      ideias_data: ideias,
+      alertas_data: alertas,
+      competitors: competitors || [],
+      analysis_date: timestamp || new Date().toISOString(),
+      created_at: new Date().toISOString()
+    });
+    localStorage.setItem('intel_analyses_local', JSON.stringify(analyses));
+    console.log('✅ Análise salva no localStorage');
+  } catch (e) {
+    console.error('Erro ao salvar no localStorage:', e);
   }
 }
 
