@@ -1840,20 +1840,54 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
       }
     }
     
-    // Mapeia a resposta do Groq para a estrutura esperada
-    const radar = {
-      temas: result.radar_de_temas?.temas || [],
-      engajamento: result.taxas_de_engajamento?.temas?.map(t => ({ nome: t.nome, taxa_de_engajamento: t.taxa_de_engajamento })) || [],
-      formatos: result.formatos_de_conteudo?.formatos?.map(f => ({ nome: f.nome, desempenho: f.desempenho })) || [],
-      analise: result.analise_detalhada_do_mercado?.mercado || ''
-    };
+    // Mapeia a resposta do Groq para múltiplas estruturas
+    const radarData = result['Radar de Temas Mais Quentes'] || result.radar_de_temas || {};
+    const engajamentoData = result['Taxas de Engajamento Estimadas por Tema'] || result.taxas_de_engajamento || {};
+    const formatosData = result['Formatos de Conteúdo que Mais Performam'] || result.formatos_de_conteudo || {};
+    const analiseData = result['Análise Detalhada do Mercado'] || result.analise_detalhada_do_mercado || {};
+    const ideiasArray = result['Ideias de Conteúdo Personalizadas para a Fotus Distribuidora Solar'] || result.ideias_de_conteudo?.ideias || [];
+    const calendarioArray = result['Calendário Semanal de Postagens'] || result.calendario_semanal_de_postagens || {};
+    const alertasArray = result['Alertas de Tendências Emergentes'] || result.alertas_de_tendencias_emergentes?.tendencias || [];
     
-    const ideias = {
-      ideias: result.ideias_de_conteudo?.ideias?.map(i => ({ nome: i.nome, descricao: i.descricao })) || [],
-      calendario: result.calendario_semanal_de_postagens || {}
-    };
+    let temas = [];
+    if (radarData.Tema && radarData['Score (0-100)']) {
+      temas = radarData.Tema.map((t, i) => ({ nome: t, score: radarData['Score (0-100)'][i] }));
+    } else if (radarData.temas) {
+      temas = radarData.temas;
+    }
     
-    const alertas = {
+    let engajamento = [];
+    if (engajamentoData.Tema && engajamentoData['Taxa de Engajamento (%)']) {
+      engajamento = engajamentoData.Tema.map((t, i) => ({ nome: t, taxa_de_engajamento: engajamentoData['Taxa de Engajamento (%)'][i] }));
+    } else if (engajamentoData.temas) {
+      engajamento = engajamentoData.temas;
+    }
+    
+    let formatos = [];
+    if (formatosData.Formato && formatosData['Taxa de Engajamento (%)']) {
+      formatos = formatosData.Formato.map((f, i) => ({ nome: f, desempenho: formatosData['Taxa de Engajamento (%)'][i] }));
+    } else if (formatosData.formatos) {
+      formatos = formatosData.formatos;
+    }
+    
+    let ideias = [];
+    if (Array.isArray(ideiasArray)) {
+      ideias = ideiasArray.map(i => ({ nome: i.Título || i.titulo || i.nome, descricao: i.Descrição || i.descricao, formato: i.Formato || i.formato }));
+    } else if (ideiasArray.ideias) {
+      ideias = ideiasArray.ideias;
+    }
+    
+    let calendario = {};
+    if (Array.isArray(calendarioArray)) {
+      calendarioArray.forEach(item => {
+        const dia = (item.Dia || '').toLowerCase().replace('á', 'a').replace('ç', 'c').replace('-', '-');
+        if (dia) calendario[dia] = { conteudo: item.Título || item.titulo || '' };
+      });
+    } else {
+      calendario = calendarioArray;
+    }
+    
+    let alertas = {
       alertas: result.alertas_de_tendencias_emergentes?.tendencias || []
     };
 
