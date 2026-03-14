@@ -1571,8 +1571,8 @@ function renderTabRadar(cont) {
   const engEl = document.getElementById('intel-radar-engagement');
   const engajamento = stored.engajamento || stored.radar?.engajamento || [];
   engajamento.forEach(e => {
-    const nome = e.tema || e.nome || 'Tema';
-    const taxa = e.taxa || e.taxa_de_engajamento || 0;
+    const nome = e.tema || e.nome || e.Tema || e.Nome || 'Tema';
+    const taxa = parseFloat(e.taxa || e.taxa_de_engajamento || e.Taxa || e.score || e.Score || 0) || 0;
     engEl.innerHTML += `<div class="intel-tema-row">
       <span class="intel-tema-label" style="flex:1;">${nome}</span>
       <span style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:${taxa > 5 ? 'var(--green)' : 'var(--gray-600)'};">` + `${taxa}%</span>
@@ -1612,10 +1612,6 @@ function renderTabIdeias(cont) {
       <div class="intel-card-title" style="margin-bottom:16px;">📅 Ideias para essa Semana</div>
       <div id="intel-ideias-lista"></div>
     </div>
-    <div class="intel-card">
-      <div class="intel-card-title" style="margin-bottom:16px;">🗓️ Sugestão de Calendário</div>
-      <div id="intel-calendario-sugestao"></div>
-    </div>
   </div>
   <div style="font-size:11px;color:var(--gray-400);text-align:right;margin-top:8px;font-family:'DM Mono',monospace;">
     Gerado em: ${new Date(stored.timestamp).toLocaleString('pt-BR')}
@@ -1637,24 +1633,7 @@ function renderTabIdeias(cont) {
     </div>`;
   });
 
-  const calEl = document.getElementById('intel-calendario-sugestao');
-  const DIAS = ['Segunda','Terça','Quarta','Quinta','Sexta'];
-  const calendario = stored.calendario || {};
-  const diasSemana = ['segunda-feira', 'terca-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira'];
-  diasSemana.forEach((dia, i) => {
-    const item = calendario[dia];
-    if (item) {
-      const conteudo = item.conteudo || '';
-      const tipo = item.tipo || 'Post';
-      const cor = TIPO_COLORS[tipo] || '#9BA3B8';
-      calEl.innerHTML += `
-      <div class="intel-cal-row">
-        <span class="intel-cal-dia">${DIAS[i]}</span>
-        <span class="intel-cal-tipo" style="background:${cor}20;color:${cor};">${tipo}</span>
-        <span class="intel-cal-desc">${conteudo}</span>
-      </div>`;
-    }
-  });
+
 }
 
 // ── TAB: ALERTAS ──────────────────────────────────────────────────
