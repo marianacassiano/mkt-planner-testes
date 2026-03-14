@@ -1836,55 +1836,58 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
     }
     
     // Mapeia a resposta do Groq para múltiplas estruturas
-    const radarData = result['Radar de Temas Mais Quentes'] || result['radar'] || result.radar_de_temas || result.temas || {};
-    const engajamentoData = result['Taxas de Engajamento Estimadas por Tema'] || result['engajamento'] || result.taxas_de_engajamento || {};
-    const formatosData = result['Formatos de Conteúdo que Mais Performam'] || result['formatos'] || result.formatos_de_conteudo || {};
-    const analiseData = result['Análise Detalhada do Mercado'] || result['analise'] || result.analise_detalhada_do_mercado || {};
-    const ideiasArray = result['Ideias de Conteúdo Personalizadas para a Fotus Distribuidora Solar'] || result.ideias_de_conteudo?.ideias || [];
-    const calendarioArray = result['Calendário Semanal de Postagens'] || result['calendario'] || result.calendario_semanal_de_postagens || {};
-    const alertasArray = result['Alertas de Tendências Emergentes'] || result.alertas_de_tendencias_emergentes?.tendencias || [];
+    const radarData = result['Radar de Temas Mais Quentes'] || result['Radar'] || result['radar'] || result.radar_de_temas || result.temas || {};
+    const engajamentoData = result['Taxas de Engajamento Estimadas por Tema'] || result['Engajamento'] || result['engajamento'] || result.taxas_de_engajamento || {};
+    const formatosData = result['Formatos de Conteúdo que Mais Performam'] || result['Formatos de Conteúdo'] || result['formatos'] || result.formatos_de_conteudo || {};
+    const analiseData = result['Análise Detalhada do Mercado'] || result['Análise'] || result['analise'] || result.analise_detalhada_do_mercado || {};
+    const ideiasArray = result['Ideias de Conteúdo Personalizadas para a Fotus Distribuidora Solar'] || result['Ideias de Conteúdo'] || result['ideias'] || result.ideias_de_conteudo?.ideias || result.ideias_de_conteudo || [];
+    const calendarioArray = result['Calendário Semanal de Postagens'] || result['Calendário'] || result['calendario'] || result.calendario_semanal_de_postagens || {};
+    const alertasArray = result['Alertas de Tendências Emergentes'] || result['Alertas'] || result['alertas'] || result.alertas_de_tendencias_emergentes?.tendencias || result.alertas_de_tendencias_emergentes || [];
     
     let temas = [];
-    if (radarData.Tema && radarData['Score (0-100)']) {
-      temas = radarData.Tema.map((t, i) => ({ nome: t, score: radarData['Score (0-100)'][i] }));
+    if (Array.isArray(radarData)) {
+      temas = radarData.map(t => ({ tema: t.Tema || t.tema || 'Tema', score: t.Score || t.score || 0, cor: t.Cor || t.cor || '#0D518E' }));
+    } else if (radarData.Tema && radarData['Score (0-100)']) {
+      temas = radarData.Tema.map((t, i) => ({ tema: t, score: radarData['Score (0-100)'][i] }));
     } else if (radarData.temas) {
       temas = radarData.temas;
     }
     
     let engajamento = [];
-    if (engajamentoData.Tema && engajamentoData['Taxa de Engajamento (%)']) {
-      engajamento = engajamentoData.Tema.map((t, i) => ({ nome: t, taxa_de_engajamento: engajamentoData['Taxa de Engajamento (%)'][i] }));
+    if (Array.isArray(engajamentoData)) {
+      engajamento = engajamentoData.map(e => ({ tema: e.Tema || e.tema || 'Tema', taxa: e.Score || e.taxa || e['Taxa de Engajamento'] || 0 }));
+    } else if (engajamentoData.Tema && engajamentoData['Taxa de Engajamento (%)']) {
+      engajamento = engajamentoData.Tema.map((t, i) => ({ tema: t, taxa: engajamentoData['Taxa de Engajamento (%)'][i] }));
     } else if (engajamentoData.temas) {
       engajamento = engajamentoData.temas;
     }
     
     let formatos = [];
-    if (formatosData.Formato && formatosData['Taxa de Engajamento (%)']) {
-      formatos = formatosData.Formato.map((f, i) => ({ nome: f, desempenho: formatosData['Taxa de Engajamento (%)'][i] }));
+    if (Array.isArray(formatosData)) {
+      formatos = formatosData.map(f => ({ formato: f.Formato || f.formato || f, icone: f.Ícone || f.icone || '📝', descricao: f.Descrição || f.descricao || '', multiplicador: f.Multiplicador || f.multiplicador || '1x' }));
+    } else if (formatosData.Formato && formatosData['Taxa de Engajamento (%)']) {
+      formatos = formatosData.Formato.map((f, i) => ({ formato: f, desempenho: formatosData['Taxa de Engajamento (%)'][i] }));
     } else if (formatosData.formatos) {
       formatos = formatosData.formatos;
     }
     
     let ideias = [];
     if (Array.isArray(ideiasArray)) {
-      ideias = ideiasArray.map(i => ({ nome: i.Título || i.titulo || i.nome, descricao: i.Descrição || i.descricao, formato: i.Formato || i.formato }));
+      ideias = ideiasArray.map(i => ({ tipo: i.Tipo || i.tipo || 'Post', titulo: i.Título || i.titulo || 'Título', descricao: i.Descrição || i.descricao || '', motivo: i.Motivo || i.motivo || '' }));
     } else if (ideiasArray.ideias) {
       ideias = ideiasArray.ideias;
     }
     
-    let calendario = {};
+    let calendario = [];
     if (Array.isArray(calendarioArray)) {
-      calendarioArray.forEach(item => {
-        const dia = (item.Dia || '').toLowerCase().replace('á', 'a').replace('ç', 'c').replace('-', '-');
-        if (dia) calendario[dia] = { conteudo: item.Título || item.titulo || '' };
-      });
-    } else {
-      calendario = calendarioArray;
+      calendario = calendarioArray.map(c => ({ dia: c.Dia || c.dia || '', tipo: c.Tipo || c.tipo || 'Post', descricao: c.Atividade || c.Descrição || c.descricao || '' }));
+    } else if (calendarioArray.calendario) {
+      calendario = calendarioArray.calendario;
     }
     
     let alertasArray2 = [];
     if (Array.isArray(alertasArray)) {
-      alertasArray2 = alertasArray.map(a => ({ nome: a.Tendência || a.tendencia || a.nome, descricao: a.Descrição || a.descricao }));
+      alertasArray2 = alertasArray.map(a => ({ titulo: a.Título || a.titulo || a.Descrição?.substring(0, 50) || 'Alerta', descricao: a.Descrição || a.descricao || '', prioridade: a.Prioridade || a.prioridade || 'media', acao: a.Ação || a.acao || '' }));
     } else if (alertasArray.tendencias) {
       alertasArray2 = alertasArray.tendencias;
     }
