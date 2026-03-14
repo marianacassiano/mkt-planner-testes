@@ -1831,10 +1831,18 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
         } catch (e2) {
           // Tenta limpar mais agressivamente
           let cleaned = jsonMatch[0]
-            .replace(/,\s*}/g, '}')  // Remove vírgulas antes de }
-            .replace(/,\s*]/g, ']')  // Remove vírgulas antes de ]
-            .replace(/([\w\}\]])(\s*[\w\"{\[])/g, '$1,$2');  // Adiciona vírgulas faltantes
-          result = JSON.parse(cleaned);
+            .replace(/,\s*}/g, '}')
+            .replace(/,\s*]/g, ']')
+            .replace(/'/g, '"')
+            .replace(/([\w\}\]])\s*([\w\"{\[])/g, '$1,$2')
+            .replace(/,,+/g, ',');
+          
+          try {
+            result = JSON.parse(cleaned);
+          } catch (e3) {
+            console.error('JSON após limpeza:', cleaned.substring(0, 300));
+            throw new Error('Não conseguiu parsear resposta como JSON: ' + e3.message);
+          }
         }
       } else {
         throw new Error('Não conseguiu parsear resposta como JSON: ' + e.message);
@@ -1842,12 +1850,12 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
     }
     
     // Mapeia a resposta do Groq para múltiplas estruturas
-    const radarData = result['Radar de Temas Mais Quentes'] || result.radar_de_temas || {};
-    const engajamentoData = result['Taxas de Engajamento Estimadas por Tema'] || result.taxas_de_engajamento || {};
-    const formatosData = result['Formatos de Conteúdo que Mais Performam'] || result.formatos_de_conteudo || {};
-    const analiseData = result['Análise Detalhada do Mercado'] || result.analise_detalhada_do_mercado || {};
+    const radarData = result['Radar de Temas Mais Quentes'] || result['radar'] || result.radar_de_temas || result.temas || {};
+    const engajamentoData = result['Taxas de Engajamento Estimadas por Tema'] || result['engajamento'] || result.taxas_de_engajamento || {};
+    const formatosData = result['Formatos de Conteúdo que Mais Performam'] || result['formatos'] || result.formatos_de_conteudo || {};
+    const analiseData = result['Análise Detalhada do Mercado'] || result['analise'] || result.analise_detalhada_do_mercado || {};
     const ideiasArray = result['Ideias de Conteúdo Personalizadas para a Fotus Distribuidora Solar'] || result.ideias_de_conteudo?.ideias || [];
-    const calendarioArray = result['Calendário Semanal de Postagens'] || result.calendario_semanal_de_postagens || {};
+    const calendarioArray = result['Calendário Semanal de Postagens'] || result['calendario'] || result.calendario_semanal_de_postagens || {};
     const alertasArray = result['Alertas de Tendências Emergentes'] || result.alertas_de_tendencias_emergentes?.tendencias || [];
     
     let temas = [];
@@ -1895,11 +1903,25 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
       alertasArray2 = alertasArray.tendencias;
     }
     
+    // Extrair análise como string, não como objeto
+    let analiseTexto = '';
+    if (typeof analiseData === 'string') {
+      analiseTexto = analiseData;
+    } else if (analiseData.Mercado) {
+      analiseTexto = analiseData.Mercado;
+    } else if (analiseData.mercado) {
+      analiseTexto = analiseData.mercado;
+    } else if (analiseData.resumo) {
+      analiseTexto = analiseData.resumo;
+    } else if (analiseData['Resumo']) {
+      analiseTexto = analiseData['Resumo'];
+    }
+    
     const radar = {
       temas: temas,
       engajamento: engajamento,
       formatos: formatos,
-      analise: analiseData.Mercado || analiseData.mercado || ''
+      analise: analiseTexto || 'Análise em processamento...'
     };
     
     const ideiasObj = {
@@ -1957,10 +1979,10 @@ async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, times
   try {
     // Salvar sem autenticação (público)
     const analysisData = {
-      radar_data: JSON.stringify(radar),
-      ideias_data: JSON.stringify(ideias),
-      alertas_data: JSON.stringify(alertas),
-      competitors: JSON.stringify(competitors || []),
+      radar_data: radar,
+      ideias_data: ideias,
+      alertas_data: alertas,
+      competitors: competitors || [],
       analysis_date: timestamp || new Date().toISOString(),
       created_at: new Date().toISOString()
     };
