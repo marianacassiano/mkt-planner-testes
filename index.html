@@ -1887,18 +1887,37 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
       calendario = calendarioArray;
     }
     
-    let alertas = {
-      alertas: result.alertas_de_tendencias_emergentes?.tendencias || []
+    let alertasArray2 = [];
+    if (Array.isArray(alertasArray)) {
+      alertasArray2 = alertasArray.map(a => ({ nome: a.Tendência || a.tendencia || a.nome, descricao: a.Descrição || a.descricao }));
+    } else if (alertasArray.tendencias) {
+      alertasArray2 = alertasArray.tendencias;
+    }
+    
+    const radar = {
+      temas: temas,
+      engajamento: engajamento,
+      formatos: formatos,
+      analise: analiseData.Mercado || analiseData.mercado || ''
+    };
+    
+    const ideiasObj = {
+      ideias: ideias,
+      calendario: calendario
+    };
+    
+    const alertasObj = {
+      alertas: alertasArray2
     };
 
     const now = new Date().toISOString();
     console.log('Resultado parseado:', result);
     console.log('Radar mapeado:', radar);
-    console.log('Ideias mapeadas:', ideias);
-    console.log('Alertas mapeados:', alertas);
+    console.log('Ideias mapeadas:', ideiasObj);
+    console.log('Alertas mapeados:', alertasObj);
     localStorage.setItem('fotus_intel_radar',  JSON.stringify({ ...radar,  timestamp: now }));
-    localStorage.setItem('fotus_intel_ideias', JSON.stringify({ ...ideias, timestamp: now }));
-    localStorage.setItem('fotus_intel_alertas',JSON.stringify({ ...alertas,timestamp: now }));
+    localStorage.setItem('fotus_intel_ideias', JSON.stringify({ ...ideiasObj, timestamp: now }));
+    localStorage.setItem('fotus_intel_alertas',JSON.stringify({ ...alertasObj,timestamp: now }));
 
     intelLastAnalysis = now;
     const lastEl = document.getElementById('intel-last-run');
