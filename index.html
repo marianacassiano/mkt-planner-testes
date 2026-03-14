@@ -1538,10 +1538,6 @@ function renderTabRadar(cont) {
       <div id="intel-radar-temas"></div>
     </div>
     <div class="intel-card">
-      <div class="intel-card-title" style="margin-bottom:14px;">📊 Engajamento por Tema</div>
-      <div id="intel-radar-engagement"></div>
-    </div>
-    <div class="intel-card">
       <div class="intel-card-title" style="margin-bottom:14px;">🏆 Formatos que Performam</div>
       <div id="intel-radar-formatos"></div>
     </div>
@@ -1567,30 +1563,19 @@ function renderTabRadar(cont) {
     </div>`;
   });
 
-  // Engajamento
-  const engEl = document.getElementById('intel-radar-engagement');
-  const engajamento = stored.engajamento || stored.radar?.engajamento || [];
-  engajamento.forEach(e => {
-    const nome = e.tema || e.nome || e.Tema || e.Nome || 'Tema';
-    const taxa = parseFloat(e.taxa || e.taxa_de_engajamento || e.Taxa || e.score || e.Score || 0) || 0;
-    engEl.innerHTML += `<div class="intel-tema-row">
-      <span class="intel-tema-label" style="flex:1;">${nome}</span>
-      <span style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:${taxa > 5 ? 'var(--green)' : 'var(--gray-600)'};">` + `${taxa}%</span>
-    </div>`;
-  });
-
   // Formatos
   const fmtEl = document.getElementById('intel-radar-formatos');
   const formatos = stored.formatos || stored.radar?.formatos || [];
-  formatos.forEach(f => {
+  const posicoes = ['1º', '2º', '3º', '4º', '5º'];
+  formatos.forEach((f, idx) => {
     const nome = f.formato || f.nome || 'Formato';
     const icone = f.icone || '📱';
     const descricao = f.descricao || '';
-    const mult = f.multiplicador || f.performance || '1x';
+    const posicao = posicoes[idx] || (idx + 1) + 'º';
     fmtEl.innerHTML += `<div class="intel-formato-row">
       <span class="intel-formato-icon">${icone}</span>
       <div style="flex:1;"><div style="font-size:13px;font-weight:700;">${nome}</div><div style="font-size:11px;color:var(--gray-400);">${descricao}</div></div>
-      <span class="intel-formato-mult">${mult}</span>
+      <span class="intel-formato-mult">${posicao}</span>
     </div>`;
   });
 
