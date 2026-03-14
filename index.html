@@ -1300,7 +1300,7 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
 const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        /'Authorization': `Bearer ${groqKey}`/,
+        'Authorization': `Bearer ${groqKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
