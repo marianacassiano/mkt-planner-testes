@@ -1726,56 +1726,42 @@ async function runIntelAnalysis() {
 Sua tarefa é analisar o cenário atual do mercado solar brasileiro nas redes sociais e gerar insights acionáveis para a Fotus Distribuidora Solar, distribuidora de equipamentos solares em Vila Velha, ES.
 
 SEMPRE responda em JSON puro e válido, sem markdown, sem explicações fora do JSON.
+TODOS OS CAMPOS SÃO OBRIGATÓRIOS - NUNCA DEIXE CAMPOS VAZIOS.
 
 Formato obrigatório:
 {
   "radar": {
-    "temas": [
-      {"tema": "Nome do tema", "score": 85, "cor": "#0D518E"},
-      ...até 7 temas
-    ],
-    "engajamento": [
-      {"tema": "Tema", "taxa": 7.2},
-      ...até 6 itens
-    ],
-    "formatos": [
-      {"formato": "Reels", "icone": "🎬", "descricao": "Curtos de 30-60s", "multiplicador": "2.7x"},
-      ...até 4 formatos
-    ],
-    "analise": "Texto HTML com análise detalhada dos trends do mercado solar, o que está crescendo, o que está caindo, comportamento do consumidor. Use <strong> e <p>. Mínimo 200 palavras."
+    "temas": [{"tema": "Tema 1", "score": 85, "cor": "#0D518E"}, {"tema": "Tema 2", "score": 78, "cor": "#FAB515"}, {"tema": "Tema 3", "score": 72, "cor": "#0D518E"}, {"tema": "Tema 4", "score": 65, "cor": "#FAB515"}, {"tema": "Tema 5", "score": 58, "cor": "#0D518E"}, {"tema": "Tema 6", "score": 51, "cor": "#FAB515"}, {"tema": "Tema 7", "score": 45, "cor": "#0D518E"}],
+    "engajamento": [{"tema": "Tema 1", "taxa": 8.5}, {"tema": "Tema 2", "taxa": 7.2}, {"tema": "Tema 3", "taxa": 6.8}, {"tema": "Tema 4", "taxa": 5.9}, {"tema": "Tema 5", "taxa": 5.1}, {"tema": "Tema 6", "taxa": 4.3}],
+    "formatos": [{"formato": "Reels", "icone": "🎬", "descricao": "Vídeos curtos 30-60s", "multiplicador": "2.7x"}, {"formato": "Carrossel", "icone": "📸", "descricao": "Múltiplas imagens", "multiplicador": "2.1x"}, {"formato": "Stories", "icone": "📱", "descricao": "Conteúdo efêmero", "multiplicador": "1.8x"}, {"formato": "Posts", "icone": "📝", "descricao": "Conteúdo estático", "multiplicador": "1.4x"}],
+    "analise": "Parágrafo completo com análise detalhada dos trends do mercado solar (mínimo 200 palavras). Explique: o que está crescendo, o que está caindo, comportamento do consumidor, oportunidades e desafios."
   },
-  "ideias": {
-    "ideias": [
-      {"tipo": "Reels", "titulo": "Título chamativo do post", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"},
-      ...6 ideias variadas entre Reels, Carrossel, Story, Post
-    ],
-    "calendario": [
-      {"tipo": "Reels", "descricao": "Breve descrição"},
-      ...5 itens, um por dia útil
-    ]
-  },
-  "alertas": {
-    "alertas": [
-      {"titulo": "Título do alerta", "descricao": "Descrição", "prioridade": "alta|media|baixa", "data": "Mar/2026", "acao": "O que a Fotus deve fazer"},
-      ...3 a 5 alertas
-    ]
-  }
+  "ideias": [{"tipo": "Reels", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Carrossel", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Reels", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Stories", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Posts", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Reels", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}],
+  "calendario": [{"dia": "Segunda", "tipo": "Reels", "descricao": "Descrição do conteúdo"}, {"dia": "Terça", "tipo": "Carrossel", "descricao": "Descrição do conteúdo"}, {"dia": "Quarta", "tipo": "Reels", "descricao": "Descrição do conteúdo"}, {"dia": "Quinta", "tipo": "Stories", "descricao": "Descrição do conteúdo"}, {"dia": "Sexta", "tipo": "Posts", "descricao": "Descrição do conteúdo"}],
+  "alertas": [{"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "alta", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}, {"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "alta", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}, {"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "media", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}, {"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "media", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}]
 }`;
 
     const userPrompt = `Analise o cenário atual do mercado solar brasileiro no Instagram e redes sociais.
 
-Perfis monitorados: ${perfisTexto}
+Perfis monitorados: \${perfisTexto}
 
-Com base nas tendências atuais de 2026 do setor fotovoltaico no Brasil, gere:
-1. Radar de temas mais quentes (scores de 0-100)
-2. Taxas de engajamento estimadas por tema
-3. Formatos de conteúdo que mais performam
-4. Análise detalhada do mercado
-5. 6 ideias de conteúdo personalizadas para a Fotus Distribuidora Solar (distribuidora B2B em Vila Velha, ES, que vende para integradores)
-6. Calendário semanal de postagens
-7. Alertas de tendências emergentes que a Fotus deve aproveitar
+GERE OBRIGATORIAMENTE:
+1. Radar com EXATAMENTE 7 temas (scores 0-100, cores alternando #0D518E e #FAB515)
+2. Engajamento com EXATAMENTE 6 temas
+3. EXATAMENTE 4 formatos de conteúdo (Reels, Carrossel, Stories, Posts)
+4. Análise detalhada em parágrafo completo (200+ palavras)
+5. EXATAMENTE 6 ideias de conteúdo (2 Reels, 1 Carrossel, 1 Stories, 1 Posts, 1 Reels)
+6. Calendário semanal com EXATAMENTE 5 dias úteis
+7. EXATAMENTE 4 alertas com descrições em parágrafo completo (150+ palavras cada)
 
-Considere: mercado brasileiro, públicos B2B (integradores solares), tendências de financiamento, políticas de incentivo, e o crescimento do segmento residencial e comercial.`;
+IMPORTANTE - NUNCA DEIXE CAMPOS VAZIOS:
+- Descrições de alertas devem ser parágrafos completos, não bullets
+- Cada ideia deve ter todos os 4 campos preenchidos (tipo, titulo, descricao, motivo)
+- Cada alerta deve ter descrição longa, ação específica e prioridade
+- Analise deve ter 200+ palavras
+- Cada descrição de alerta deve ter 150+ palavras
+
+Considere: mercado brasileiro, públicos B2B (integradores solares), tendências de financiamento, políticas de incentivo, crescimento residencial e comercial.`;;
 
     // Obter chave Groq do Supabase
     let groqKey = localStorage.getItem('groq_api_key');
