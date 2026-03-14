@@ -1594,7 +1594,11 @@ function renderTabRadar(cont) {
     </div>`;
   });
 
-  document.getElementById('intel-radar-analise').innerHTML = stored.analise || stored.radar?.analise || '';
+  let analiseTexto = stored.analise || stored.radar?.analise || stored.Análise || stored['Análise Completa'] || '';
+  if (typeof analiseTexto === 'object') {
+    analiseTexto = analiseTexto.texto || analiseTexto.conteudo || analiseTexto.descricao || JSON.stringify(analiseTexto);
+  }
+  document.getElementById('intel-radar-analise').innerHTML = analiseTexto || '<em>Análise em processamento...</em>';
 }
 
 // ── TAB: IDEIAS ───────────────────────────────────────────────────
@@ -1883,6 +1887,19 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
       analiseTexto = analiseData.resumo;
     } else if (analiseData['Resumo']) {
       analiseTexto = analiseData['Resumo'];
+    } else if (analiseData.Análise) {
+      analiseTexto = analiseData.Análise;
+    } else if (analiseData['Análise']) {
+      analiseTexto = analiseData['Análise'];
+    } else if (analiseData.analise) {
+      analiseTexto = analiseData.analise;
+    } else if (Object.keys(analiseData).length > 0) {
+      for (let key in analiseData) {
+        if (typeof analiseData[key] === 'string' && analiseData[key].length > 50) {
+          analiseTexto = analiseData[key];
+          break;
+        }
+      }
     }
     
     const radar = {
