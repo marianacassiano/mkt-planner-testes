@@ -718,7 +718,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <p class="subtitle">FOTUS: PLANNER MARKETING</p>
     <input class="inp" type="email" id="inp-email" placeholder="E-mail">
     <input class="inp" type="password" id="inp-senha" placeholder="Senha">
-    <button class="btn-login" onclick="doLogin()">ENTRAR</button>
+    <button class="btn-login" id="btn-login">ENTRAR</button>
     <p class="login-error" id="login-error">E-mail ou senha incorretos.</p>
     <div class="login-footer">
       <a onclick="showForgotPassword()"></a>
@@ -1227,6 +1227,7 @@ function applyRoleRestrictions(){const isUser=currentUser.role==='user';const _n
   document.getElementById('nav-cal').style.display=isUser?'none':'';document.getElementById('nav-dash').style.display=isUser?'none':'';document.getElementById('nav-usuarios').style.display=isUser?'none':'';document.getElementById('btn-nova-camp').style.display=isUser?'none':'';if(isUser)showView('resumo');}
 function doLogout(){currentUser=null;campaigns=[];clearSession();document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('inp-email').value='';document.getElementById('inp-senha').value='';['nav-cal','nav-dash','nav-usuarios','nav-intel','btn-nova-camp'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});}
 document.getElementById('inp-senha').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('btn-login').addEventListener('click',doLogin);
 function showView(v){['calendario','resumo','dashboard','intel','usuarios'].forEach(n=>document.getElementById('view-'+n).classList.toggle('active',v===n));document.getElementById('nav-cal').classList.toggle('active',v==='calendario');document.getElementById('nav-res').classList.toggle('active',v==='resumo');document.getElementById('nav-dash').classList.toggle('active',v==='dashboard');document.getElementById('nav-usuarios').classList.toggle('active',v==='usuarios');
   const _ni=document.getElementById('nav-intel');if(_ni)_ni.classList.toggle('active',v==='intel');if(v==='resumo')renderResumo();if(v==='dashboard'){initDashPeriodo();renderDashboard();}if(v==='usuarios')renderUsuarios();
   if(v==='intel'){renderIntelView();}}
