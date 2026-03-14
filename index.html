@@ -1800,6 +1800,17 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
       }
     }
     
+    // Mapeia a resposta do Groq para a estrutura esperada
+    if (result.analise_do_mercado) {
+      result.radar = result.analise_do_mercado.radar_de_temas || { temas: [] };
+    }
+    if (result.ideias_de_conteudo) {
+      result.ideias = result.ideias_de_conteudo;
+    }
+    if (result.alertas_de_tendencias_emergentes) {
+      result.alertas = { alertas: result.alertas_de_tendencias_emergentes.tendencias || [] };
+    }
+    
     // Garante estrutura mínima
     if (!result.radar) result.radar = { temas: [] };
     if (!result.ideias) result.ideias = { ideias: [] };
