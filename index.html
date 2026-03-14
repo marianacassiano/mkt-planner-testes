@@ -1918,6 +1918,9 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
     localStorage.setItem('fotus_intel_radar',  JSON.stringify({ ...radar,  timestamp: now }));
     localStorage.setItem('fotus_intel_ideias', JSON.stringify({ ...ideiasObj, timestamp: now }));
     localStorage.setItem('fotus_intel_alertas',JSON.stringify({ ...alertasObj,timestamp: now }));
+    
+    // Salvar no Supabase
+    await saveAnalysisToSupabase(radar, ideiasObj, alertasObj, competitors, now);
 
     intelLastAnalysis = now;
     const lastEl = document.getElementById('intel-last-run');
@@ -1949,22 +1952,16 @@ const SUPABASE_KEY = 'sb_publishable_dxN9Z7gJKISqPybEoQJDlQ_LXW8swVB';
 const { createClient } = window.supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function saveAnalysisToSupabase(radar, ideias, alertas, competitors) {
+async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, timestamp) {
   try {
-    // Obter usuário atual (você precisará implementar autenticação)
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
-      console.log('Usuário não autenticado, salvando apenas no localStorage');
-      return;
-    }
-
+    // Salvar sem autenticação (público)
     const analysisData = {
-      user_id: user.id,
-      radar_data: radar,
-      ideias_data: ideias,
-      alertas_data: alertas,
-      competitors: competitors,
-      analysis_date: new Date().toISOString()
+      radar_data: JSON.stringify(radar),
+      ideias_data: JSON.stringify(ideias),
+      alertas_data: JSON.stringify(alertas),
+      competitors: JSON.stringify(competitors || []),
+      analysis_date: timestamp || new Date().toISOString(),
+      created_at: new Date().toISOString()
     };
 
     const { data, error } = await supabaseClient
@@ -1972,9 +1969,10 @@ async function saveAnalysisToSupabase(radar, ideias, alertas, competitors) {
       .insert([analysisData]);
 
     if (error) {
-      console.error('Erro ao salvar análise:', error);
+      console.error('Erro ao salvar análise no Supabase:', error);
     } else {
       console.log('✅ Análise salva no Supabase:', data);
+      showToast('✅ Análise salva no Supabase!', 'success');
     }
   } catch (e) {
     console.error('Erro ao salvar no Supabase:', e);
