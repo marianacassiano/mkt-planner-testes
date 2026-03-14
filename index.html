@@ -9,6 +9,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -1554,7 +1556,8 @@ function renderTabRadar(cont) {
 
   // Preenche temas
   const temasEl = document.getElementById('intel-radar-temas');
-  (stored.temas || []).forEach((t, i) => {
+  const temas = stored.temas || stored.radar?.temas || [];
+  temas.forEach((t, i) => {
     temasEl.innerHTML += `<div class="intel-tema-row">
       <span class="intel-tema-num">${i+1}</span>
       <span class="intel-tema-label">${t.tema}</span>
@@ -1565,7 +1568,8 @@ function renderTabRadar(cont) {
 
   // Engajamento
   const engEl = document.getElementById('intel-radar-engagement');
-  (stored.engajamento || []).forEach(e => {
+  const engajamento = stored.engajamento || stored.radar?.engajamento || [];
+  engajamento.forEach(e => {
     engEl.innerHTML += `<div class="intel-tema-row">
       <span class="intel-tema-label" style="flex:1;">${e.tema}</span>
       <span style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:${e.taxa > 5 ? 'var(--green)' : 'var(--gray-600)'};">${e.taxa}%</span>
@@ -1574,7 +1578,8 @@ function renderTabRadar(cont) {
 
   // Formatos
   const fmtEl = document.getElementById('intel-radar-formatos');
-  (stored.formatos || []).forEach(f => {
+  const formatos = stored.formatos || stored.radar?.formatos || [];
+  formatos.forEach(f => {
     fmtEl.innerHTML += `<div class="intel-formato-row">
       <span class="intel-formato-icon">${f.icone}</span>
       <div style="flex:1;"><div style="font-size:13px;font-weight:700;">${f.formato}</div><div style="font-size:11px;color:var(--gray-400);">${f.descricao}</div></div>
@@ -1582,7 +1587,7 @@ function renderTabRadar(cont) {
     </div>`;
   });
 
-  document.getElementById('intel-radar-analise').innerHTML = stored.analise || '';
+  document.getElementById('intel-radar-analise').innerHTML = stored.analise || stored.radar?.analise || '';
 }
 
 // ── TAB: IDEIAS ───────────────────────────────────────────────────
@@ -1610,7 +1615,8 @@ function renderTabIdeias(cont) {
 
   const TIPO_COLORS = { Reels:'#E53935', Carrossel:'#1E88E5', Story:'#FB8C00', Post:'#43A047' };
   const ideiasEl = document.getElementById('intel-ideias-lista');
-  (stored.ideias || []).forEach(ideia => {
+  const ideias = stored.ideias || stored.ideias?.ideias || [];
+  ideias.forEach(ideia => {
     const cor = TIPO_COLORS[ideia.tipo] || '#9BA3B8';
     ideiasEl.innerHTML += `
     <div class="intel-ideia-card">
@@ -1623,7 +1629,8 @@ function renderTabIdeias(cont) {
 
   const calEl = document.getElementById('intel-calendario-sugestao');
   const DIAS = ['Segunda','Terça','Quarta','Quinta','Sexta'];
-  (stored.calendario || []).forEach((item, i) => {
+  const calendario = stored.calendario || stored.ideias?.calendario || [];
+  calendario.forEach((item, i) => {
     calEl.innerHTML += `
     <div class="intel-cal-row">
       <span class="intel-cal-dia">${DIAS[i % DIAS.length]}</span>
@@ -1845,6 +1852,92 @@ function saveGroqKey(){const k=document.getElementById('groq-key-input').value.t
 function clearGroqKey(){if(confirm('Limpar chave?')){localStorage.removeItem('groq_api_key');document.getElementById('groq-key-input').value='';showConfigStatus('Chave removida','error');}}
 async function testGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Insira uma chave','error');return;}showConfigStatus('Testando...','error');try{const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Authorization':`Bearer ${k}`,'Content-Type':'application/json'},body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:'Teste'}],max_tokens:10})});if(r.ok){showConfigStatus('✅ Chave válida!','success');}else{const e=await r.json();showConfigStatus('❌ '+e.error.message,'error');}}catch(e){showConfigStatus('❌ Erro: '+e.message,'error');}}
 function showConfigStatus(m,t){const s=document.getElementById('config-status');s.textContent=m;s.className='config-status '+t;}
+
+// ── SUPABASE INTEGRATION ──────────────────────────────────────────
+const SUPABASE_URL = 'https://ldtebkdzmgxzuroflvci.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dxN9Z7gJKISqPybEoQJDlQ_LXW8swVB';
+const { createClient } = window.supabase;
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function saveAnalysisToSupabase(radar, ideias, alertas, competitors) {
+  try {
+    // Obter usuário atual (você precisará implementar autenticação)
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+      console.log('Usuário não autenticado, salvando apenas no localStorage');
+      return;
+    }
+
+    const analysisData = {
+      user_id: user.id,
+      radar_data: radar,
+      ideias_data: ideias,
+      alertas_data: alertas,
+      competitors: competitors,
+      analysis_date: new Date().toISOString()
+    };
+
+    const { data, error } = await supabaseClient
+      .from('intel_analyses')
+      .insert([analysisData]);
+
+    if (error) {
+      console.error('Erro ao salvar análise:', error);
+    } else {
+      console.log('✅ Análise salva no Supabase:', data);
+    }
+  } catch (e) {
+    console.error('Erro ao salvar no Supabase:', e);
+  }
+}
+
+async function saveCompetitorToSupabase(username, nome, categoria) {
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabaseClient
+      .from('intel_competitors')
+      .insert([{
+        user_id: user.id,
+        username: username,
+        nome: nome,
+        categoria: categoria,
+        instagram_url: `https://instagram.com/${username}`
+      }]);
+
+    if (error) {
+      console.error('Erro ao salvar concorrente:', error);
+    } else {
+      console.log('✅ Concorrente salvo no Supabase');
+    }
+  } catch (e) {
+    console.error('Erro ao salvar concorrente:', e);
+  }
+}
+
+async function loadAnalysesFromSupabase() {
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabaseClient
+      .from('intel_analyses')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('analysis_date', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao carregar análises:', error);
+      return [];
+    }
+    return data || [];
+  } catch (e) {
+    console.error('Erro ao carregar análises:', e);
+    return [];
+  }
+}
+
 </script>
 <div id="config-panel" class="config-panel"><button class="config-close" onclick="toggleConfigPanel()">✕</button><h2>⚙️ Configuração</h2><div id="config-status"></div><label>Chave Groq API</label><input type="password" id="groq-key-input" placeholder="gsk_..." /><button onclick="saveGroqKey()">Salvar Chave</button><button onclick="testGroqKey()" style="background: var(--teal);">Testar Chave</button><button onclick="clearGroqKey()" style="background: var(--red);">Limpar Chave</button></div></body>
 </html>
