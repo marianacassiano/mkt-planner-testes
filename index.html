@@ -1600,7 +1600,7 @@ function renderTabRadar(cont) {
 // ── TAB: IDEIAS ───────────────────────────────────────────────────
 function renderTabIdeias(cont) {
   const stored = JSON.parse(localStorage.getItem('fotus_intel_ideias') || 'null');
-  console.log('DEBUG - Ideias armazenadas:', stored);
+  
   if (!stored) {
     cont.innerHTML = intelEmptyState('💡', 'Nenhuma ideia gerada ainda', 'Execute a análise para receber sugestões personalizadas de conteúdo para a Fotus.');
     return;
@@ -1638,18 +1638,20 @@ function renderTabIdeias(cont) {
   });
 
   const calEl = document.getElementById('intel-calendario-sugestao');
-  const DIAS = ['Segunda','Terça','Quarta','Quinta','Sexta'];
-  const calendario = stored.calendario || {};
-  const diasSemana = ['segunda-feira', 'terca-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira'];
-  diasSemana.forEach((dia, i) => {
-    const item = calendario[dia];
-    if (item) {
-      const conteudo = item.conteudo || '';
-      const tipo = item.tipo || 'Post';
-      const cor = TIPO_COLORS[tipo] || '#9BA3B8';
+  const calendario = stored.calendario || [];
+  
+  // Se for array, usa diretamente; se for objeto, converte
+  const calendarArray = Array.isArray(calendario) ? calendario : Object.entries(calendario).map(([dia, item]) => ({ dia, ...item }));
+  
+  calendarArray.forEach((item, i) => {
+    const dia = item.dia || '';
+    const conteudo = item.descricao || item.conteudo || '';
+    const tipo = item.tipo || 'Post';
+    const cor = TIPO_COLORS[tipo] || '#9BA3B8';
+    if (conteudo) {
       calEl.innerHTML += `
       <div class="intel-cal-row">
-        <span class="intel-cal-dia">${DIAS[i]}</span>
+        <span class="intel-cal-dia">${dia}</span>
         <span class="intel-cal-tipo" style="background:${cor}20;color:${cor};">${tipo}</span>
         <span class="intel-cal-desc">${conteudo}</span>
       </div>`;
@@ -1881,8 +1883,17 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
     let calendario = [];
     if (Array.isArray(calendarioArray)) {
       calendario = calendarioArray.map(c => ({ dia: c.Dia || c.dia || '', tipo: c.Tipo || c.tipo || 'Post', descricao: c.Atividade || c.Descrição || c.descricao || '' }));
-    } else if (calendarioArray.calendario) {
+    } else if (calendarioArray.calendario && Array.isArray(calendarioArray.calendario)) {
       calendario = calendarioArray.calendario;
+    } else if (calendarioArray.dias && Array.isArray(calendarioArray.dias)) {
+      calendario = calendarioArray.dias.map(c => ({ dia: c.dia || '', tipo: c.tipo || 'Post', descricao: c.conteudo || c.descricao || '' }));
+    } else if (typeof calendarioArray === 'object') {
+      // Converter objeto para array
+      calendario = Object.entries(calendarioArray).map(([key, val]) => ({
+        dia: key,
+        tipo: val.tipo || 'Post',
+        descricao: val.conteudo || val.descricao || ''
+      }));
     }
     
     let alertasArray2 = [];
@@ -1923,13 +1934,6 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
     };
 
     const now = new Date().toISOString();
-    console.log('Resultado parseado:', result);
-    console.log('Radar mapeado:', radar);
-    console.log('Ideias mapeadas:', ideiasObj);
-    console.log('Alertas mapeados:', alertasObj);
-    localStorage.setItem('fotus_intel_radar',  JSON.stringify({ ...radar,  timestamp: now }));
-    localStorage.setItem('fotus_intel_ideias', JSON.stringify({ ...ideiasObj, timestamp: now }));
-    localStorage.setItem('fotus_intel_alertas',JSON.stringify({ ...alertasObj,timestamp: now }));
     
     // Salvar no Supabase
     await saveAnalysisToSupabase(radar, ideiasObj, alertasObj, intelConcorrentes, now);
@@ -1982,35 +1986,17 @@ async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, times
 
     if (error) {
       console.error('Erro ao salvar análise no Supabase:', error);
-      saveAnalysisToLocalStorage(radar, ideias, alertas, competitors, timestamp);
-      showToast('⚠️ Análise salva localmente (Supabase indisponível)', 'warning');
+        showToast('⚠️ Análise salva localmente (Supabase indisponível)', 'warning');
     } else {
       console.log('✅ Análise salva no Supabase:', data);
       showToast('✅ Análise salva no Supabase!', 'success');
     }
   } catch (e) {
     console.error('Erro ao salvar no Supabase:', e);
-    saveAnalysisToLocalStorage(radar, ideias, alertas, competitors, timestamp);
     showToast('⚠️ Análise salva localmente (erro de conexão)', 'warning');
   }
 }
 
-function saveAnalysisToLocalStorage(radar, ideias, alertas, competitors, timestamp) {
-  try {
-    const analyses = JSON.parse(localStorage.getItem('intel_analyses_local') || '[]');
-    analyses.push({
-      radar_data: radar,
-      ideias_data: ideias,
-      alertas_data: alertas,
-      competitors: competitors || [],
-      analysis_date: timestamp || new Date().toISOString(),
-      created_at: new Date().toISOString()
-    });
-    localStorage.setItem('intel_analyses_local', JSON.stringify(analyses));
-    console.log('✅ Análise salva no localStorage');
-  } catch (e) {
-    console.error('Erro ao salvar no localStorage:', e);
-  }
 }
 
 async function saveCompetitorToSupabase(username, nome, categoria) {
