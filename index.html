@@ -676,6 +676,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 }
 
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -1144,6 +1145,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     </div>
   </div>
 </div>
+
 
 <script>
 const SUPA_URL='https://ldtebkdzmgxzuroflvci.supabase.co';
@@ -1654,6 +1656,36 @@ function intelEmptyState(icon, title, desc) {
 }
 
 // ── ANÁLISE COM IA ────────────────────────────────────────────────
+
+  <script>
+    // Inicializar Supabase
+    const SUPABASE_URL = 'https://ldtebkdzmgxzuroflvci.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkdGVia2R6bWd4enVyb2ZsdmNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTk5OTcsImV4cCI6MjA4ODI5NTk5N30.Ra9JCOJAlVlg6uQCKOwoF7M5hTHbnJPWBSH48jctM6g';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function saveGroqKey(userId, groqKey) {
+      try {
+        const { error } = await supabase.from('user_config').upsert({ userId, groqApiKey: groqKey }, { onConflict: 'userId' });
+        if (error) throw error;
+        return true;
+      } catch (err) {
+        console.error('Erro ao salvar chave:', err);
+        return false;
+      }
+    }
+
+    async function getGroqKey(userId) {
+      try {
+        const { data, error } = await supabase.from('user_config').select('groqApiKey').eq('userId', userId).single();
+        if (error && error.code !== 'PGRST116') throw error;
+        return data?.groqApiKey || null;
+      } catch (err) {
+        console.error('Erro ao recuperar chave:', err);
+        return null;
+      }
+    }
+  </script>
+
 async function runIntelAnalysis() {
   if (intelAnalysisRunning) { showToast('Análise já em andamento...', 'error'); return; }
   intelAnalysisRunning = true;
