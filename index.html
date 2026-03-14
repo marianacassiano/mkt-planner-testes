@@ -1794,16 +1794,32 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
     // Limpa e parseia
     jsonText = jsonText.trim().replace(/^```json\s*/,'').replace(/\s*```$/,'').replace(/^```\s*/,'');
     
+    // Remove caracteres de controle problemáticos
+    jsonText = jsonText.replace(/[\x00-\x1F\x7F]/g, ' ');
+    
+    // Converte vírgulas decimais em pontos (formato brasileiro para JSON)
+    jsonText = jsonText.replace(/(:\s*)(\d+),(\d+)/g, '$1$2.$3');
+    
     let result;
     try {
       result = JSON.parse(jsonText);
     } catch (e) {
+      console.log('Erro ao parsear JSON:', e.message);
       // Tenta extrair JSON entre chaves
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
+        try {
+          result = JSON.parse(jsonMatch[0]);
+        } catch (e2) {
+          // Tenta limpar mais agressivamente
+          let cleaned = jsonMatch[0]
+            .replace(/,\s*}/g, '}')  // Remove vírgulas antes de }
+            .replace(/,\s*]/g, ']')  // Remove vírgulas antes de ]
+            .replace(/([\w\}\]])(\s*[\w\"{\[])/g, '$1,$2');  // Adiciona vírgulas faltantes
+          result = JSON.parse(cleaned);
+        }
       } else {
-        throw new Error('Não conseguiu parsear resposta como JSON');
+        throw new Error('Não conseguiu parsear resposta como JSON: ' + e.message);
       }
     }
     
