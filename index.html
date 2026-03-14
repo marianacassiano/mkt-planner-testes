@@ -1363,7 +1363,6 @@ function renderIntelView() {
   <!-- TABS -->
   <div class="intel-tabs">
     <button class="intel-tab active" id="itab-radar"       onclick="setIntelTab('radar')">📡 Radar de Temas</button>
-    <button class="intel-tab"        id="itab-ideias"      onclick="setIntelTab('ideias')">💡 Ideias de Conteúdo</button>
     <button class="intel-tab"        id="itab-alertas"     onclick="setIntelTab('alertas')">🚨 Alertas</button>
     <button class="intel-tab"        id="itab-concorrentes" onclick="setIntelTab('concorrentes')">👥 Concorrentes</button>
   </div>
@@ -1389,7 +1388,6 @@ function renderIntelTab(tab) {
 
   if (tab === 'concorrentes') { renderTabConcorrentes(cont); return; }
   if (tab === 'radar')        { renderTabRadar(cont);        return; }
-  if (tab === 'ideias')       { renderTabIdeias(cont);       return; }
   if (tab === 'alertas')      { renderTabAlertas(cont);      return; }
 }
 
@@ -1541,6 +1539,10 @@ function renderTabRadar(cont) {
       <div class="intel-card-title" style="margin-bottom:14px;">🏆 Formatos que Performam</div>
       <div id="intel-radar-formatos"></div>
     </div>
+    <div class="intel-card">
+      <div class="intel-card-title" style="margin-bottom:14px;">📅 Ideias para essa Semana</div>
+      <div id="intel-ideias-lista"></div>
+    </div>
   </div>
   <div class="intel-card" style="margin-top:14px;">
     <div class="intel-card-title" style="margin-bottom:14px;">📝 Análise Completa</div>
@@ -1579,36 +1581,11 @@ function renderTabRadar(cont) {
     </div>`;
   });
 
-  let analiseTexto = stored.analise || stored.radar?.analise || stored.Análise || stored['Análise Completa'] || '';
-  if (typeof analiseTexto === 'object') {
-    analiseTexto = analiseTexto.texto || analiseTexto.conteudo || analiseTexto.descricao || JSON.stringify(analiseTexto);
-  }
-  document.getElementById('intel-radar-analise').innerHTML = analiseTexto || '<em>Análise em processamento...</em>';
-}
-
-// ── TAB: IDEIAS ───────────────────────────────────────────────────
-function renderTabIdeias(cont) {
-  const stored = JSON.parse(localStorage.getItem('fotus_intel_ideias') || 'null');
-  console.log('DEBUG - Ideias armazenadas:', stored);
-  if (!stored) {
-    cont.innerHTML = intelEmptyState('💡', 'Nenhuma ideia gerada ainda', 'Execute a análise para receber sugestões personalizadas de conteúdo para a Fotus.');
-    return;
-  }
-
-  cont.innerHTML = `
-  <div class="intel-grid-2">
-    <div class="intel-card">
-      <div class="intel-card-title" style="margin-bottom:16px;">📅 Ideias para essa Semana</div>
-      <div id="intel-ideias-lista"></div>
-    </div>
-  </div>
-  <div style="font-size:11px;color:var(--gray-400);text-align:right;margin-top:8px;font-family:'DM Mono',monospace;">
-    Gerado em: ${new Date(stored.timestamp).toLocaleString('pt-BR')}
-  </div>`;
-
+  // Ideias
   const TIPO_COLORS = { Reels:'#E53935', Carrossel:'#1E88E5', Story:'#FB8C00', Post:'#43A047', Video:'#E53935', Infografico:'#1E88E5', Artigo:'#FB8C00' };
   const ideiasEl = document.getElementById('intel-ideias-lista');
   const ideias = stored.ideias || [];
+  ideiasEl.innerHTML = '';
   ideias.forEach(ideia => {
     const titulo = ideia.titulo || ideia.nome || 'Ideia';
     const descricao = ideia.descricao || '';
@@ -1622,10 +1599,14 @@ function renderTabIdeias(cont) {
     </div>`;
   });
 
-
+  let analiseTexto = stored.analise || stored.radar?.analise || stored.Análise || stored['Análise Completa'] || '';
+  if (typeof analiseTexto === 'object') {
+    analiseTexto = analiseTexto.texto || analiseTexto.conteudo || analiseTexto.descricao || JSON.stringify(analiseTexto);
+  }
+  document.getElementById('intel-radar-analise').innerHTML = analiseTexto || '<em>Análise em processamento...</em>';
 }
 
-// ── TAB: ALERTAS ──────────────────────────────────────────────────
+// ── TAB: ALERTAS ───────────────────────────────────
 function renderTabAlertas(cont) {
   const stored = JSON.parse(localStorage.getItem('fotus_intel_alertas') || 'null');
   if (!stored || !stored.alertas?.length) {
