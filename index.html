@@ -675,6 +675,32 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   .intel-section-row{flex-direction:column;}
 }
 
+
+    .config-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 350px;
+      height: 100vh;
+      background: white;
+      border-left: 1px solid var(--gray-200);
+      padding: 20px;
+      box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+      z-index: 10000;
+      overflow-y: auto;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+    .config-panel.open { transform: translateX(0); }
+    .config-panel h2 { font-size: 16px; font-weight: 700; margin-bottom: 20px; color: var(--purple); }
+    .config-panel label { font-size: 12px; font-weight: 600; color: var(--gray-600); display: block; margin-bottom: 6px; }
+    .config-panel input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--gray-200); border-radius: 8px; font-size: 13px; font-family: 'Sora', sans-serif; margin-bottom: 12px; }
+    .config-panel button { width: 100%; padding: 12px; background: var(--purple); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+    .config-panel button:hover { background: #0A4070; }
+    .config-close { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer; color: var(--gray-600); width: auto; padding: 0; margin: 0; }
+    .config-status { padding: 12px; border-radius: 8px; font-size: 12px; margin-bottom: 12px; }
+    .config-status.success { background: #E8F5E9; color: #1B5E20; }
+    .config-status.error { background: #FFEBEE; color: #B71C1C; }
 </style>
 </head>
 <body>
@@ -1726,18 +1752,9 @@ Com base nas tendências atuais de 2026 do setor fotovoltaico no Brasil, gere:
 Considere: mercado brasileiro, públicos B2B (integradores solares), tendências de financiamento, políticas de incentivo, e o crescimento do segmento residencial e comercial.`;
 
     // Obter chave Groq do Supabase
-    let groqKey = null;
-    try {
-      const rows = await sbFetch('groq_config?userid=eq.' + currentUser.id + '&select=groqapikey');
-      if (rows && rows.length > 0) {
-        groqKey = rows[0].groqapikey;
-      }
-    } catch (e) {
-      console.error('Erro ao buscar chave Groq:', e);
-    }
-    
+    let groqKey = localStorage.getItem('groq_api_key');
     if (!groqKey) {
-      showToast('Chave Groq não configurada. Configure no Supabase.', 'error');
+      showToast('Chave Groq não configurada. Clique em ⚙️ Configurar', 'error');
       throw new Error('Chave Groq não configurada');
     }
 
@@ -1791,6 +1808,12 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
   }
 }
 
+
+function toggleConfigPanel(){const p=document.getElementById('config-panel');p.classList.toggle('open');if(p.classList.contains('open')){const s=localStorage.getItem('groq_api_key');if(s)document.getElementById('groq-key-input').value=s;}}
+function saveGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Chave não pode estar vazia','error');return;}localStorage.setItem('groq_api_key',k);showConfigStatus('✅ Chave salva!','success');setTimeout(()=>{document.getElementById('config-panel').classList.remove('open');},1500);}
+function clearGroqKey(){if(confirm('Limpar chave?')){localStorage.removeItem('groq_api_key');document.getElementById('groq-key-input').value='';showConfigStatus('Chave removida','error');}}
+async function testGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Insira uma chave','error');return;}showConfigStatus('Testando...','error');try{const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Authorization':`Bearer ${k}`,'Content-Type':'application/json'},body:JSON.stringify({model:'llama-3.1-70b-versatile',messages:[{role:'user',content:'Teste'}],max_tokens:10})});if(r.ok){showConfigStatus('✅ Chave válida!','success');}else{const e=await r.json();showConfigStatus('❌ '+e.error.message,'error');}}catch(e){showConfigStatus('❌ Erro: '+e.message,'error');}}
+function showConfigStatus(m,t){const s=document.getElementById('config-status');s.textContent=m;s.className='config-status '+t;}
 </script>
-</body>
+<div id="config-panel" class="config-panel"><button class="config-close" onclick="toggleConfigPanel()">✕</button><h2>⚙️ Configuração</h2><div id="config-status"></div><label>Chave Groq API</label><input type="password" id="groq-key-input" placeholder="gsk_..." /><button onclick="saveGroqKey()">Salvar Chave</button><button onclick="testGroqKey()" style="background: var(--teal);">Testar Chave</button><button onclick="clearGroqKey()" style="background: var(--red);">Limpar Chave</button></div></body>
 </html>
