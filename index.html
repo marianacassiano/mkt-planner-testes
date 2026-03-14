@@ -1798,13 +1798,11 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
         try {
           result = JSON.parse(jsonMatch[0]);
         } catch (e2) {
-          // Tenta limpar mais agressivamente
+          // Tenta limpar de forma mais segura
           let cleaned = jsonMatch[0]
             .replace(/,\s*}/g, '}')
             .replace(/,\s*]/g, ']')
-            .replace(/'/g, '"')
-            .replace(/([\w\}\]])\s*([\w\"{\[])/g, '$1,$2')
-            .replace(/,,+/g, ',');
+            .replace(/'/g, '"');
           
           try {
             result = JSON.parse(cleaned);
