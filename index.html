@@ -1558,9 +1558,10 @@ function renderTabRadar(cont) {
   const temasEl = document.getElementById('intel-radar-temas');
   const temas = stored.temas || stored.radar?.temas || [];
   temas.forEach((t, i) => {
+    const nome = t.tema || t.nome || 'Tema';
     temasEl.innerHTML += `<div class="intel-tema-row">
       <span class="intel-tema-num">${i+1}</span>
-      <span class="intel-tema-label">${t.tema}</span>
+      <span class="intel-tema-label">${nome}</span>
       <div class="intel-tema-bar-wrap"><div class="intel-tema-bar" style="width:${t.score}%;background:${t.cor||'#0D518E'}"></div></div>
       <span class="intel-tema-score">${t.score}%</span>
     </div>`;
@@ -1570,9 +1571,11 @@ function renderTabRadar(cont) {
   const engEl = document.getElementById('intel-radar-engagement');
   const engajamento = stored.engajamento || stored.radar?.engajamento || [];
   engajamento.forEach(e => {
+    const nome = e.tema || e.nome || 'Tema';
+    const taxa = e.taxa || e.taxa_de_engajamento || 0;
     engEl.innerHTML += `<div class="intel-tema-row">
-      <span class="intel-tema-label" style="flex:1;">${e.tema}</span>
-      <span style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:${e.taxa > 5 ? 'var(--green)' : 'var(--gray-600)'};">${e.taxa}%</span>
+      <span class="intel-tema-label" style="flex:1;">${nome}</span>
+      <span style="font-size:13px;font-weight:700;font-family:'DM Mono',monospace;color:${taxa > 5 ? 'var(--green)' : 'var(--gray-600)'};">` + `${taxa}%</span>
     </div>`;
   });
 
@@ -1580,10 +1583,14 @@ function renderTabRadar(cont) {
   const fmtEl = document.getElementById('intel-radar-formatos');
   const formatos = stored.formatos || stored.radar?.formatos || [];
   formatos.forEach(f => {
+    const nome = f.formato || f.nome || 'Formato';
+    const icone = f.icone || '📱';
+    const descricao = f.descricao || '';
+    const mult = f.multiplicador || f.performance || '1x';
     fmtEl.innerHTML += `<div class="intel-formato-row">
-      <span class="intel-formato-icon">${f.icone}</span>
-      <div style="flex:1;"><div style="font-size:13px;font-weight:700;">${f.formato}</div><div style="font-size:11px;color:var(--gray-400);">${f.descricao}</div></div>
-      <span class="intel-formato-mult">${f.multiplicador}</span>
+      <span class="intel-formato-icon">${icone}</span>
+      <div style="flex:1;"><div style="font-size:13px;font-weight:700;">${nome}</div><div style="font-size:11px;color:var(--gray-400);">${descricao}</div></div>
+      <span class="intel-formato-mult">${mult}</span>
     </div>`;
   });
 
