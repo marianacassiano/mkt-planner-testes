@@ -1371,6 +1371,9 @@ function renderIntelView() {
   <div id="intel-tab-content"></div>
   `;
 
+  // Carregar análises do Supabase
+  loadAnalysesFromSupabase().catch(e => console.error('Erro ao carregar análises:', e));
+  
   renderIntelTab('radar');
 }
 
@@ -1454,6 +1457,25 @@ function renderTabConcorrentes(cont) {
       </div>
     </div>
   </div>
+  
+  <!-- MODAL GROQ CONFIG -->
+  <div class="intel-modal-overlay" id="intel-modal-groq" style="display:none;" onclick="if(event.target===this)closeGroqConfigModal()">
+    <div class="intel-modal">
+      <div class="intel-modal-header">
+        <span style="font-size:16px;font-weight:700;">⚙️ Configurar API Groq</span>
+        <button onclick="closeGroqConfigModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray-400);">✕</button>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label class="form-label">Chave da API Groq</label>
+        <input class="form-input" id="groq-api-key-input" type="password" placeholder="Cole sua chave da API aqui" style="margin-top:4px;font-family:'DM Mono',monospace;font-size:12px;">
+        <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">Obtenha em: <a href="https://console.groq.com" target="_blank" style="color:var(--purple);text-decoration:none;">console.groq.com</a></p>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn-cancel" onclick="closeGroqConfigModal()">Cancelar</button>
+        <button class="btn-save" onclick="saveGroqConfig()">SALVAR</button>
+      </div>
+    </div>
+  </div>
   `;
 }
 
@@ -1499,6 +1521,18 @@ function selectIntelCatOpt(btn) {
 
 function openAddConcorrente()  { document.getElementById('intel-modal-add').style.display = 'flex'; }
 function closeAddConcorrente() { document.getElementById('intel-modal-add').style.display = 'none'; }
+
+function openGroqConfigModal() { document.getElementById('intel-modal-groq').style.display = 'flex'; }
+function closeGroqConfigModal() { document.getElementById('intel-modal-groq').style.display = 'none'; }
+
+function saveGroqConfig() {
+  const apiKey = document.getElementById('groq-api-key-input').value.trim();
+  if (!apiKey) { showToast('Informe a chave da API', 'error'); return; }
+  localStorage.setItem('GROQ_API_KEY', apiKey);
+  GROQ_API_KEY = apiKey;
+  showToast('Chave da API salva com sucesso!');
+  closeGroqConfigModal();
+}
 
 function addIntelConcorrente() {
   const username = document.getElementById('add-intel-username').value.trim().replace('@','');
@@ -1560,6 +1594,13 @@ function renderTabRadar(cont) {
     return;
   }
   cont.innerHTML = `
+  <!-- BOTÃO CONFIGURAR API GROQ -->
+  <div style="margin-bottom:20px;">
+    <button class="btn-intel-config" onclick="openGroqConfigModal()" style="padding:10px 18px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(250,181,21,.3);transition:background .2s,transform .1s;">
+      ⚙️ Configurar API Groq
+    </button>
+  </div>
+  
   <div class="intel-grid-3">
     <div class="intel-card">
       <div class="intel-card-title" style="margin-bottom:14px;">🔥 Top Temas da Semana</div>
@@ -1953,6 +1994,35 @@ const SUPABASE_URL = 'https://ldtebkdzmgxzuroflvci.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_dxN9Z7gJKISqPybEoQJDlQ_LXW8swVB';
 const { createClient } = window.supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function loadAnalysesFromSupabase() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('intel_analyses')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    
+    if (error) {
+      console.error('Erro ao carregar análises:', error);
+      return;
+    }
+    
+    if (data && data.length > 0) {
+      const latest = data[0];
+      const now = new Date(latest.analysis_date).toISOString();
+      
+      // Restaurar dados no localStorage
+      localStorage.setItem('fotus_intel_radar', JSON.stringify({ ...latest.radar_data, timestamp: now }));
+      localStorage.setItem('fotus_intel_ideias', JSON.stringify({ ...latest.ideias_data, timestamp: now }));
+      localStorage.setItem('fotus_intel_alertas', JSON.stringify({ ...latest.alertas_data, timestamp: now }));
+      
+      console.log('✅ Análises carregadas do Supabase');
+    }
+  } catch (e) {
+    console.error('Erro ao carregar análises do Supabase:', e);
+  }
+}
 
 async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, timestamp) {
   try {
