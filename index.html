@@ -2116,5 +2116,25 @@ async function loadAnalysesFromSupabase() {
 }
 
 </script>
+
+<!-- MODAL GROQ CONFIG (GLOBAL) -->
+<div class="intel-modal-overlay" id="intel-modal-groq" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:9999;" onclick="if(event.target===this)closeGroqConfigModal()">
+  <div class="intel-modal" style="background:white;border-radius:16px;padding:24px;width:90%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div class="intel-modal-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-size:16px;font-weight:700;">⚙️ Configurar API Groq</span>
+      <button onclick="closeGroqConfigModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray-400);">✕</button>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="form-label" style="display:block;font-size:13px;font-weight:600;color:var(--gray-800);margin-bottom:6px;">Chave da API Groq</label>
+      <input class="form-input" id="groq-api-key-input" type="password" placeholder="Cole sua chave da API aqui" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:'DM Mono',monospace;font-size:12px;outline:none;">
+      <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">Obtenha em: <a href="https://console.groq.com" target="_blank" style="color:var(--purple);text-decoration:none;">console.groq.com</a></p>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn-cancel" onclick="closeGroqConfigModal()" style="padding:10px 16px;border:1.5px solid var(--gray-200);background:white;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;color:var(--gray-600);">Cancelar</button>
+      <button class="btn-save" onclick="saveGroqConfig()" style="padding:10px 16px;background:var(--purple);color:white;border:none;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;">SALVAR</button>
+    </div>
+  </div>
+</div>
+
 <div id="config-panel" class="config-panel"><button class="config-close" onclick="toggleConfigPanel()">✕</button><h2>⚙️ Configuração</h2><div id="config-status"></div><label>Chave Groq API</label><input type="password" id="groq-key-input" placeholder="gsk_..." /><button onclick="saveGroqKey()">Salvar Chave</button><button onclick="testGroqKey()" style="background: var(--teal);">Testar Chave</button><button onclick="clearGroqKey()" style="background: var(--red);">Limpar Chave</button></div></body>
 </html>
