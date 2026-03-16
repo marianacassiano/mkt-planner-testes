@@ -1454,25 +1454,6 @@ function renderTabConcorrentes(cont) {
       </div>
     </div>
   </div>
-  
-  <!-- MODAL GROQ CONFIG -->
-  <div class="intel-modal-overlay" id="intel-modal-groq" style="display:none;" onclick="if(event.target===this)closeGroqConfigModal()">
-    <div class="intel-modal">
-      <div class="intel-modal-header">
-        <span style="font-size:16px;font-weight:700;">⚙️ Configurar API Groq</span>
-        <button onclick="closeGroqConfigModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray-400);">✕</button>
-      </div>
-      <div style="margin-bottom:14px;">
-        <label class="form-label">Chave da API Groq</label>
-        <input class="form-input" id="groq-api-key-input" type="password" placeholder="Cole sua chave da API aqui" style="margin-top:4px;font-family:'DM Mono',monospace;font-size:12px;">
-        <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">Obtenha em: <a href="https://console.groq.com" target="_blank" style="color:var(--purple);text-decoration:none;">console.groq.com</a></p>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button class="btn-cancel" onclick="closeGroqConfigModal()">Cancelar</button>
-        <button class="btn-save" onclick="saveGroqConfig()">SALVAR</button>
-      </div>
-    </div>
-  </div>
   `;
 }
 
@@ -1519,18 +1500,6 @@ function selectIntelCatOpt(btn) {
 function openAddConcorrente()  { document.getElementById('intel-modal-add').style.display = 'flex'; }
 function closeAddConcorrente() { document.getElementById('intel-modal-add').style.display = 'none'; }
 
-function openGroqConfigModal() { document.getElementById('intel-modal-groq').style.display = 'flex'; }
-function closeGroqConfigModal() { document.getElementById('intel-modal-groq').style.display = 'none'; }
-
-function saveGroqConfig() {
-  const apiKey = document.getElementById('groq-api-key-input').value.trim();
-  if (!apiKey) { showToast('Informe a chave da API', 'error'); return; }
-  localStorage.setItem('GROQ_API_KEY', apiKey);
-  GROQ_API_KEY = apiKey;
-  showToast('Chave da API salva com sucesso!');
-  closeGroqConfigModal();
-}
-
 function addIntelConcorrente() {
   const username = document.getElementById('add-intel-username').value.trim().replace('@','');
   const nome     = document.getElementById('add-intel-nome').value.trim();
@@ -1540,6 +1509,7 @@ function addIntelConcorrente() {
   if (intelConcorrentes.find(c => c.username === username)) { showToast('Perfil já cadastrado', 'error'); return; }
   intelConcorrentes.push({ id: Date.now().toString(), username, nome, categoria, adicionado: new Date().toISOString() });
   saveIntelConcorrentes();
+  saveCompetitorToSupabase(username, nome, categoria).catch(e => console.error('Erro ao salvar no Supabase:', e));
   closeAddConcorrente();
   renderTabConcorrentes(document.getElementById('intel-tab-content'));
   showToast('Perfil @' + username + ' adicionado!');
@@ -1547,10 +1517,39 @@ function addIntelConcorrente() {
 
 function removeIntelConcorrente(id) {
   if (!confirm('Remover este perfil?')) return;
+  const competitor = intelConcorrentes.find(c => c.id === id);
   intelConcorrentes = intelConcorrentes.filter(c => c.id !== id);
   saveIntelConcorrentes();
+  if (competitor) {
+    removeCompetitorFromSupabase(competitor.username).catch(e => console.error('Erro ao remover do Supabase:', e));
+  }
   renderTabConcorrentes(document.getElementById('intel-tab-content'));
   showToast('Perfil removido.');
+}
+
+async function saveCompetitorToSupabase(username, nome, categoria) {
+  try {
+    const { data, error } = await supabaseClient
+      .from('intel_competitors')
+      .insert([{ username, nome, categoria }]);
+    if (error) console.error('Erro ao salvar concorrente:', error);
+    else console.log('✅ Concorrente salvo no Supabase:', data);
+  } catch (e) {
+    console.error('Erro ao salvar concorrente no Supabase:', e);
+  }
+}
+
+async function removeCompetitorFromSupabase(username) {
+  try {
+    const { error } = await supabaseClient
+      .from('intel_competitors')
+      .delete()
+      .eq('username', username);
+    if (error) console.error('Erro ao remover concorrente:', error);
+    else console.log('✅ Concorrente removido do Supabase');
+  } catch (e) {
+    console.error('Erro ao remover concorrente do Supabase:', e);
+  }
 }
 
 // ── TAB: RADAR ────────────────────────────────────────────────────
@@ -1560,12 +1559,40 @@ function renderTabRadar(cont) {
     cont.innerHTML = intelEmptyState('📡', 'Radar ainda não executado', 'Clique em "⚡ Analisar Agora" para buscar os temas mais quentes do mercado solar.');
     return;
   }
+  // Renderizar painel de configuração de concorrentes
+  const totalPorCat = {};
+  CATEGORIAS_INTEL.forEach(c => totalPorCat[c.id] = intelConcorrentes.filter(x => x.categoria === c.id).length);
+  
   cont.innerHTML = `
-  <!-- BOTÃO CONFIGURAR -->
-  <div style="margin-bottom:20px;">
-    <button class="btn-intel-config" onclick="openGroqConfigModal()" style="padding:10px 18px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(250,181,21,.3);transition:background .2s,transform .1s;">
-      ⚙️ Configurar API Groq
-    </button>
+  <!-- PAINEL DE CONFIGURAÇÃO DE CONCORRENTES -->
+  <div class="intel-section-row" style="margin-bottom:20px;">
+    <div class="intel-card" style="flex:1;">
+      <div class="intel-card-header">
+        <span class="intel-card-title">Perfis Monitorados</span>
+        <button class="btn-intel-add" onclick="openAddConcorrente()">+ Adicionar</button>
+      </div>
+
+      <!-- Filtro por categoria -->
+      <div class="intel-cat-filter" id="intel-cat-filter">
+        <button class="intel-cat-chip active" data-cat="todos" onclick="filterIntelCat(this,'todos')">Todos <span class="chip-count">${intelConcorrentes.length}</span></button>
+        ${CATEGORIAS_INTEL.map(c => `<button class="intel-cat-chip" data-cat="${c.id}" onclick="filterIntelCat(this,'${c.id}')">${c.icon} ${c.label} <span class="chip-count">${totalPorCat[c.id]}</span></button>`).join('')}
+      </div>
+
+      <!-- Lista -->
+      <div id="intel-profiles-list" style="margin-top:16px;">
+        ${renderProfilesList('todos')}
+      </div>
+    </div>
+
+    <!-- Painel lateral: stats rápidos -->
+    <div style="width:260px;display:flex;flex-direction:column;gap:14px;">
+      ${CATEGORIAS_INTEL.map(c => `
+      <div class="intel-stat-card" style="border-left:3px solid ${c.color}">
+        <div style="font-size:11px;font-weight:700;color:${c.color};text-transform:uppercase;letter-spacing:.08em;">${c.icon} ${c.label}</div>
+        <div style="font-size:28px;font-weight:700;font-family:'DM Mono',monospace;color:var(--gray-800);line-height:1.2;">${totalPorCat[c.id]}</div>
+        <div style="font-size:11px;color:var(--gray-400);">perfis cadastrados</div>
+      </div>`).join('')}
+    </div>
   </div>
   
   <div class="intel-grid-3">
