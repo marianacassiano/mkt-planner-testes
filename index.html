@@ -1354,6 +1354,9 @@ function renderIntelView() {
     </div>
     <div style="display:flex;gap:10px;align-items:center;">
       <div id="intel-last-run" style="font-size:11px;color:var(--gray-400);font-family:'DM Mono',monospace;"></div>
+      <button class="btn-intel-config" onclick="openGroqConfigModal()" style="padding:10px 18px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(250,181,21,.3);transition:background .2s,transform .1s;">
+        ⚙️ Configurar
+      </button>
       <button class="btn-intel-run" id="btn-intel-run" onclick="runIntelAnalysis()">
         <span id="intel-run-icon">⚡</span> Analisar Agora
       </button>
@@ -1594,13 +1597,6 @@ function renderTabRadar(cont) {
     return;
   }
   cont.innerHTML = `
-  <!-- BOTÃO CONFIGURAR API GROQ -->
-  <div style="margin-bottom:20px;">
-    <button class="btn-intel-config" onclick="openGroqConfigModal()" style="padding:10px 18px;background:var(--orange);color:white;border:none;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(250,181,21,.3);transition:background .2s,transform .1s;">
-      ⚙️ Configurar API Groq
-    </button>
-  </div>
-  
   <div class="intel-grid-3">
     <div class="intel-card">
       <div class="intel-card-title" style="margin-bottom:14px;">🔥 Top Temas da Semana</div>
