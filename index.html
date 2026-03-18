@@ -160,7 +160,46 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .dispatch-bar.concluida{background:white!important;color:var(--gray-600)!important;border:2px solid #00C07A!important;opacity:0.85!important;}
 .dispatch-bar:hover{opacity:.85;}
 .dispatch-bar:not(.cancelada):not(.adiada):not(.concluida):hover .bar-check-btn{display:flex;}
-/* ── HOVER PREVIEW ─────────────────────────────────────── */
+/* ── DASHBOARD NOVO ─────────────────────────────────────── */
+.dash-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-400);margin:24px 0 12px;display:flex;align-items:center;gap:8px;}
+.dash-section-title::after{content:'';flex:1;height:1px;background:var(--gray-200);}
+/* Taxa de execução */
+.exec-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray-100);}
+.exec-row:last-child{border-bottom:none;}
+.exec-name{font-size:12px;font-weight:600;color:var(--gray-800);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.exec-bar-wrap{width:120px;height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden;flex-shrink:0;}
+.exec-bar-fill{height:100%;border-radius:3px;transition:width .4s;}
+.exec-nums{font-size:11px;font-family:'DM Mono',monospace;color:var(--gray-500);white-space:nowrap;min-width:56px;text-align:right;}
+.exec-pct{font-size:11px;font-weight:700;min-width:34px;text-align:right;}
+.exec-alert{font-size:10px;color:#FF6F00;font-weight:700;margin-left:4px;}
+/* Disparos atrasados */
+.atrasado-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFF8F0;border-radius:8px;border-left:3px solid #FF6F00;margin-bottom:6px;}
+.atrasado-nome{font-size:12px;font-weight:700;color:var(--gray-800);flex:1;}
+.atrasado-canal{font-size:11px;color:var(--gray-600);}
+.atrasado-data{font-size:11px;font-family:'DM Mono',monospace;color:#FF6F00;font-weight:700;white-space:nowrap;}
+/* Canais planejado vs executado */
+.canal-exec-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-100);}
+.canal-exec-row:last-child{border-bottom:none;}
+.canal-exec-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.canal-exec-name{font-size:12px;font-weight:600;color:var(--gray-700);min-width:80px;}
+.canal-exec-bars{flex:1;display:flex;flex-direction:column;gap:3px;}
+.canal-exec-bar-wrap{height:5px;background:var(--gray-100);border-radius:3px;overflow:hidden;}
+.canal-exec-bar-plan{height:100%;border-radius:3px;opacity:.35;}
+.canal-exec-bar-exec{height:100%;border-radius:3px;}
+.canal-exec-nums{font-size:10px;font-family:'DM Mono',monospace;color:var(--gray-400);white-space:nowrap;text-align:right;min-width:64px;}
+.canal-exec-pct{font-size:11px;font-weight:700;min-width:34px;text-align:right;}
+/* Mapa de calor */
+.heatmap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px;}
+.heatmap-header{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;}
+.heatmap-dow{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--gray-400);text-align:center;}
+.heatmap-cell{aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:default;transition:transform .1s;position:relative;}
+.heatmap-cell:hover{transform:scale(1.12);z-index:2;}
+.heatmap-cell .hm-day{font-size:9px;font-weight:700;color:white;opacity:.8;}
+.heatmap-cell .hm-num{font-size:11px;font-weight:800;color:white;}
+.heatmap-cell.empty{background:var(--gray-100);}
+.heatmap-legend{display:flex;align-items:center;gap:6px;margin-top:8px;justify-content:flex-end;}
+.heatmap-legend span{font-size:10px;color:var(--gray-400);}
+.hm-sq{width:10px;height:10px;border-radius:2px;}
 #camp-hover-preview{position:fixed;z-index:9990;pointer-events:none;opacity:0;transition:opacity .15s;width:240px;background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid var(--gray-200);padding:14px 16px;display:none;}
 #camp-hover-preview.visible{display:block;opacity:1;}
 .chp-color-bar{height:4px;border-radius:2px;margin:-14px -16px 12px;border-radius:12px 12px 0 0;}
@@ -939,38 +978,67 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
         <button class="btn-atalho" onclick="setDashPeriodo('ano')" id="atalho-ano">Este ano</button>
       </div>
     </div>
+
+    <!-- KPIs -->
     <div class="dash-kpis" id="dash-kpis"></div>
-    <div class="dash-row">
-      <div class="dash-card" style="grid-column:span 2">
-        <h3>Evolução de Ações no Período</h3>
-        <div class="dash-chart-wrap" style="height:220px;"><canvas id="chart-evolucao"></canvas></div>
-      </div>
-    </div>
+
+    <!-- LINHA 1: Taxa de Execução + Disparos Atrasados -->
+    <div class="dash-section-title">📊 Execução</div>
     <div class="dash-row">
       <div class="dash-card">
-        <h3>Campanhas por Categoria</h3>
-        <div class="dash-chart-wrap" style="height:200px;"><canvas id="chart-categoria"></canvas></div>
+        <h3>Taxa de Execução por Campanha</h3>
+        <div id="dash-execucao" style="margin-top:8px;"></div>
       </div>
       <div class="dash-card">
-        <h3>Campanhas por Status</h3>
-        <div class="dash-chart-wrap" style="height:200px;"><canvas id="chart-status"></canvas></div>
+        <h3>⚠️ Disparos Atrasados</h3>
+        <div id="dash-atrasados" style="margin-top:8px;"></div>
       </div>
     </div>
+
+    <!-- LINHA 2: Canais planejado vs executado + Mapa de Calor -->
+    <div class="dash-section-title">📡 Canais & Calendário</div>
+    <div class="dash-row">
+      <div class="dash-card">
+        <h3>Canais — Planejado vs Executado</h3>
+        <div id="dash-canais-exec" style="margin-top:8px;"></div>
+      </div>
+      <div class="dash-card">
+        <h3>Mapa de Calor do Mês</h3>
+        <div id="dash-heatmap" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <!-- LINHA 3: Evolução -->
+    <div class="dash-section-title">📈 Evolução</div>
     <div class="dash-row">
       <div class="dash-card" style="grid-column:span 2">
-        <h3>Ações por Canal</h3>
-        <div class="dash-chart-wrap" style="height:240px;"><canvas id="chart-canais"></canvas></div>
+        <h3>Ações no Período</h3>
+        <div class="dash-chart-wrap" style="height:200px;"><canvas id="chart-evolucao"></canvas></div>
       </div>
     </div>
+
+    <!-- LINHA 4: Categorias + Status -->
+    <div class="dash-section-title">🗂️ Campanhas</div>
+    <div class="dash-row">
+      <div class="dash-card">
+        <h3>Por Categoria</h3>
+        <div class="dash-chart-wrap" style="height:180px;"><canvas id="chart-categoria"></canvas></div>
+      </div>
+      <div class="dash-card">
+        <h3>Por Status</h3>
+        <div class="dash-chart-wrap" style="height:180px;"><canvas id="chart-status"></canvas></div>
+      </div>
+    </div>
+
+    <!-- LINHA 5: Próximas + Hoje + Sem ações -->
+    <div class="dash-section-title">📅 Agenda</div>
     <div class="dash-row">
       <div class="dash-card"><h3>Próximas a Encerrar</h3><div id="dash-encerrar"></div></div>
       <div class="dash-card"><h3>Próximas Ações</h3><div id="dash-disparos"></div></div>
     </div>
     <div class="dash-row">
-      <div class="dash-card" style="grid-column:span 2"><h3>⚠️ Ações para Hoje</h3><div id="dash-hoje"></div></div>
-    </div>
-    <div class="dash-row">
-      <div class="dash-card" style="grid-column:span 2"><h3>⚠️ Campanhas sem Ações</h3><div id="dash-sem-acoes"></div></div>
+      <div class="dash-card"><h3>⚡ Ações para Hoje</h3><div id="dash-hoje"></div></div>
+      <div class="dash-card"><h3>🚫 Campanhas sem Ações</h3><div id="dash-sem-acoes"></div></div>
     </div>
   </div>
 
@@ -1380,7 +1448,159 @@ function renderResumoCalendar(){const today=new Date();today.setHours(0,0,0,0);c
 let _dashAtalhoAtivo='mes';
 function setDashPeriodo(tipo){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);let de,ate=ts;if(tipo==='mes'){de=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';const lastDay=new Date(today.getFullYear(),today.getMonth()+1,0);ate=toStr(lastDay);}else if(tipo==='30d'){const d=new Date(today);d.setDate(d.getDate()-30);de=toStr(d);}else if(tipo==='3m'){const d=new Date(today);d.setMonth(d.getMonth()-3);de=toStr(d);}else if(tipo==='ano'){de=today.getFullYear()+'-01-01';ate=today.getFullYear()+'-12-31';}document.getElementById('dash-de').value=de;document.getElementById('dash-ate').value=ate;_dashAtalhoAtivo=tipo;['mes','30d','3m','ano'].forEach(k=>{const btn=document.getElementById('atalho-'+k);if(btn)btn.classList.toggle('ativo',k===tipo);});renderDashboard();}
 function initDashPeriodo(){const today=new Date();today.setHours(0,0,0,0);const de=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';const lastDay=new Date(today.getFullYear(),today.getMonth()+1,0);const ate=toStr(lastDay);document.getElementById('dash-de').value=de;document.getElementById('dash-ate').value=ate;const btn=document.getElementById('atalho-mes');if(btn)btn.classList.add('ativo');}
-async function renderDashboard(){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);const de=document.getElementById('dash-de')?.value||'';const ate=document.getElementById('dash-ate')?.value||ts;showLoading();let allRaw=[];try{allRaw=await sbFetch('campaigns?select=*&inicio=lte.'+ate+(de?'&fim=gte.'+de:'')+'&order=inicio.asc');}catch(e){console.warn('Erro ao buscar campanhas do dashboard:',e.message);}finally{hideLoading();}const all=(allRaw||[]).map(rowToLocal);setTimeout(()=>consolidarMesAtual(),1000);const ativas=all.filter(c=>c.status!=='cancelada'&&c.inicio<=ts&&c.fim>=ts);const enc=all.filter(c=>c.status!=='cancelada'&&c.fim<ts);const breve=all.filter(c=>c.status==='ativa'&&c.inicio>ts);const td=all.reduce((a,c)=>a+(c.inbound?.wa||[]).length+(c.inbound?.email||[]).length+(c.inbound?.sms||[]).length+(c.rede_social?.instagram||[]).length+(c.rede_social?.facebook||[]).length+(c.rede_social?.linkedin||[]).length+(c.rede_social?.blog||[]).length+(c.rede_social?.outros||[]).length+(c.performance?.meta_ads||[]).length+(c.performance?.google_ads||[]).length,0);document.getElementById('dash-kpis').innerHTML='<div class="kpi-card"><div class="kpi-label">Total Campanhas</div><div class="kpi-value" style="color:var(--purple)">'+all.length+'</div><div class="kpi-sub">no período</div></div><div class="kpi-card"><div class="kpi-label">Ativas</div><div class="kpi-value" style="color:var(--green)">'+ativas.length+'</div><div class="kpi-sub">'+breve.length+' em breve</div></div><div class="kpi-card"><div class="kpi-label">Encerradas</div><div class="kpi-value" style="color:var(--gray-400)">'+enc.length+'</div><div class="kpi-sub">no período</div></div><div class="kpi-card"><div class="kpi-label">Total Ações</div><div class="kpi-value" style="color:var(--orange)">'+td+'</div><div class="kpi-sub">em todos os canais</div></div>';
+async function renderDashboard(){
+const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);
+const de=document.getElementById('dash-de')?.value||'';
+const ate=document.getElementById('dash-ate')?.value||ts;
+showLoading();let allRaw=[];
+try{allRaw=await sbFetch('campaigns?select=*&inicio=lte.'+ate+(de?'&fim=gte.'+de:'')+'&order=inicio.asc');}
+catch(e){console.warn('Erro ao buscar campanhas do dashboard:',e.message);}
+finally{hideLoading();}
+const all=(allRaw||[]).map(rowToLocal);
+setTimeout(()=>consolidarMesAtual(),1000);
+
+const canalMap=[[c=>c.inbound?.wa||[],'WhatsApp','#25D366'],[c=>c.inbound?.email||[],'E-mail','#2196F3'],[c=>c.inbound?.sms||[],'SMS','#FF9800'],[c=>c.rede_social?.instagram||[],'Instagram','#E91E63'],[c=>c.rede_social?.facebook||[],'Facebook','#1877F2'],[c=>c.rede_social?.linkedin||[],'LinkedIn','#0A66C2'],[c=>c.rede_social?.blog||[],'Blog','#6B5CE7'],[c=>c.rede_social?.outros||[],'Outros','#9BA3B8'],[c=>c.performance?.meta_ads||[],'Meta Ads','#1877F2'],[c=>c.performance?.google_ads||[],'Google Ads','#4285F4']];
+
+// ── KPIs ─────────────────────────────────────────────────────────
+const ativas=all.filter(c=>c.status!=='cancelada'&&c.inicio<=ts&&c.fim>=ts);
+const enc=all.filter(c=>c.status!=='cancelada'&&c.fim<ts);
+const breve=all.filter(c=>c.status==='ativa'&&c.inicio>ts);
+const td=all.reduce((a,c)=>a+canalMap.reduce((s,[g])=>s+(g(c)||[]).length,0),0);
+let totalPlan=0,totalExec=0;
+all.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{if(!c.disparos_cancelados||!Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d)){totalPlan++;if(c.disparos_concluidos&&c.disparos_concluidos[d])totalExec++;}});});});
+const taxaGeral=totalPlan>0?Math.round(totalExec/totalPlan*100):0;
+document.getElementById('dash-kpis').innerHTML=
+  '<div class="kpi-card"><div class="kpi-label">Total Campanhas</div><div class="kpi-value" style="color:var(--purple)">'+all.length+'</div><div class="kpi-sub">no período</div></div>'+
+  '<div class="kpi-card"><div class="kpi-label">Ativas</div><div class="kpi-value" style="color:var(--green)">'+ativas.length+'</div><div class="kpi-sub">'+breve.length+' em breve</div></div>'+
+  '<div class="kpi-card"><div class="kpi-label">Encerradas</div><div class="kpi-value" style="color:var(--gray-400)">'+enc.length+'</div><div class="kpi-sub">no período</div></div>'+
+  '<div class="kpi-card"><div class="kpi-label">Total Ações</div><div class="kpi-value" style="color:var(--orange)">'+td+'</div><div class="kpi-sub">em todos os canais</div></div>'+
+  '<div class="kpi-card"><div class="kpi-label">Taxa de Execução</div><div class="kpi-value" style="color:'+(taxaGeral>=70?'var(--green)':taxaGeral>=40?'#FF6F00':'var(--red)')+'">'+taxaGeral+'%</div><div class="kpi-sub">'+totalExec+' de '+totalPlan+' concluídos</div></div>';
+
+// ── TAXA DE EXECUÇÃO POR CAMPANHA ────────────────────────────────
+const execEl=document.getElementById('dash-execucao');
+const campAtivas=all.filter(c=>c.status!=='cancelada'&&c.inicio<=ts&&c.fim>=ts);
+if(!campAtivas.length){execEl.innerHTML='<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa no período.</p>';}
+else{
+  execEl.innerHTML=campAtivas.map(c=>{
+    let plan=0,exec=0,atrasados=0;
+    canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{if(!c.disparos_cancelados||!Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d)){plan++;if(c.disparos_concluidos&&c.disparos_concluidos[d])exec++;else if(d<ts&&!(c.disparos_adiados&&Object.prototype.hasOwnProperty.call(c.disparos_adiados,d)))atrasados++;}});});
+    const pct=plan>0?Math.round(exec/plan*100):0;
+    const cor=pct>=70?'var(--green)':pct>=40?'#FF6F00':'var(--red)';
+    return '<div class="exec-row">'+
+      '<span class="exec-name" title="'+c.name+'">'+c.name+'</span>'+
+      '<div class="exec-bar-wrap"><div class="exec-bar-fill" style="width:'+pct+'%;background:'+cor+'"></div></div>'+
+      '<span class="exec-nums">'+exec+'/'+plan+'</span>'+
+      '<span class="exec-pct" style="color:'+cor+'">'+pct+'%</span>'+
+      (atrasados>0?'<span class="exec-alert">⚠️'+atrasados+'</span>':'')+
+    '</div>';
+  }).join('');
+}
+
+// ── DISPAROS ATRASADOS ───────────────────────────────────────────
+const atrasEl=document.getElementById('dash-atrasados');
+const atrasados=[];
+all.filter(c=>c.status!=='cancelada').forEach(c=>{
+  canalMap.forEach(([g,key,nome])=>{
+    (g(c)||[]).forEach(d=>{
+      if(d<ts&&!(c.disparos_concluidos&&c.disparos_concluidos[d])&&!(c.disparos_cancelados&&Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d))&&!(c.disparos_adiados&&Object.prototype.hasOwnProperty.call(c.disparos_adiados,d))){
+        atrasados.push({campanha:c.name,canal:nome,data:d,diasAtraso:Math.round((today-toDate(d))/86400000)});
+      }
+    });
+  });
+});
+atrasados.sort((a,b)=>a.data.localeCompare(b.data));
+atrasEl.innerHTML=atrasados.length?
+  atrasados.slice(0,8).map(a=>'<div class="atrasado-row"><div style="flex:1;min-width:0"><div class="atrasado-nome">'+a.campanha+'</div><div class="atrasado-canal">'+a.canal+'</div></div><div class="atrasado-data">'+fmtFull(a.data)+'<br><span style="font-size:10px;color:#BF360C">'+a.diasAtraso+'d atrás</span></div></div>').join('')+
+  (atrasados.length>8?'<p style="font-size:11px;color:var(--gray-400);margin-top:8px;">+mais '+(atrasados.length-8)+' atrasados</p>':''):
+  '<div style="text-align:center;padding:20px 0;"><div style="font-size:28px;margin-bottom:8px;">✅</div><p style="color:var(--green);font-size:12px;font-weight:700;">Nenhum disparo atrasado!</p></div>';
+
+// ── CANAIS: PLANEJADO VS EXECUTADO ───────────────────────────────
+const canaisExecEl=document.getElementById('dash-canais-exec');
+const canaisData=canalMap.map(([g,key,nome,cor])=>{
+  let plan=0,exec=0;
+  all.forEach(c=>{(g(c)||[]).forEach(d=>{if(!c.disparos_cancelados||!Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d)){plan++;if(c.disparos_concluidos&&c.disparos_concluidos[d])exec++;}});});
+  return{nome,cor:canalMap.find(([,k])=>k===key)?.[2]||'#999',color:cor,plan,exec};
+}).filter(x=>x.plan>0).sort((a,b)=>b.plan-a.plan);
+const maxPlan=Math.max(...canaisData.map(x=>x.plan),1);
+const _cores={'WhatsApp':'#25D366','E-mail':'#2196F3','SMS':'#FF9800','Instagram':'#E91E63','Facebook':'#1877F2','LinkedIn':'#0A66C2','Blog':'#6B5CE7','Outros':'#9BA3B8','Meta Ads':'#1877F2','Google Ads':'#4285F4'};
+canaisExecEl.innerHTML=canaisData.length?canaisData.map(ch=>{
+  const pct=ch.plan>0?Math.round(ch.exec/ch.plan*100):0;
+  const cor=_cores[ch.nome]||'#9BA3B8';
+  const pctCor=pct>=70?'var(--green)':pct>=40?'#FF6F00':'var(--red)';
+  return '<div class="canal-exec-row">'+
+    '<div class="canal-exec-dot" style="background:'+cor+'"></div>'+
+    '<span class="canal-exec-name">'+ch.nome+'</span>'+
+    '<div class="canal-exec-bars">'+
+      '<div class="canal-exec-bar-wrap"><div class="canal-exec-bar-plan" style="width:'+Math.round(ch.plan/maxPlan*100)+'%;background:'+cor+'"></div></div>'+
+      '<div class="canal-exec-bar-wrap"><div class="canal-exec-bar-exec" style="width:'+Math.round(ch.exec/maxPlan*100)+'%;background:'+cor+'"></div></div>'+
+    '</div>'+
+    '<span class="canal-exec-nums">'+ch.exec+'/'+ch.plan+'</span>'+
+    '<span class="canal-exec-pct" style="color:'+pctCor+'">'+pct+'%</span>'+
+  '</div>';
+}).join('')+
+'<div style="display:flex;gap:16px;margin-top:10px;padding-top:8px;border-top:1px solid var(--gray-100);"><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--gray-400);"><div style="width:24px;height:4px;border-radius:2px;background:var(--gray-300);opacity:.4;"></div>Planejado</div><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--gray-400);"><div style="width:24px;height:4px;border-radius:2px;background:var(--green);"></div>Executado</div></div>':
+'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação no período.</p>';
+
+// ── MAPA DE CALOR DO MÊS ─────────────────────────────────────────
+const heatEl=document.getElementById('dash-heatmap');
+const hmMes=today.getMonth(),hmAno=today.getFullYear();
+const hmDim=new Date(hmAno,hmMes+1,0).getDate();
+const hmStart=new Date(hmAno,hmMes,1).getDay();
+const contDia={};
+all.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{const[y,m,day]=d.split('-').map(Number);if(m-1===hmMes&&y===hmAno){const k=day;contDia[k]=(contDia[k]||0)+1;}});});});
+const maxDia=Math.max(...Object.values(contDia),1);
+const DAYS=['D','S','T','Q','Q','S','S'];
+let hmHtml='<div class="heatmap-header">'+DAYS.map(d=>'<div class="heatmap-dow">'+d+'</div>').join('')+'</div><div class="heatmap-grid">';
+for(let i=0;i<hmStart;i++)hmHtml+='<div class="heatmap-cell empty"></div>';
+for(let d=1;d<=hmDim;d++){
+  const cnt=contDia[d]||0;
+  const int=cnt>0?Math.max(0.15,cnt/maxDia):0;
+  const bg=cnt>0?`rgba(13,81,142,${int})`:'var(--gray-100)';
+  const isToday=d===today.getDate();
+  hmHtml+='<div class="heatmap-cell" style="background:'+bg+';'+(isToday?'outline:2px solid var(--orange);':'')+'" title="'+d+'/'+String(hmMes+1).padStart(2,'0')+': '+cnt+' ação(ões)">'+
+    '<span class="hm-day" style="color:'+(cnt>0?'white':'var(--gray-400)')+'">'+d+'</span>'+
+    (cnt>0?'<span class="hm-num">'+cnt+'</span>':'')+
+  '</div>';
+}
+hmHtml+='</div><div class="heatmap-legend"><span>Menos</span>'+
+  [0.1,0.3,0.5,0.7,0.95].map(op=>'<div class="hm-sq" style="background:rgba(13,81,142,'+op+')"></div>').join('')+
+  '<span>Mais</span></div>';
+heatEl.innerHTML=hmHtml;
+
+// ── PRÓXIMAS A ENCERRAR ──────────────────────────────────────────
+const pe=[...ativas].sort((a,b)=>a.fim.localeCompare(b.fim)).slice(0,5);
+document.getElementById('dash-encerrar').innerHTML=pe.length?pe.map(c=>{const diff=Math.round((toDate(c.fim)-today)/86400000);return'<div class="timeline-item"><div class="timeline-dot" style="background:'+c.color+'"></div><div class="timeline-content"><div class="timeline-name">'+c.name+' '+catBadge(c.categoria)+'</div><div class="timeline-date">Encerra '+fmtFull(c.fim)+' · '+(diff===0?'hoje':diff+' dia(s)')+'</div></div></div>';}).join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';
+
+// ── PRÓXIMAS AÇÕES ───────────────────────────────────────────────
+const disp=[];all.forEach(c=>{canalMap.forEach(([g,key,nome,cor])=>{const _c={'WhatsApp':'#25D366','E-mail':'#2196F3','SMS':'#FF9800','Instagram':'#E91E63','Facebook':'#1877F2','LinkedIn':'#0A66C2','Blog':'#6B5CE7','Outros':'#9BA3B8','Meta Ads':'#1877F2','Google Ads':'#4285F4'};(g(c)||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:nome,color:_c[nome]||'#999',data:d,cat:c.categoria});});});});
+disp.sort((a,b)=>a.data.localeCompare(b.data));
+document.getElementById('dash-disparos').innerHTML=disp.slice(0,6).map(d=>'<div class="timeline-item"><div class="timeline-dot" style="background:'+d.color+'"></div><div class="timeline-content"><div class="timeline-name">'+d.nome+' '+catBadge(d.cat)+'</div><div class="timeline-date">'+d.canal+' · '+fmtFull(d.data)+'</div></div></div>').join('')||'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação futura.</p>';
+
+// ── HOJE ─────────────────────────────────────────────────────────
+const hoje=[];all.forEach(c=>{canalMap.forEach(([g,key,nome])=>{const _c={'WhatsApp':'#25D366','E-mail':'#2196F3','SMS':'#FF9800','Instagram':'#E91E63','Facebook':'#1877F2','LinkedIn':'#0A66C2','Blog':'#6B5CE7','Outros':'#9BA3B8','Meta Ads':'#1877F2','Google Ads':'#4285F4'};if((g(c)||[]).includes(ts))hoje.push({campanha:c.name,color:c.color,canal:nome,cor:_c[nome]||'#999'});});});
+document.getElementById('dash-hoje').innerHTML=hoje.length?hoje.map(h=>'<div class="hoje-item"><div class="hoje-item-dot" style="background:'+h.color+'"></div><div class="hoje-item-info"><div class="hoje-item-nome">'+h.campanha+'</div><div class="hoje-item-canal">'+h.canal+'</div></div><div class="canal-stat-dot" style="background:'+h.cor+';width:8px;height:8px;border-radius:50%;"></div></div>').join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação programada para hoje.</p>';
+
+// ── SEM AÇÕES ─────────────────────────────────────────────────────
+const semAcoes=all.filter(c=>{if(c.status==='cancelada'||c.fim<ts)return false;return canalMap.reduce((s,[g])=>s+(g(c)||[]).length,0)===0;});
+document.getElementById('dash-sem-acoes').innerHTML=semAcoes.length?semAcoes.map(c=>'<div class="sem-acao-item"><div class="sem-acao-dot" style="background:'+c.color+'"></div><div><div class="sem-acao-nome">'+c.name+'</div><div class="sem-acao-vig">'+fmt(c.inicio)+' – '+fmt(c.fim)+'</div></div></div>').join(''):'<p style="color:var(--green);font-size:12px;font-weight:600;">✅ Todas as campanhas têm ações.</p>';
+
+// ── GRÁFICOS ──────────────────────────────────────────────────────
+destroyChart('chart-categoria');
+const cc={COMERCIAL:0,CONTEUDO:0,EVENTOS:0};all.forEach(c=>{getCats(c).forEach(cat=>{if(cc[cat]!==undefined)cc[cat]++;});});
+new Chart(document.getElementById('chart-categoria'),{type:'doughnut',data:{labels:['Comercial','Conteúdo','Eventos'],datasets:[{data:[cc.COMERCIAL,cc.CONTEUDO,cc.EVENTOS],backgroundColor:['#1E88E5','#43A047','#FB8C00'],borderWidth:2,borderColor:'white'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Sora',size:11},padding:12}}}}});
+
+destroyChart('chart-status');
+const sc={ativa:0,adiada:0,cancelada:0};all.forEach(c=>{const s=c.status||'ativa';if(sc[s]!==undefined)sc[s]++;});
+new Chart(document.getElementById('chart-status'),{type:'doughnut',data:{labels:['Ativa','Adiada','Cancelada'],datasets:[{data:[sc.ativa,sc.adiada,sc.cancelada],backgroundColor:['#00C07A','#FFB300','#E53935'],borderWidth:2,borderColor:'white'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Sora',size:11},padding:12}}}}});
+
+destroyChart('chart-evolucao');
+const allAcoes=[];all.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{if((!de||d>=de)&&d<=ate)allAcoes.push({data:d});});});});
+allAcoes.sort((a,b)=>a.data.localeCompare(b.data));
+const deDt=de?new Date(de):new Date(allAcoes[0]?.data||ts);const ateDt=new Date(ate);const diffDias=Math.round((ateDt-deDt)/86400000);const agruparPor=diffDias<=62?'semana':'mes';
+const grupos={};allAcoes.forEach(a=>{let key;if(agruparPor==='semana'){const d=new Date(a.data);const dom=new Date(d);dom.setDate(d.getDate()-d.getDay());key=toStr(dom);}else{key=a.data.slice(0,7);}grupos[key]=(grupos[key]||0)+1;});
+const evolLabels=[],evolData=[];Object.entries(grupos).sort(([a],[b])=>a.localeCompare(b)).forEach(([k,v])=>{evolLabels.push(agruparPor==='semana'?'Sem '+fmtFull(k):MONTHS_PT[parseInt(k.split('-')[1])-1]+'/'+k.split('-')[0].slice(2));evolData.push(v);});
+new Chart(document.getElementById('chart-evolucao'),{type:'bar',data:{labels:evolLabels,datasets:[{label:'Ações',data:evolData,backgroundColor:'rgba(13,81,142,.75)',borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{family:'DM Mono',size:10}},grid:{color:'rgba(0,0,0,.04)'}},x:{ticks:{font:{family:'Sora',size:10}},grid:{display:false}}}}});
+}
 const cc={COMERCIAL:0,CONTEUDO:0,EVENTOS:0};all.forEach(c=>{getCats(c).forEach(cat=>{if(cc[cat]!==undefined)cc[cat]++;});});const wa=all.reduce((a,c)=>a+(c.inbound?.wa||[]).length,0),em=all.reduce((a,c)=>a+(c.inbound?.email||[]).length,0),sm=all.reduce((a,c)=>a+(c.inbound?.sms||[]).length,0),ig=all.reduce((a,c)=>a+(c.rede_social?.instagram||[]).length,0),fb=all.reduce((a,c)=>a+(c.rede_social?.facebook||[]).length,0),li=all.reduce((a,c)=>a+(c.rede_social?.linkedin||[]).length,0),bl=all.reduce((a,c)=>a+(c.rede_social?.blog||[]).length,0),ou=all.reduce((a,c)=>a+(c.rede_social?.outros||[]).length,0),ma=all.reduce((a,c)=>a+(c.performance?.meta_ads||[]).length,0),ga=all.reduce((a,c)=>a+(c.performance?.google_ads||[]).length,0);
 const pe=[...ativas].sort((a,b)=>a.fim.localeCompare(b.fim)).slice(0,5);document.getElementById('dash-encerrar').innerHTML=pe.length?pe.map(c=>{const diff=Math.round((toDate(c.fim)-today)/86400000);return'<div class="timeline-item"><div class="timeline-dot" style="background:'+c.color+'"></div><div class="timeline-content"><div class="timeline-name">'+c.name+' '+catBadge(c.categoria)+'</div><div class="timeline-date">Encerra '+fmtFull(c.fim)+' · '+(diff===0?'hoje':diff+' dia(s)')+'</div></div></div>';}).join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';
 const disp=[];all.forEach(c=>{(c.inbound?.wa||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'WhatsApp [INB-WPP]',color:'#25D366',data:d,cat:c.categoria});});(c.inbound?.email||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'E-mail [INB-EMAIL]',color:'#2196F3',data:d,cat:c.categoria});});(c.inbound?.sms||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'SMS [INB-SMS]',color:'#FF9800',data:d,cat:c.categoria});});(c.rede_social?.instagram||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Instagram [SOC-INST]',color:'#E91E63',data:d,cat:c.categoria});});(c.rede_social?.facebook||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Facebook [SOC-FACE]',color:'#1877F2',data:d,cat:c.categoria});});(c.rede_social?.linkedin||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'LinkedIn [SOC-LINK]',color:'#0A66C2',data:d,cat:c.categoria});});(c.rede_social?.blog||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Blog [SOC-BLOG]',color:'#6B5CE7',data:d,cat:c.categoria});});(c.rede_social?.outros||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Outros [SOC-OUT]',color:'#999',data:d,cat:c.categoria});});(c.performance?.meta_ads||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Meta Ads [PERF-META]',color:'#1877F2',data:d,cat:c.categoria});});(c.performance?.google_ads||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Google Ads [PERF-GOO]',color:'#4285F4',data:d,cat:c.categoria});});});disp.sort((a,b)=>a.data.localeCompare(b.data));document.getElementById('dash-disparos').innerHTML=disp.slice(0,6).map(d=>'<div class="timeline-item"><div class="timeline-dot" style="background:'+d.color+'"></div><div class="timeline-content"><div class="timeline-name">'+d.nome+' '+catBadge(d.cat)+'</div><div class="timeline-date">'+d.canal+' · '+fmtFull(d.data)+'</div></div></div>').join('')||'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação futura.</p>';
