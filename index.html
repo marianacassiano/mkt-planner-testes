@@ -1217,11 +1217,22 @@ const SESSION_KEY='fotus_session';const SESSION_TTL=24*60*60*1000;
 function saveSession(user){const session={userId:user.id,expiresAt:Date.now()+SESSION_TTL};localStorage.setItem(SESSION_KEY,JSON.stringify(session));}
 function clearSession(){localStorage.removeItem(SESSION_KEY);}
 function getValidSession(){try{const raw=localStorage.getItem(SESSION_KEY);if(!raw)return null;const session=JSON.parse(raw);if(Date.now()>session.expiresAt){clearSession();return null;}return session;}catch(e){clearSession();return null;}}
-async function restoreSession(){const session=getValidSession();if(!session)return false;await loadUsers();const user=USERS.find(u=>u.id===session.userId);if(!user){clearSession();return false;}currentUser=user;document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';const rb=document.getElementById('role-badge');rb.textContent=user.role==='admin'?'Administrador':'Usuário';rb.className='role-badge '+(user.role==='admin'?'admin':'user');updateUserMenu();applyRoleRestrictions();loadCampaigns().catch(e=>console.error('Erro ao carregar campanhas:',e));return true;}
+async function restoreSession(){const session=getValidSession();if(!session)return false;await loadUsers();const user=USERS.find(u=>u.id===session.userId);if(!user){clearSession();return false;}currentUser=user;document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';const rb=document.getElementById('role-badge');rb.textContent=user.role==='admin'?'Administrador':'Usuário';rb.className='role-badge '+(user.role==='admin'?'admin':'user');updateUserMenu();applyRoleRestrictions();loadGroqConfig().catch(e=>console.error('Groq config:',e));loadCampaigns().catch(e=>console.error('Erro ao carregar campanhas:',e));return true;}
 function recordAccess(){if(!currentUser)return;const now=new Date();const accessStr=now.toLocaleString('pt-BR');if(!currentUser.acessos)currentUser.acessos=[];currentUser.acessos.unshift(accessStr);if(currentUser.acessos.length>3)currentUser.acessos.pop();dbUserUpdate(currentUser.id,{acessos:currentUser.acessos}).catch(e=>console.error('Erro ao salvar acesso:',e));}
-async function doLogin(){const email=document.getElementById('inp-email').value.trim();const senha=document.getElementById('inp-senha').value;if(!email||!senha){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail e senha são obrigatórios';return;}await loadUsers();const user=USERS.find(u=>u.email===email&&u.senha===senha);if(!user){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail ou senha incorretos';return;}currentUser=user;saveSession(user);recordAccess();document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';const rb=document.getElementById('role-badge');rb.textContent=user.role==='admin'?'Administrador':'Usuário';rb.className='role-badge '+(user.role==='admin'?'admin':'user');updateUserMenu();applyRoleRestrictions();loadCampaigns().catch(e=>console.error('Erro ao carregar campanhas:',e));}
+async function doLogin(){const email=document.getElementById('inp-email').value.trim();const senha=document.getElementById('inp-senha').value;if(!email||!senha){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail e senha são obrigatórios';return;}await loadUsers();const user=USERS.find(u=>u.email===email&&u.senha===senha);if(!user){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail ou senha incorretos';return;}currentUser=user;saveSession(user);recordAccess();loadGroqConfig().catch(e=>console.error('Groq config:',e));document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';const rb=document.getElementById('role-badge');rb.textContent=user.role==='admin'?'Administrador':'Usuário';rb.className='role-badge '+(user.role==='admin'?'admin':'user');updateUserMenu();applyRoleRestrictions();loadCampaigns().catch(e=>console.error('Erro ao carregar campanhas:',e));}
 function updateUserMenu(){const initial=currentUser.nome.charAt(0);const avatarBtn=document.getElementById('user-avatar-btn');if(currentUser.foto){avatarBtn.innerHTML='<img src="'+currentUser.foto+'" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';}else{avatarBtn.textContent=initial;}const emailEl=document.getElementById('topbar-user-email');if(emailEl)emailEl.textContent=currentUser.email.toLowerCase();document.getElementById('dropdown-name').textContent=currentUser.nome;document.getElementById('dropdown-email').textContent=currentUser.email;const avatarEl=document.getElementById('dropdown-avatar');if(currentUser.foto){avatarEl.innerHTML='<img src="'+currentUser.foto+'" alt="Avatar">';}else{avatarEl.textContent=initial;}}
 function toggleUserMenu(){const dropdown=document.getElementById('user-dropdown');dropdown.classList.toggle('open');document.addEventListener('click',e=>{if(!e.target.closest('.user-menu'))dropdown.classList.remove('open');});}
+
+async function loadGroqConfig() {
+  try {
+    const rows = await sbFetch('groq_config?userid=eq.' + currentUser.id + '&limit=1');
+    if (rows && rows.length > 0) {
+      currentUser.groq_api_key = rows[0].groqapikey || null;
+    }
+  } catch(e) {
+    console.error('Erro ao carregar chave Groq:', e);
+  }
+}
 function applyRoleRestrictions(){const isUser=currentUser.role==='user';const _niR=document.getElementById('nav-intel');if(_niR)_niR.style.display=isUser?'none':'';
   document.getElementById('nav-cal').style.display=isUser?'none':'';document.getElementById('nav-dash').style.display=isUser?'none':'';document.getElementById('nav-usuarios').style.display=isUser?'none':'';document.getElementById('btn-nova-camp').style.display=isUser?'none':'';if(isUser)showView('resumo');}
 function doLogout(){currentUser=null;campaigns=[];clearSession();document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('inp-email').value='';document.getElementById('inp-senha').value='';['nav-cal','nav-dash','nav-usuarios','nav-intel','btn-nova-camp'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});}
@@ -1524,16 +1535,40 @@ function selectIntelCatOpt(btn) {
 function openAddConcorrente()  { document.getElementById('intel-modal-add').style.display = 'flex'; }
 function closeAddConcorrente() { document.getElementById('intel-modal-add').style.display = 'none'; }
 
-function openGroqConfigModal() { document.getElementById('intel-modal-groq').style.display = 'flex'; }
+function openGroqConfigModal() {
+  const modal = document.getElementById('intel-modal-groq');
+  if (!modal) return;
+  const input = document.getElementById('groq-api-key-input');
+  if (input && currentUser?.groq_api_key) input.value = currentUser.groq_api_key;
+  modal.style.display = 'flex';
+}
 function closeGroqConfigModal() { document.getElementById('intel-modal-groq').style.display = 'none'; }
 
-function saveGroqConfig() {
+async function saveGroqConfig() {
   const apiKey = document.getElementById('groq-api-key-input').value.trim();
   if (!apiKey) { showToast('Informe a chave da API', 'error'); return; }
-  localStorage.setItem('groq_api_key', apiKey);
-  groq_api_key = apiKey;
-  showToast('Chave da API salva com sucesso!');
-  closeGroqConfigModal();
+  try {
+    // Verificar se já existe registro para este usuário
+    const existing = await sbFetch('groq_config?userid=eq.' + currentUser.id);
+    if (existing && existing.length > 0) {
+      await sbFetch('groq_config?userid=eq.' + currentUser.id, 'PATCH', {
+        groqapikey: apiKey,
+        updatedat: new Date().toISOString()
+      });
+    } else {
+      await sbFetch('groq_config', 'POST', {
+        userid: currentUser.id,
+        groqapikey: apiKey,
+        createdat: new Date().toISOString(),
+        updatedat: new Date().toISOString()
+      });
+    }
+    currentUser.groq_api_key = apiKey;
+    showToast('Chave da API salva com sucesso!');
+    closeGroqConfigModal();
+  } catch(e) {
+    showToast('Erro ao salvar chave: ' + e.message, 'error');
+  }
 }
 
 function addIntelConcorrente() {
@@ -1757,7 +1792,7 @@ IMPORTANTE - NUNCA DEIXE CAMPOS VAZIOS:
 Considere: mercado brasileiro, públicos B2B (integradores solares), tendências de financiamento, políticas de incentivo, crescimento residencial e comercial.`;;
 
     // Obter chave Groq do Supabase
-    let groqKey = localStorage.getItem('groq_api_key');
+    const groqKey = currentUser?.groq_api_key;
     if (!groqKey) {
       showToast('Chave Groq não configurada. Clique em ⚙️ Configurar', 'error');
       throw new Error('Chave Groq não configurada');
@@ -1954,10 +1989,10 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
 }
 
 
-function toggleConfigPanel(){const p=document.getElementById('config-panel');p.classList.toggle('open');if(p.classList.contains('open')){const s=localStorage.getItem('groq_api_key');if(s)document.getElementById('groq-key-input').value=s;}}
-function saveGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Chave não pode estar vazia','error');return;}localStorage.setItem('groq_api_key',k);showConfigStatus('✅ Chave salva!','success');setTimeout(()=>{document.getElementById('config-panel').classList.remove('open');},1500);}
-function clearGroqKey(){if(confirm('Limpar chave?')){localStorage.removeItem('groq_api_key');document.getElementById('groq-key-input').value='';showConfigStatus('Chave removida','error');}}
-async function testGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Insira uma chave','error');return;}showConfigStatus('Testando...','error');try{const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Authorization':`Bearer ${k}`,'Content-Type':'application/json'},body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:'Teste'}],max_tokens:10})});if(r.ok){showConfigStatus('✅ Chave válida!','success');}else{const e=await r.json();showConfigStatus('❌ '+e.error.message,'error');}}catch(e){showConfigStatus('❌ Erro: '+e.message,'error');}}
+function toggleConfigPanel(){const p=document.getElementById('config-panel');p.classList.toggle('open');if(p.classList.contains('open')){const s=currentUser?.groq_api_key;if(s)document.getElementById('groq-key-input').value=s;}}
+async function saveGroqKey(){const k=document.getElementById('groq-key-input').value.trim();if(!k){showConfigStatus('Chave não pode estar vazia','error');return;}try{const ex=await sbFetch('groq_config?userid=eq.'+currentUser.id);if(ex&&ex.length>0){await sbFetch('groq_config?userid=eq.'+currentUser.id,'PATCH',{groqapikey:k,updatedat:new Date().toISOString()});}else{await sbFetch('groq_config','POST',{userid:currentUser.id,groqapikey:k,createdat:new Date().toISOString(),updatedat:new Date().toISOString()});}currentUser.groq_api_key=k;showConfigStatus('✅ Chave salva!','success');setTimeout(()=>{document.getElementById('config-panel').classList.remove('open');},1500);}catch(e){showConfigStatus('❌ Erro: '+e.message,'error');}}
+async function clearGroqKey(){if(confirm('Limpar chave?')){try{await sbFetch('groq_config?userid=eq.'+currentUser.id,'DELETE');currentUser.groq_api_key=null;document.getElementById('groq-key-input').value='';showConfigStatus('Chave removida','error');}catch(e){showConfigStatus('❌ Erro: '+e.message,'error');}}}
+async function testGroqKey(){const k=document.getElementById('groq-key-input').value.trim()||currentUser?.groq_api_key||'';if(!k){showConfigStatus('Insira uma chave','error');return;}showConfigStatus('Testando...','error');try{const r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Authorization':`Bearer ${k}`,'Content-Type':'application/json'},body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'user',content:'Teste'}],max_tokens:10})});if(r.ok){showConfigStatus('✅ Chave válida!','success');}else{const e=await r.json();showConfigStatus('❌ '+e.error.message,'error');}}catch(e){showConfigStatus('❌ Erro: '+e.message,'error');}}
 function showConfigStatus(m,t){const s=document.getElementById('config-status');s.textContent=m;s.className='config-status '+t;}
 
 // ── SUPABASE INTEGRATION ──────────────────────────────────────────
