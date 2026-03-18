@@ -974,7 +974,10 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     </div>
     <div class="form-row2">
       <div>
-        <label class="form-label">Briefing / Objetivope="button" class="rte-btn" onclick="rteCmd('f-briefing','bold')"><b>B</b></button>
+        <label class="form-label">Briefing / Objetivo</label>
+        <div class="rte-wrap" id="rte-briefing-wrap">
+          <div class="rte-toolbar">
+            <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','bold')"><b>B</b></button>
             <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','italic')"><i>I</i></button>
             <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','underline')"><u>U</u></button>
             <div class="rte-sep"></div>
@@ -2001,32 +2004,18 @@ async function loadAnalysesFromSupabase() {
 
 async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, timestamp) {
   try {
-    // Salvar sem autenticação (público)
-    const analysisData = {
-      radar_data: radar,
-      ideias_data: ideias,
-      alertas_data: alertas,
+    await sbFetch('analyses', 'POST', {
+      userid:      currentUser.id,
+      radardata:   JSON.stringify(radar),
+      ideasdata:   JSON.stringify(ideias),
+      alertasdata: JSON.stringify(alertas),
       competitors: competitors || [],
-      analysis_date: timestamp || new Date().toISOString(),
-      created_at: new Date().toISOString()
-    };
-
-    const { data, error } = await supabaseClient
-      .from('intel_analyses')
-      .insert([analysisData]);
-
-    if (error) {
-      console.error('Erro ao salvar análise no Supabase:', error);
-      saveAnalysisToLocalStorage(radar, ideias, alertas, competitors, timestamp);
-      showToast('⚠️ Análise salva localmente (Supabase indisponível)', 'warning');
-    } else {
-      console.log('✅ Análise salva no Supabase:', data);
-      showToast('✅ Análise salva no Supabase!', 'success');
-    }
+      updatedat:   timestamp || new Date().toISOString()
+    });
+    console.log('✅ Análise salva no Supabase');
   } catch (e) {
-    console.error('Erro ao salvar no Supabase:', e);
-    saveAnalysisToLocalStorage(radar, ideias, alertas, competitors, timestamp);
-    showToast('⚠️ Análise salva localmente (erro de conexão)', 'warning');
+    console.error('Erro ao salvar análise no Supabase:', e);
+    showToast('⚠️ Análise processada mas não salva no servidor', 'error');
   }
 }
 
