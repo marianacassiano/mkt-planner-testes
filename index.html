@@ -1134,7 +1134,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <input type="file" id="avatar-upload" accept="image/*" style="display:none" onchange="uploadAvatar(this.files[0])">
     </div>
     <div class="profile-field"><label>Nome</label><div class="profile-field-readonly" id="profile-name">USUARIO</div></div>
-    <div class="profile-field"><label>E-mail</label><div class="profile-field-readonly" id="profile-email">usuario@fotus.com.br</div></div>
+    <div class="profile-field"><label>E-mail</label><div class="profile-field-readonly" id="profile-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a1d4d2d4c0d3c8cee1c7ced5d4d28fc2cecc8fc3d3">[email&#160;protected]</a></div></div>
     <div class="profile-field"><label>Perfil de Acesso</label><div class="profile-field-readonly" id="profile-role">Usuário</div></div>
     <div id="profile-admin-fields" style="display:none;">
       <div class="profile-field"><label>Nome (Editável)</label><input type="text" id="profile-name-edit" placeholder="Nome do usuário"></div>
@@ -1173,7 +1173,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   </div>
 </div>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 const SUPA_URL='https://ldtebkdzmgxzuroflvci.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkdGVia2R6bWd4enVyb2ZsdmNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTk5OTcsImV4cCI6MjA4ODI5NTk5N30.Ra9JCOJAlVlg6uQCKOwoF7M5hTHbnJPWBSH48jctM6g';
 async function sbFetch(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=representation'}};if(body)opts.body=JSON.stringify(body);const res=await fetch(SUPA_URL+'/rest/v1/'+path,opts);if(!res.ok){const t=await res.text();throw new Error(t);}const txt=await res.text();return txt?JSON.parse(txt):null;}
@@ -1975,8 +1975,8 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
       },
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'system', content: 'Você é um especialista em inteligência de mercado solar. Responda sempre em JSON válido.' }, { role: 'user', content: userPrompt }],
-        max_tokens: 2000,
+        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+        max_tokens: 6000,
         temperature: 0.7,
       })
     });
@@ -2037,9 +2037,12 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
 
     let result;
     try {
-      result = robustJsonParse(data.choices[0].message.content);
+      const rawContent = data.choices[0].message.content;
+      console.log('🔍 Resposta Groq (primeiros 800 chars):', rawContent.slice(0, 800));
+      console.log('📏 Tamanho total da resposta:', rawContent.length, 'chars');
+      result = robustJsonParse(rawContent);
     } catch (e) {
-      console.error('Parse falhou. Resposta bruta:', data.choices[0].message.content.slice(0, 500));
+      console.error('Parse falhou. Resposta bruta:', data.choices[0].message.content.slice(0, 800));
       throw new Error('Erro ao processar resposta da IA: ' + e.message);
     }
     
@@ -2225,5 +2228,4 @@ async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, times
   </div>
 </div>
 
-<div id="config-panel" class="config-panel"><button class="config-close" onclick="toggleConfigPanel()">✕</button><h2>⚙️ Configuração</h2><div id="config-status"></div><label>Chave Groq API</label><input type="password" id="groq-key-input" placeholder="gsk_..." /><button onclick="saveGroqKey()">Salvar Chave</button><button onclick="testGroqKey()" style="background: var(--teal);">Testar Chave</button><button onclick="clearGroqKey()" style="background: var(--red);">Limpar Chave</button></div></body>
-</html>
+<div id="config-panel" class="config-panel"><button class="config-close" onclick="toggleConfigPanel()">✕</button><h2>⚙️ Configuração</h2><div id="config-status"></div><label>Chave Groq API</label><input type="password" id="groq-key-input" placeholder="gsk_..." /><button onclick=
