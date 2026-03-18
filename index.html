@@ -1571,31 +1571,53 @@ async function saveGroqConfig() {
   }
 }
 
-function addIntelConcorrente() {
+async function addIntelConcorrente() {
   const username = document.getElementById('add-intel-username').value.trim().replace('@','');
   const nome     = document.getElementById('add-intel-nome').value.trim();
   const catBtn   = document.querySelector('#add-intel-cats .intel-cat-opt.sel');
   const categoria = catBtn ? catBtn.dataset.val : 'distribuidor';
   if (!username) { showToast('Informe o @ do perfil', 'error'); return; }
   if (intelConcorrentes.find(c => c.username === username)) { showToast('Perfil já cadastrado', 'error'); return; }
-  intelConcorrentes.push({ id: Date.now().toString(), username, nome, categoria, adicionado: new Date().toISOString() });
-  saveIntelConcorrentes();
-  saveCompetitorToSupabase(username, nome, categoria).catch(e => console.error('Erro ao salvar no Supabase:', e));
-  closeAddConcorrente();
-  renderTabConcorrentes(document.getElementById('intel-tab-content'));
-  showToast('Perfil @' + username + ' adicionado!');
+  try {
+    const now = new Date().toISOString();
+    const rows = await sbFetch('intel_competitors', 'POST', {
+      userid:     currentUser.id,
+      username:   username,
+      nome:       nome,
+      categoria:  categoria,
+      createdat:  now,
+      updatedat:  now
+    });
+    const saved = rows && rows[0] ? rows[0] : null;
+    intelConcorrentes.push({
+      id:        String(saved?.id || Date.now()),
+      username:  username,
+      nome:      nome,
+      categoria: categoria,
+      adicionado: now
+    });
+    closeAddConcorrente();
+    renderTabConcorrentes(document.getElementById('intel-tab-content'));
+    showToast('Perfil @' + username + ' adicionado!');
+  } catch(e) {
+    console.error('Erro ao salvar concorrente:', e);
+    showToast('Erro ao salvar: ' + e.message, 'error');
+  }
 }
 
-function removeIntelConcorrente(id) {
+async function removeIntelConcorrente(id) {
   if (!confirm('Remover este perfil?')) return;
   const competitor = intelConcorrentes.find(c => c.id === id);
-  intelConcorrentes = intelConcorrentes.filter(c => c.id !== id);
-  saveIntelConcorrentes();
-  if (competitor) {
-    removeCompetitorFromSupabase(competitor.username).catch(e => console.error('Erro ao remover do Supabase:', e));
+  if (!competitor) return;
+  try {
+    await sbFetch('intel_competitors?userid=eq.' + currentUser.id + '&username=eq.' + competitor.username, 'DELETE');
+    intelConcorrentes = intelConcorrentes.filter(c => c.id !== id);
+    renderTabConcorrentes(document.getElementById('intel-tab-content'));
+    showToast('Perfil @' + competitor.username + ' removido.');
+  } catch(e) {
+    console.error('Erro ao remover concorrente:', e);
+    showToast('Erro ao remover: ' + e.message, 'error');
   }
-  renderTabConcorrentes(document.getElementById('intel-tab-content'));
-  showToast('Perfil removido.');
 }
 
 
@@ -2006,16 +2028,14 @@ const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 async function loadCompetitorsFromSupabase() {
   try {
     if (!currentUser) return;
-    const rows = await sbFetch('intel_competitors?userid=eq.' + currentUser.id);
-    if (rows && rows.length > 0) {
-      intelConcorrentes = rows.map(r => ({
-        id: String(r.id || r.username),
-        username: r.username,
-        nome: r.nome || '',
-        categoria: r.categoria || 'distribuidor',
-        adicionado: r.createdat || new Date().toISOString()
-      }));
-    }
+    const rows = await sbFetch('intel_competitors?userid=eq.' + currentUser.id + '&order=createdat.asc');
+    intelConcorrentes = (rows || []).map(r => ({
+      id:        String(r.id),
+      username:  r.username,
+      nome:      r.nome || '',
+      categoria: r.categoria || 'distribuidor',
+      adicionado: r.createdat || new Date().toISOString()
+    }));
   } catch (e) {
     console.error('Erro ao carregar concorrentes:', e);
   }
