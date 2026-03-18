@@ -274,7 +274,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .btn-saiba-mais:hover{background:var(--purple);color:white;}
 .badge-urgente{position:absolute;top:12px;right:12px;background:var(--red);color:white;font-size:9px;font-weight:700;letter-spacing:.06em;padding:3px 8px;border-radius:6px;text-transform:uppercase;}
 .empty-col{color:var(--gray-400);font-size:13px;font-style:italic;padding:10px 0;}
-.dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.dash-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px;}
 .kpi-card{background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);}
 .kpi-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:6px;}
 .kpi-value{font-size:32px;font-weight:700;font-family:'DM Mono',monospace;line-height:1;margin-bottom:4px;}
@@ -1516,16 +1516,15 @@ atrasEl.innerHTML=atrasados.length?
 
 // ── CANAIS: PLANEJADO VS EXECUTADO ───────────────────────────────
 const canaisExecEl=document.getElementById('dash-canais-exec');
-const canaisData=canalMap.map(([g,key,nome,cor])=>{
+const canaisData=canalMap.map(([g,nome,cor])=>{
   let plan=0,exec=0;
   all.forEach(c=>{(g(c)||[]).forEach(d=>{if(!c.disparos_cancelados||!Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d)){plan++;if(c.disparos_concluidos&&c.disparos_concluidos[d])exec++;}});});
-  return{nome,cor:canalMap.find(([,k])=>k===key)?.[2]||'#999',color:cor,plan,exec};
+  return{nome,cor,plan,exec};
 }).filter(x=>x.plan>0).sort((a,b)=>b.plan-a.plan);
 const maxPlan=Math.max(...canaisData.map(x=>x.plan),1);
-const _cores={'WhatsApp':'#25D366','E-mail':'#2196F3','SMS':'#FF9800','Instagram':'#E91E63','Facebook':'#1877F2','LinkedIn':'#0A66C2','Blog':'#6B5CE7','Outros':'#9BA3B8','Meta Ads':'#1877F2','Google Ads':'#4285F4'};
 canaisExecEl.innerHTML=canaisData.length?canaisData.map(ch=>{
   const pct=ch.plan>0?Math.round(ch.exec/ch.plan*100):0;
-  const cor=_cores[ch.nome]||'#9BA3B8';
+  const cor=ch.cor||'#9BA3B8';
   const pctCor=pct>=70?'var(--green)':pct>=40?'#FF6F00':'var(--red)';
   return '<div class="canal-exec-row">'+
     '<div class="canal-exec-dot" style="background:'+cor+'"></div>'+
