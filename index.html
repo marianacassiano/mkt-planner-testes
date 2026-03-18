@@ -770,7 +770,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
               <div class="user-info-avatar" id="dropdown-avatar">A</div>
               <div class="user-info-text">
                 <div class="user-info-name" id="dropdown-name">Usuário</div>
-                <div class="user-info-email" id="dropdown-email">email@fotus.com.br</div>
+                <div class="user-info-email" id="dropdown-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="9afff7fbf3f6dafcf5eeefe9b4f9f5f7b4f8e8">[email&#160;protected]</a></div>
               </div>
             </div>
           </div>
@@ -974,10 +974,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     </div>
     <div class="form-row2">
       <div>
-        <label class="form-label">Briefing / Objetivo</label>
-        <div class="rte-wrap" id="rte-briefing-wrap">
-          <div class="rte-toolbar">
-            <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','bold')"><b>B</b></button>
+        <label class="form-label">Briefing / Objetivope="button" class="rte-btn" onclick="rteCmd('f-briefing','bold')"><b>B</b></button>
             <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','italic')"><i>I</i></button>
             <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','underline')"><u>U</u></button>
             <div class="rte-sep"></div>
@@ -1323,11 +1320,11 @@ async function saveUserChanges(){showLoading();try{if(editingUserId===null){cons
 // ═══════════════════════════════════════════════════════════════════
 
 // ── ESTADO GLOBAL DO MÓDULO ───────────────────────────────────────
-const INTEL_KEY = 'fotus_intel_concorrentes';
-let intelConcorrentes = JSON.parse(localStorage.getItem(INTEL_KEY) || '[]');
+let intelConcorrentes = [];
 let intelAnalysisRunning = false;
 let intelLastAnalysis = null;
 let intelCurrentTab = 'radar';
+let intelData = { radar: null, ideias: null, alertas: null };
 
 const CATEGORIAS_INTEL = [
   { id: 'distribuidor', label: 'Distribuidor', color: '#0D518E', icon: '🏭' },
@@ -1336,9 +1333,7 @@ const CATEGORIAS_INTEL = [
   { id: 'influenciador',label: 'Influenciador', color: '#6A1B9A', icon: '📣' },
 ];
 
-function saveIntelConcorrentes() {
-  localStorage.setItem(INTEL_KEY, JSON.stringify(intelConcorrentes));
-}
+
 
 // ── RENDER PRINCIPAL ──────────────────────────────────────────────
 function renderIntelView() {
@@ -1373,10 +1368,12 @@ function renderIntelView() {
   <div id="intel-tab-content"></div>
   `;
 
-  // Carregar análises do Supabase
-  loadAnalysesFromSupabase().catch(e => console.error('Erro ao carregar análises:', e));
-  
-  renderIntelTab('radar');
+  Promise.all([
+    loadAnalysesFromSupabase(),
+    loadCompetitorsFromSupabase()
+  ]).then(() => {
+    renderIntelTab(intelCurrentTab);
+  }).catch(e => console.error('Erro ao carregar inteligência:', e));
 }
 
 function setIntelTab(tab) {
@@ -1563,38 +1560,19 @@ function removeIntelConcorrente(id) {
   showToast('Perfil removido.');
 }
 
-async function saveCompetitorToSupabase(username, nome, categoria) {
-  try {
-    const { data, error } = await supabaseClient
-      .from('intel_competitors')
-      .insert([{ username, nome, categoria }]);
-    if (error) console.error('Erro ao salvar concorrente:', error);
-    else console.log('✅ Concorrente salvo no Supabase:', data);
-  } catch (e) {
-    console.error('Erro ao salvar concorrente no Supabase:', e);
-  }
-}
 
-async function removeCompetitorFromSupabase(username) {
-  try {
-    const { error } = await supabaseClient
-      .from('intel_competitors')
-      .delete()
-      .eq('username', username);
-    if (error) console.error('Erro ao remover concorrente:', error);
-    else console.log('✅ Concorrente removido do Supabase');
-  } catch (e) {
-    console.error('Erro ao remover concorrente do Supabase:', e);
-  }
-}
+
+
 
 // ── TAB: RADAR ────────────────────────────────────────────────────
 function renderTabRadar(cont) {
-  const stored = JSON.parse(localStorage.getItem('fotus_intel_radar') || 'null');
+  const stored = intelData.radar;
+  const storedIdeias = intelData.ideias;
   if (!stored) {
     cont.innerHTML = intelEmptyState('📡', 'Radar ainda não executado', 'Clique em "⚡ Analisar Agora" para buscar os temas mais quentes do mercado solar.');
     return;
   }
+  const ts = intelLastAnalysis ? new Date(intelLastAnalysis).toLocaleString('pt-BR') : '—';
   cont.innerHTML = `
   <div class="intel-grid-3">
     <div class="intel-card">
@@ -1615,12 +1593,11 @@ function renderTabRadar(cont) {
     <div id="intel-radar-analise" class="intel-analysis-text"></div>
   </div>
   <div style="font-size:11px;color:var(--gray-400);text-align:right;margin-top:8px;font-family:'DM Mono',monospace;">
-    Última análise: ${new Date(stored.timestamp).toLocaleString('pt-BR')}
+    Última análise: ${ts}
   </div>`;
 
-  // Preenche temas
   const temasEl = document.getElementById('intel-radar-temas');
-  const temas = stored.temas || stored.radar?.temas || [];
+  const temas = stored.temas || [];
   temas.forEach((t, i) => {
     const nome = t.tema || t.nome || 'Tema';
     temasEl.innerHTML += `<div class="intel-tema-row">
@@ -1631,9 +1608,8 @@ function renderTabRadar(cont) {
     </div>`;
   });
 
-  // Formatos
   const fmtEl = document.getElementById('intel-radar-formatos');
-  const formatos = stored.formatos || stored.radar?.formatos || [];
+  const formatos = stored.formatos || [];
   const posicoes = ['1º', '2º', '3º', '4º', '5º'];
   formatos.forEach((f, idx) => {
     const nome = f.formato || f.nome || 'Formato';
@@ -1647,10 +1623,9 @@ function renderTabRadar(cont) {
     </div>`;
   });
 
-  // Ideias
   const TIPO_COLORS = { Reels:'#E53935', Carrossel:'#1E88E5', Story:'#FB8C00', Post:'#43A047', Video:'#E53935', Infografico:'#1E88E5', Artigo:'#FB8C00' };
   const ideiasEl = document.getElementById('intel-ideias-lista');
-  const ideias = stored.ideias || [];
+  const ideias = storedIdeias?.ideias || [];
   ideiasEl.innerHTML = '';
   ideias.forEach(ideia => {
     const titulo = ideia.titulo || ideia.nome || 'Ideia';
@@ -1665,16 +1640,16 @@ function renderTabRadar(cont) {
     </div>`;
   });
 
-  let analiseTexto = stored.analise || stored.radar?.analise || stored.Análise || stored['Análise Completa'] || '';
+  let analiseTexto = stored.analise || '';
   if (typeof analiseTexto === 'object') {
-    analiseTexto = analiseTexto.texto || analiseTexto.conteudo || analiseTexto.descricao || JSON.stringify(analiseTexto);
+    analiseTexto = analiseTexto.texto || analiseTexto.conteudo || JSON.stringify(analiseTexto);
   }
   document.getElementById('intel-radar-analise').innerHTML = analiseTexto || '<em>Análise em processamento...</em>';
 }
 
 // ── TAB: ALERTAS ───────────────────────────────────
 function renderTabAlertas(cont) {
-  const stored = JSON.parse(localStorage.getItem('fotus_intel_alertas') || 'null');
+  const stored = intelData.alertas;
   if (!stored || !stored.alertas?.length) {
     cont.innerHTML = intelEmptyState('🚨', 'Nenhum alerta gerado', 'A análise detectará automaticamente tendências emergentes no mercado solar.');
     return;
@@ -1704,7 +1679,7 @@ function renderTabAlertas(cont) {
     }).join('')}
   </div>
   <div style="font-size:11px;color:var(--gray-400);text-align:right;margin-top:8px;font-family:'DM Mono',monospace;">
-    Última análise: ${new Date(stored.timestamp).toLocaleString('pt-BR')}
+    Última análise: ${intelLastAnalysis ? new Date(intelLastAnalysis).toLocaleString('pt-BR') : '—'}
   </div>`;
 }
 
@@ -1949,18 +1924,16 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
     };
 
     const now = new Date().toISOString();
-    console.log('Resultado parseado:', result);
-    console.log('Radar mapeado:', radar);
-    console.log('Ideias mapeadas:', ideiasObj);
-    console.log('Alertas mapeados:', alertasObj);
-    localStorage.setItem('fotus_intel_radar',  JSON.stringify({ ...radar,  timestamp: now }));
-    localStorage.setItem('fotus_intel_ideias', JSON.stringify({ ...ideiasObj, timestamp: now }));
-    localStorage.setItem('fotus_intel_alertas',JSON.stringify({ ...alertasObj,timestamp: now }));
-    
-    // Salvar no Supabase
+
+    // Atualiza estado em memória
+    intelData.radar   = radar;
+    intelData.ideias  = ideiasObj;
+    intelData.alertas = alertasObj;
+    intelLastAnalysis = now;
+
+    // Salva no Supabase
     await saveAnalysisToSupabase(radar, ideiasObj, alertasObj, intelConcorrentes, now);
 
-    intelLastAnalysis = now;
     const lastEl = document.getElementById('intel-last-run');
     if (lastEl) lastEl.textContent = 'Última análise: ' + new Date(now).toLocaleString('pt-BR');
 
@@ -1990,32 +1963,39 @@ const SUPABASE_KEY = 'sb_publishable_dxN9Z7gJKISqPybEoQJDlQ_LXW8swVB';
 const { createClient } = window.supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function loadAnalysesFromSupabase() {
+
+
+async function loadCompetitorsFromSupabase() {
   try {
-    const { data, error } = await supabaseClient
-      .from('intel_analyses')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(1);
-    
-    if (error) {
-      console.error('Erro ao carregar análises:', error);
-      return;
-    }
-    
-    if (data && data.length > 0) {
-      const latest = data[0];
-      const now = new Date(latest.analysis_date).toISOString();
-      
-      // Restaurar dados no localStorage
-      localStorage.setItem('fotus_intel_radar', JSON.stringify({ ...latest.radar_data, timestamp: now }));
-      localStorage.setItem('fotus_intel_ideias', JSON.stringify({ ...latest.ideias_data, timestamp: now }));
-      localStorage.setItem('fotus_intel_alertas', JSON.stringify({ ...latest.alertas_data, timestamp: now }));
-      
-      console.log('✅ Análises carregadas do Supabase');
+    if (!currentUser) return;
+    const rows = await sbFetch('intel_competitors?userid=eq.' + currentUser.id);
+    if (rows && rows.length > 0) {
+      intelConcorrentes = rows.map(r => ({
+        id: String(r.id || r.username),
+        username: r.username,
+        nome: r.nome || '',
+        categoria: r.categoria || 'distribuidor',
+        adicionado: r.createdat || new Date().toISOString()
+      }));
     }
   } catch (e) {
-    console.error('Erro ao carregar análises do Supabase:', e);
+    console.error('Erro ao carregar concorrentes:', e);
+  }
+}
+
+async function loadAnalysesFromSupabase() {
+  try {
+    const rows = await sbFetch('analyses?userid=eq.' + currentUser.id + '&order=updatedat.desc&limit=1');
+    if (!rows || rows.length === 0) return;
+    const latest = rows[0];
+    intelLastAnalysis = latest.updatedat;
+    intelData.radar   = latest.radardata   ? JSON.parse(latest.radardata)   : null;
+    intelData.ideias  = latest.ideasdata   ? JSON.parse(latest.ideasdata)   : null;
+    intelData.alertas = latest.alertasdata ? JSON.parse(latest.alertasdata) : null;
+    const lastEl = document.getElementById('intel-last-run');
+    if (lastEl && intelLastAnalysis) lastEl.textContent = 'Última análise: ' + new Date(intelLastAnalysis).toLocaleString('pt-BR');
+  } catch (e) {
+    console.error('Erro ao carregar análises:', e);
   }
 }
 
@@ -2050,70 +2030,11 @@ async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, times
   }
 }
 
-function saveAnalysisToLocalStorage(radar, ideias, alertas, competitors, timestamp) {
-  try {
-    const analyses = JSON.parse(localStorage.getItem('intel_analyses_local') || '[]');
-    analyses.push({
-      radar_data: radar,
-      ideias_data: ideias,
-      alertas_data: alertas,
-      competitors: competitors || [],
-      analysis_date: timestamp || new Date().toISOString(),
-      created_at: new Date().toISOString()
-    });
-    localStorage.setItem('intel_analyses_local', JSON.stringify(analyses));
-    console.log('✅ Análise salva no localStorage');
-  } catch (e) {
-    console.error('Erro ao salvar no localStorage:', e);
-  }
-}
 
-async function saveCompetitorToSupabase(username, nome, categoria) {
-  try {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) return;
 
-    const { data, error } = await supabaseClient
-      .from('intel_competitors')
-      .insert([{
-        user_id: user.id,
-        username: username,
-        nome: nome,
-        categoria: categoria,
-        instagram_url: `https://instagram.com/${username}`
-      }]);
 
-    if (error) {
-      console.error('Erro ao salvar concorrente:', error);
-    } else {
-      console.log('✅ Concorrente salvo no Supabase');
-    }
-  } catch (e) {
-    console.error('Erro ao salvar concorrente:', e);
-  }
-}
 
-async function loadAnalysesFromSupabase() {
-  try {
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) return [];
 
-    const { data, error } = await supabaseClient
-      .from('intel_analyses')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('analysis_date', { ascending: false });
-
-    if (error) {
-      console.error('Erro ao carregar análises:', error);
-      return [];
-    }
-    return data || [];
-  } catch (e) {
-    console.error('Erro ao carregar análises:', e);
-    return [];
-  }
-}
 
 </script>
 
