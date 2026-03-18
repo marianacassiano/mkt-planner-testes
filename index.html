@@ -1887,25 +1887,56 @@ async function runIntelAnalysis() {
       ? `\n\nDADOS REAIS DOS POSTS DOS CONCORRENTES (últimos 30 dias):\n${postsReais}\n\nUse esses dados reais como base principal da análise.`
       : '\n\n(Apify não configurado — análise baseada em conhecimento geral do mercado solar brasileiro.)';
     // ── PROMPT SISTEMA ────────────────────────────────────────────
-    const systemPrompt = `Você é um especialista em marketing digital do setor de energia solar no Brasil, com foco em inteligência competitiva.
+    const systemPrompt = `Você é um especialista em marketing digital do setor de energia solar no Brasil.
 
-Sua tarefa é analisar o cenário atual do mercado solar brasileiro nas redes sociais e gerar insights acionáveis para a Fotus Distribuidora Solar, distribuidora de equipamentos solares em Vila Velha, ES.
+Responda SOMENTE com JSON válido, sem markdown, sem texto fora do JSON.
+Use EXATAMENTE esta estrutura de chaves:
 
-SEMPRE responda em JSON puro e válido, sem markdown, sem explicações fora do JSON.
-TODOS OS CAMPOS SÃO OBRIGATÓRIOS - NUNCA DEIXE CAMPOS VAZIOS.
-
-Formato obrigatório:
 {
   "radar": {
-    "temas": [{"tema": "Tema 1", "score": 85, "cor": "#0D518E"}, {"tema": "Tema 2", "score": 78, "cor": "#FAB515"}, {"tema": "Tema 3", "score": 72, "cor": "#0D518E"}, {"tema": "Tema 4", "score": 65, "cor": "#FAB515"}, {"tema": "Tema 5", "score": 58, "cor": "#0D518E"}, {"tema": "Tema 6", "score": 51, "cor": "#FAB515"}, {"tema": "Tema 7", "score": 45, "cor": "#0D518E"}],
-    "engajamento": [{"tema": "Tema 1", "taxa": 8.5}, {"tema": "Tema 2", "taxa": 7.2}, {"tema": "Tema 3", "taxa": 6.8}, {"tema": "Tema 4", "taxa": 5.9}, {"tema": "Tema 5", "taxa": 5.1}, {"tema": "Tema 6", "taxa": 4.3}],
-    "formatos": [{"formato": "Reels", "icone": "🎬", "descricao": "Vídeos curtos 30-60s", "multiplicador": "2.7x"}, {"formato": "Carrossel", "icone": "📸", "descricao": "Múltiplas imagens", "multiplicador": "2.1x"}, {"formato": "Stories", "icone": "📱", "descricao": "Conteúdo efêmero", "multiplicador": "1.8x"}, {"formato": "Posts", "icone": "📝", "descricao": "Conteúdo estático", "multiplicador": "1.4x"}],
-    "analise": "Parágrafo completo com análise detalhada dos trends do mercado solar (mínimo 200 palavras). Explique: o que está crescendo, o que está caindo, comportamento do consumidor, oportunidades e desafios."
+    "temas": [
+      {"tema": "string", "score": 85, "cor": "#0D518E"},
+      {"tema": "string", "score": 78, "cor": "#FAB515"},
+      {"tema": "string", "score": 72, "cor": "#0D518E"},
+      {"tema": "string", "score": 65, "cor": "#FAB515"},
+      {"tema": "string", "score": 58, "cor": "#0D518E"},
+      {"tema": "string", "score": 51, "cor": "#FAB515"},
+      {"tema": "string", "score": 44, "cor": "#0D518E"}
+    ],
+    "formatos": [
+      {"formato": "Reels",     "icone": "🎬", "descricao": "string"},
+      {"formato": "Carrossel", "icone": "📸", "descricao": "string"},
+      {"formato": "Stories",   "icone": "📱", "descricao": "string"},
+      {"formato": "Posts",     "icone": "📝", "descricao": "string"}
+    ],
+    "analise": "Parágrafo longo de 200+ palavras sobre o mercado solar."
   },
-  "ideias": [{"tipo": "Reels", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Carrossel", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Reels", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Stories", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Posts", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}, {"tipo": "Reels", "titulo": "Título chamativo", "descricao": "Descrição do conteúdo", "motivo": "Por que este conteúdo vai performar"}],
-  "calendario": [{"dia": "Segunda", "tipo": "Reels", "descricao": "Descrição do conteúdo"}, {"dia": "Terça", "tipo": "Carrossel", "descricao": "Descrição do conteúdo"}, {"dia": "Quarta", "tipo": "Reels", "descricao": "Descrição do conteúdo"}, {"dia": "Quinta", "tipo": "Stories", "descricao": "Descrição do conteúdo"}, {"dia": "Sexta", "tipo": "Posts", "descricao": "Descrição do conteúdo"}],
-  "alertas": [{"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "alta", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}, {"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "alta", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}, {"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "media", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}, {"titulo": "Título do alerta", "descricao": "Parágrafo completo (150+ palavras) explicando a tendência, impacto no mercado solar, implicações para a Fotus e recomendação de ação específica.", "prioridade": "media", "data": "Mar/2026", "acao": "Ação específica que a Fotus deve tomar"}]
-}`;
+  "ideias": {
+    "ideias": [
+      {"tipo": "Reels",     "titulo": "string", "descricao": "string", "motivo": "string"},
+      {"tipo": "Carrossel", "titulo": "string", "descricao": "string", "motivo": "string"},
+      {"tipo": "Reels",     "titulo": "string", "descricao": "string", "motivo": "string"},
+      {"tipo": "Stories",   "titulo": "string", "descricao": "string", "motivo": "string"},
+      {"tipo": "Posts",     "titulo": "string", "descricao": "string", "motivo": "string"},
+      {"tipo": "Reels",     "titulo": "string", "descricao": "string", "motivo": "string"}
+    ]
+  },
+  "alertas": {
+    "alertas": [
+      {"titulo": "string", "descricao": "Parágrafo de 100+ palavras.", "prioridade": "alta",  "data": "Mar/2026", "acao": "string"},
+      {"titulo": "string", "descricao": "Parágrafo de 100+ palavras.", "prioridade": "alta",  "data": "Mar/2026", "acao": "string"},
+      {"titulo": "string", "descricao": "Parágrafo de 100+ palavras.", "prioridade": "media", "data": "Mar/2026", "acao": "string"},
+      {"titulo": "string", "descricao": "Parágrafo de 100+ palavras.", "prioridade": "media", "data": "Mar/2026", "acao": "string"}
+    ]
+  }
+}
+
+REGRAS CRÍTICAS:
+- Scores são números inteiros, nunca strings
+- Não use aspas simples, apenas aspas duplas
+- Não use quebras de linha dentro de strings JSON — use \n se necessário
+- Não adicione campos extras além dos especificados acima
+- "analise" e "descricao" devem ser textos corridos, não listas ou bullets`;
 
     const userPrompt = `Analise o cenário atual do mercado solar brasileiro no Instagram e redes sociais.
 
@@ -2013,88 +2044,52 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
     }
     
     // Mapeia a resposta do Groq para múltiplas estruturas
-    const radarData = result['Radar de Temas Mais Quentes'] || result['Radar'] || result['radar'] || result.radar_de_temas || result.temas || {};
-    const engajamentoData = result['Taxas de Engajamento Estimadas por Tema'] || result['Engajamento'] || result['engajamento'] || result.taxas_de_engajamento || {};
-    const formatosData = result['Formatos de Conteúdo que Mais Performam'] || result['Formatos de Conteúdo'] || result['formatos'] || result.formatos_de_conteudo || {};
-    const analiseData = result['Análise Detalhada do Mercado'] || result['Análise'] || result['analise'] || result.analise_detalhada_do_mercado || {};
-    const ideiasArray = result['Ideias de Conteúdo Personalizadas para a Fotus Distribuidora Solar'] || result['Ideias de Conteúdo'] || result['ideias'] || result.ideias_de_conteudo?.ideias || result.ideias_de_conteudo || [];
-    const calendarioArray = result['Calendário Semanal de Postagens'] || result['Calendário'] || result['calendario'] || result.calendario_semanal_de_postagens || {};
-    const alertasArray = result['Alertas de Tendências Emergentes'] || result['Alertas'] || result['alertas'] || result.alertas_de_tendencias_emergentes?.tendencias || result.alertas_de_tendencias_emergentes || [];
-    
-    let temas = [];
-    if (Array.isArray(radarData)) {
-      temas = radarData.map(t => ({ tema: t.Tema || t.tema || 'Tema', score: t.Score || t.score || 0, cor: t.Cor || t.cor || '#0D518E' }));
-    } else if (radarData.Tema && radarData['Score (0-100)']) {
-      temas = radarData.Tema.map((t, i) => ({ tema: t, score: radarData['Score (0-100)'][i] }));
-    } else if (radarData.temas) {
-      temas = radarData.temas;
-    }
-    
-    let engajamento = [];
-    if (Array.isArray(engajamentoData)) {
-      engajamento = engajamentoData.map(e => ({ tema: e.Tema || e.tema || 'Tema', taxa: e.Score || e.taxa || e['Taxa de Engajamento'] || 0 }));
-    } else if (engajamentoData.Tema && engajamentoData['Taxa de Engajamento (%)']) {
-      engajamento = engajamentoData.Tema.map((t, i) => ({ tema: t, taxa: engajamentoData['Taxa de Engajamento (%)'][i] }));
-    } else if (engajamentoData.temas) {
-      engajamento = engajamentoData.temas;
-    }
-    
-    let formatos = [];
-    if (Array.isArray(formatosData)) {
-      formatos = formatosData.map(f => ({ formato: f.Formato || f.formato || f, icone: f.Ícone || f.icone || '📝', descricao: f.Descrição || f.descricao || '', multiplicador: f.Multiplicador || f.multiplicador || '1x' }));
-    } else if (formatosData.Formato && formatosData['Taxa de Engajamento (%)']) {
-      formatos = formatosData.Formato.map((f, i) => ({ formato: f, desempenho: formatosData['Taxa de Engajamento (%)'][i] }));
-    } else if (formatosData.formatos) {
-      formatos = formatosData.formatos;
-    }
-    
-    let ideias = [];
-    if (Array.isArray(ideiasArray)) {
-      ideias = ideiasArray.map(i => ({ tipo: i.Tipo || i.tipo || 'Post', titulo: i.Título || i.titulo || 'Título', descricao: i.Descrição || i.descricao || '', motivo: i.Motivo || i.motivo || '' }));
-    } else if (ideiasArray.ideias) {
-      ideias = ideiasArray.ideias;
-    }
-    
-    let calendario = [];
-    if (Array.isArray(calendarioArray)) {
-      calendario = calendarioArray.map(c => ({ dia: c.Dia || c.dia || '', tipo: c.Tipo || c.tipo || 'Post', descricao: c.Atividade || c.Descrição || c.descricao || '' }));
-    } else if (calendarioArray.calendario) {
-      calendario = calendarioArray.calendario;
-    }
-    
-    let alertasArray2 = [];
-    if (Array.isArray(alertasArray)) {
-      alertasArray2 = alertasArray.map(a => ({ titulo: a.Título || a.titulo || a.Descrição?.substring(0, 50) || 'Alerta', descricao: a.Descrição || a.descricao || '', prioridade: a.Prioridade || a.prioridade || 'media', acao: a.Ação || a.acao || '' }));
-    } else if (alertasArray.tendencias) {
-      alertasArray2 = alertasArray.tendencias;
-    }
-    
-    // Extrair análise como string, não como objeto
-    let analiseTexto = '';
-    if (typeof analiseData === 'string') {
-      analiseTexto = analiseData;
-    } else if (analiseData.Mercado) {
-      analiseTexto = analiseData.Mercado;
-    } else if (analiseData.mercado) {
-      analiseTexto = analiseData.mercado;
-    } else if (analiseData.resumo) {
-      analiseTexto = analiseData.resumo;
-    } else if (analiseData['Resumo']) {
-      analiseTexto = analiseData['Resumo'];
-    } else if (analiseData.Análise) {
-      analiseTexto = analiseData.Análise;
-    } else if (analiseData['Análise']) {
-      analiseTexto = analiseData['Análise'];
-    } else if (analiseData.analise) {
-      analiseTexto = analiseData.analise;
-    } else if (Object.keys(analiseData).length > 0) {
-      for (let key in analiseData) {
-        if (typeof analiseData[key] === 'string' && analiseData[key].length > 50) {
-          analiseTexto = analiseData[key];
-          break;
-        }
-      }
-    }
+    // Extração direta — o prompt força as chaves radar/ideias/alertas
+    const r = result;
+
+    // Temas
+    const temas = (r.radar?.temas || []).map(t => ({
+      tema:  t.tema  || t.nome  || 'Tema',
+      score: Number(t.score) || 0,
+      cor:   t.cor   || '#0D518E'
+    }));
+
+    // Formatos
+    const formatos = (r.radar?.formatos || []).map(f => ({
+      formato:  f.formato  || f.nome || 'Formato',
+      icone:    f.icone    || '📱',
+      descricao: f.descricao || ''
+    }));
+
+    // Análise
+    const analiseTexto = typeof r.radar?.analise === 'string'
+      ? r.radar.analise
+      : JSON.stringify(r.radar?.analise || '');
+
+    // Engajamento (mantido para compatibilidade)
+    const engajamento = r.radar?.engajamento || [];
+
+    // Ideias
+    const ideias = (r.ideias?.ideias || (Array.isArray(r.ideias) ? r.ideias : [])).map(i => ({
+      tipo:     i.tipo     || 'Post',
+      titulo:   i.titulo   || '',
+      descricao: i.descricao || '',
+      motivo:   i.motivo   || ''
+    }));
+
+    // Calendário
+    const calendario = r.ideias?.calendario || [];
+
+    // Alertas
+    const alertasArray2 = (r.alertas?.alertas || (Array.isArray(r.alertas) ? r.alertas : [])).map(a => ({
+      titulo:    a.titulo    || 'Alerta',
+      descricao: a.descricao || '',
+      prioridade: a.prioridade || 'media',
+      data:      a.data      || '',
+      acao:      a.acao      || ''
+    }));
+
+    console.log('✅ Extraído — temas:', temas.length, '| ideias:', ideias.length, '| alertas:', alertasArray2.length);
     
     const radar = {
       temas: temas,
