@@ -1530,8 +1530,8 @@ function closeGroqConfigModal() { document.getElementById('intel-modal-groq').st
 function saveGroqConfig() {
   const apiKey = document.getElementById('groq-api-key-input').value.trim();
   if (!apiKey) { showToast('Informe a chave da API', 'error'); return; }
-  localStorage.setItem('GROQ_API_KEY', apiKey);
-  GROQ_API_KEY = apiKey;
+  localStorage.setItem('groq_api_key', apiKey);
+  groq_api_key = apiKey;
   showToast('Chave da API salva com sucesso!');
   closeGroqConfigModal();
 }
