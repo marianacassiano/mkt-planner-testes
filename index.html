@@ -7,15 +7,6 @@
 <link rel="icon" href="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" type="image/png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
 
-// ── COLAPSÁVEIS ────────────────────────────────────────────────
-function toggleSection(sectionId){
-  const sec=document.getElementById(sectionId);
-  const body=sec.querySelector('.collapsible-body');
-  const arrow=sec.querySelector('.collapsible-arrow');
-  body.classList.toggle('open');
-  arrow.classList.toggle('open');
-}
-
 // ── HOVER PREVIEW ──────────────────────────────────────────────
 let _hoverTimer=null;
 const _canalGettersHP=[[c=>c.inbound?.wa||[],'inbound_wa','WhatsApp','#25D366'],[c=>c.inbound?.email||[],'inbound_email','E-mail','#2196F3'],[c=>c.inbound?.sms||[],'inbound_sms','SMS','#FF9800'],[c=>c.rede_social?.instagram||[],'rede_social_instagram','Instagram','#E91E63'],[c=>c.rede_social?.facebook||[],'rede_social_facebook','Facebook','#1877F2'],[c=>c.rede_social?.linkedin||[],'rede_social_linkedin','LinkedIn','#0A66C2'],[c=>c.rede_social?.blog||[],'rede_social_blog','Blog','#6B5CE7'],[c=>c.rede_social?.outros||[],'rede_social_outros','Outros','#9BA3B8'],[c=>c.performance?.meta_ads||[],'performance_meta_ads','Meta Ads','#1877F2'],[c=>c.performance?.google_ads||[],'performance_google_ads','Google Ads','#4285F4']];
@@ -1519,6 +1510,15 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 </div>
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+
+// ── COLAPSÁVEIS ────────────────────────────────────────────────
+function toggleSection(sectionId){
+  const sec=document.getElementById(sectionId);
+  const body=sec.querySelector('.collapsible-body');
+  const arrow=sec.querySelector('.collapsible-arrow');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
 const SUPA_URL='https://ldtebkdzmgxzuroflvci.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkdGVia2R6bWd4enVyb2ZsdmNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTk5OTcsImV4cCI6MjA4ODI5NTk5N30.Ra9JCOJAlVlg6uQCKOwoF7M5hTHbnJPWBSH48jctM6g';
 async function sbFetch(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=representation'}};if(body)opts.body=JSON.stringify(body);const res=await fetch(SUPA_URL+'/rest/v1/'+path,opts);if(!res.ok){const t=await res.text();throw new Error(t);}const txt=await res.text();return txt?JSON.parse(txt):null;}
