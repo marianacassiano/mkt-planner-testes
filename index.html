@@ -5,7 +5,206 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FOTUS: PLANNER MARKETING</title>
 <link rel="icon" href="https://energia.fotus.com.br/wp-content/uploads/2025/02/LOGO_Fotus-1A-e1739992227141.png" type="image/png">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js">
+
+// ── COLAPSÁVEIS ────────────────────────────────────────────────
+function toggleSection(sectionId){
+  const sec=document.getElementById(sectionId);
+  const body=sec.querySelector('.collapsible-body');
+  const arrow=sec.querySelector('.collapsible-arrow');
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+// ── HOVER PREVIEW ──────────────────────────────────────────────
+let _hoverTimer=null;
+const _canalGettersHP=[[c=>c.inbound?.wa||[],'inbound_wa','WhatsApp','#25D366'],[c=>c.inbound?.email||[],'inbound_email','E-mail','#2196F3'],[c=>c.inbound?.sms||[],'inbound_sms','SMS','#FF9800'],[c=>c.rede_social?.instagram||[],'rede_social_instagram','Instagram','#E91E63'],[c=>c.rede_social?.facebook||[],'rede_social_facebook','Facebook','#1877F2'],[c=>c.rede_social?.linkedin||[],'rede_social_linkedin','LinkedIn','#0A66C2'],[c=>c.rede_social?.blog||[],'rede_social_blog','Blog','#6B5CE7'],[c=>c.rede_social?.outros||[],'rede_social_outros','Outros','#9BA3B8'],[c=>c.performance?.meta_ads||[],'performance_meta_ads','Meta Ads','#1877F2'],[c=>c.performance?.google_ads||[],'performance_google_ads','Google Ads','#4285F4']];
+
+function showCampPreview(campId,anchorEl){
+  const cp=campaigns.find(c=>c.id===campId);if(!cp)return;
+  const prev=document.getElementById('camp-hover-preview');
+  document.getElementById('chp-color-bar').style.background=cp.color;
+  document.getElementById('chp-name').textContent=cp.name;
+  const obj=(cp.briefing||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+  document.getElementById('chp-objetivo').textContent=obj||'—';
+  const seg=cp.tags?cp.tags.split(',').map(t=>t.trim()).filter(Boolean).join(', '):'';
+  document.getElementById('chp-segmento').textContent=seg||(Array.isArray(cp.categoria)?cp.categoria.join(', '):cp.categoria)||'—';
+  const today=toStr(new Date());
+  let total=0,executados=0;
+  _canalGettersHP.forEach(([g])=>{const dates=g(cp)||[];total+=dates.length;dates.forEach(d=>{if(cp.disparos_concluidos&&cp.disparos_concluidos[d])executados++;});});
+  const pct=total>0?Math.round(executados/total*100):0;
+  document.getElementById('chp-disparos').textContent=executados+' de '+total+' ('+pct+'%)';
+  document.getElementById('chp-progress-fill').style.width=pct+'%';
+  const futuros=[];
+  _canalGettersHP.forEach(([g,key,label,cor])=>{(g(cp)||[]).forEach(d=>{if(d>=today&&!(cp.disparos_concluidos&&cp.disparos_concluidos[d])&&!(cp.disparos_cancelados&&Object.prototype.hasOwnProperty.call(cp.disparos_cancelados,d))){futuros.push({data:d,label,cor});}});});
+  futuros.sort((a,b)=>a.data.localeCompare(b.data));
+  const nextEl=document.getElementById('chp-next');
+  if(futuros.length>0){const n=futuros[0];nextEl.innerHTML='<div class="chp-next-dot" style="background:'+n.cor+'"></div><div class="chp-next-text">'+fmtFull(n.data)+' — '+n.label+'</div>';}
+  else{nextEl.innerHTML='<div class="chp-next-text" style="color:var(--gray-400)">Nenhum programado</div>';}
+  const rect=anchorEl.getBoundingClientRect();const vw=window.innerWidth,vh=window.innerHeight;
+  prev.style.display='block';prev.style.opacity='0';
+  const pw=prev.offsetWidth||240,ph=prev.offsetHeight||200;
+  let left=rect.left,top=rect.bottom+6;
+  if(left+pw>vw-8)left=vw-pw-8;if(top+ph>vh-8)top=rect.top-ph-6;
+  prev.style.left=left+'px';prev.style.top=top+'px';prev.classList.add('visible');
+}
+
+function hideCampPreview(){
+  const prev=document.getElementById('camp-hover-preview');
+  prev.classList.remove('visible');
+  setTimeout(()=>{if(!prev.classList.contains('visible'))prev.style.display='none';},150);
+}
+
+// ── TEMPLATE FOTUS SEMANAL ─────────────────────────────────────
+function applyFotusTemplate(inicio,fim){
+  if(!inicio||!fim)return;
+  const start=new Date(inicio+'T12:00:00'),end=new Date(fim+'T12:00:00');
+  const waArr=[],emailArr=[],smsArr=[];
+  let cur=new Date(start);
+  while(cur<=end){
+    const dow=cur.getDay();
+    if(dow===1)emailArr.push(toStr(cur));
+    if(dow===3)waArr.push(toStr(cur));
+    if(dow===4)smsArr.push(toStr(cur));
+    if(dow===5)waArr.push(toStr(cur));
+    cur.setDate(cur.getDate()+1);
+  }
+  document.getElementById('canal-inbound_wa').innerHTML='';
+  document.getElementById('canal-inbound_email').innerHTML='';
+  document.getElementById('canal-inbound_sms').innerHTML='';
+  waArr.forEach(d=>addCanalDate('inbound_wa',d));
+  emailArr.forEach(d=>addCanalDate('inbound_email',d));
+  smsArr.forEach(d=>addCanalDate('inbound_sms',d));
+  showToast('⚡ Template aplicado: '+emailArr.length+' emails, '+waArr.length+' WhatsApp, '+smsArr.length+' SMS','success');
+}
+
+// ── AÇÕES DE DISPARO NO MODAL EDIÇÃO ──────────────────────────
+let _disparoCtx={campId:null,data:null,canal:null,btnEl:null};
+const _canalLabelMap={'inbound_wa':'WhatsApp','inbound_email':'E-mail','inbound_sms':'SMS','inbound_lp':'Landing Page','rede_social_instagram':'Instagram','rede_social_facebook':'Facebook','rede_social_linkedin':'LinkedIn','rede_social_blog':'Blog','rede_social_outros':'Outros','rede_social_youtube':'YouTube','performance_meta_ads':'Meta Ads','performance_google_ads':'Google Ads'};
+function canalLabel(k){return _canalLabelMap[k]||k;}
+
+async function confirmConcluirDisparo(campId,data,canal,btnEl,rowEl){
+  const cp=campaigns.find(c=>c.id===campId);if(!cp)return;
+  if(!cp.disparos_concluidos)cp.disparos_concluidos={};
+  if(!cp.disparos_adiados)cp.disparos_adiados={};
+  if(!cp.disparos_cancelados)cp.disparos_cancelados={};
+  const jaEsta=!!cp.disparos_concluidos[data];
+  delete cp.disparos_concluidos[data];delete cp.disparos_adiados[data];delete cp.disparos_cancelados[data];
+  if(!jaEsta){cp.disparos_concluidos[data]=true;if(!cp.historico_alteracoes)cp.historico_alteracoes=[];cp.historico_alteracoes.push({data_disparo:data,canal:canalLabel(canal),acao:'concluido',alterado_por:currentUser.nome,data_alteracao_fmt:new Date().toLocaleDateString('pt-BR'),data_alteracao:new Date().toISOString()});}
+  rowEl.querySelectorAll('.btn-da').forEach(b=>b.classList.remove('ativo'));
+  if(!jaEsta)btnEl.classList.add('ativo');
+  try{await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_concluidos:cp.disparos_concluidos,disparos_cancelados:cp.disparos_cancelados,disparos_adiados:cp.disparos_adiados,historico_alteracoes:cp.historico_alteracoes||[]});showToast(jaEsta?'Status removido':'✅ Concluído!','success');renderDispatch();}catch(e){showToast('Erro: '+e.message,'error');}
+}
+
+function openAdiarModal(campId,data,canal,btnEl,rowEl){
+  _disparoCtx={campId,data,canal,btnEl,rowEl};
+  document.getElementById('modal-adiar-disparo')?.remove();
+  const ov=document.createElement('div');ov.id='modal-adiar-disparo';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+  ov.innerHTML=`<div style="background:white;border-radius:20px;padding:28px 32px;width:460px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);font-family:'Sora',sans-serif;"><div style="font-size:17px;font-weight:700;margin-bottom:4px;">⏳ Adiar Disparo</div><div style="font-size:12px;color:#9BA3B8;margin-bottom:20px;">${canalLabel(canal)} · ${fmtFull(data)}</div><div style="margin-bottom:14px;"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6375;display:block;margin-bottom:6px;">Nova Data *</label><input type="date" id="adiar-nova-data" style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;outline:none;"></div><div style="margin-bottom:14px;"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6375;display:block;margin-bottom:6px;">Motivo *</label><select id="adiar-motivo-sel" style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;background:white;outline:none;cursor:pointer;" onchange="document.getElementById('adiar-outro-wrap').style.display=this.value==='Outro'?'block':'none'"><option value="">Selecione...</option><option>Ajuste de calendário</option><option>Dependência de material</option><option>Mudança de estratégia</option><option>Problema operacional</option><option>Aguardando aprovação</option><option>Outro</option></select><div id="adiar-outro-wrap" style="display:none;margin-top:8px;"><input type="text" id="adiar-outro-txt" placeholder="Descreva o motivo..." style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;outline:none;"></div></div><div style="margin-bottom:20px;"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6375;display:block;margin-bottom:6px;">Observação (opcional)</label><input type="text" id="adiar-obs" style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;outline:none;"></div><div id="adiar-error" style="color:#E53935;font-size:12px;margin-bottom:10px;display:none;"></div><div style="display:flex;gap:10px;justify-content:flex-end;"><button type="button" onclick="document.getElementById('modal-adiar-disparo').remove()" style="padding:10px 18px;border:1.5px solid #E2E6EF;background:white;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;color:#5A6375;">Cancelar</button><button type="button" onclick="confirmAdiarDisparo()" style="padding:10px 20px;background:#FFB300;color:white;border:none;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;">Confirmar</button></div></div>`;
+  document.body.appendChild(ov);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+async function confirmAdiarDisparo(){
+  const novaData=document.getElementById('adiar-nova-data').value;
+  const motivoSel=document.getElementById('adiar-motivo-sel').value;
+  const motivoOutro=document.getElementById('adiar-outro-txt')?.value.trim();
+  const obs=document.getElementById('adiar-obs').value.trim();
+  const errEl=document.getElementById('adiar-error');
+  if(!novaData){errEl.textContent='Selecione a nova data.';errEl.style.display='block';return;}
+  if(!motivoSel){errEl.textContent='Selecione o motivo.';errEl.style.display='block';return;}
+  if(motivoSel==='Outro'&&!motivoOutro){errEl.textContent='Descreva o motivo.';errEl.style.display='block';return;}
+  const motivo=motivoSel==='Outro'?motivoOutro:motivoSel;
+  const{campId,data,canal}=_disparoCtx;
+  const cp=campaigns.find(c=>c.id===campId);if(!cp)return;
+  if(!cp.disparos_adiados)cp.disparos_adiados={};if(!cp.disparos_concluidos)cp.disparos_concluidos={};if(!cp.disparos_cancelados)cp.disparos_cancelados={};
+  delete cp.disparos_concluidos[data];delete cp.disparos_cancelados[data];
+  cp.disparos_adiados[data]={nova_data:novaData,motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao:new Date().toISOString()};
+  if(!cp.historico_alteracoes)cp.historico_alteracoes=[];
+  cp.historico_alteracoes.push({data_disparo:data,canal:canalLabel(canal),acao:'adiado',nova_data:novaData,motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao_fmt:new Date().toLocaleDateString('pt-BR'),data_alteracao:new Date().toISOString()});
+  try{await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_concluidos:cp.disparos_concluidos,disparos_cancelados:cp.disparos_cancelados,disparos_adiados:cp.disparos_adiados,historico_alteracoes:cp.historico_alteracoes});document.getElementById('modal-adiar-disparo').remove();showToast('⏳ Adiado para '+fmtFull(novaData),'success');renderDispatch();}
+  catch(e){document.getElementById('adiar-error').textContent='Erro: '+e.message;document.getElementById('adiar-error').style.display='block';}
+}
+
+function openCancelarModal(campId,data,canal,btnEl,rowEl){
+  _disparoCtx={campId,data,canal,btnEl,rowEl};
+  document.getElementById('modal-cancelar-disparo')?.remove();
+  const ov=document.createElement('div');ov.id='modal-cancelar-disparo';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;';
+  ov.innerHTML=`<div style="background:white;border-radius:20px;padding:28px 32px;width:460px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);font-family:'Sora',sans-serif;"><div style="font-size:17px;font-weight:700;margin-bottom:4px;">❌ Cancelar Disparo</div><div style="font-size:12px;color:#9BA3B8;margin-bottom:20px;">${canalLabel(canal)} · ${fmtFull(data)}</div><div style="margin-bottom:14px;"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6375;display:block;margin-bottom:6px;">Motivo *</label><select id="cancelar-motivo-sel" style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;background:white;outline:none;cursor:pointer;" onchange="document.getElementById('cancelar-outro-wrap').style.display=this.value==='Outro'?'block':'none'"><option value="">Selecione...</option><option>Mudança de estratégia</option><option>Campanha pausada</option><option>Material indisponível</option><option>Erro de planejamento</option><option>Outro</option></select><div id="cancelar-outro-wrap" style="display:none;margin-top:8px;"><input type="text" id="cancelar-outro-txt" placeholder="Descreva o motivo..." style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;outline:none;"></div></div><div style="margin-bottom:20px;"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6375;display:block;margin-bottom:6px;">Observação (opcional)</label><input type="text" id="cancelar-obs" style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;outline:none;"></div><div id="cancelar-error" style="color:#E53935;font-size:12px;margin-bottom:10px;display:none;"></div><div style="display:flex;gap:10px;justify-content:flex-end;"><button type="button" onclick="document.getElementById('modal-cancelar-disparo').remove()" style="padding:10px 18px;border:1.5px solid #E2E6EF;background:white;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;color:#5A6375;">Voltar</button><button type="button" onclick="confirmCancelarDisparo()" style="padding:10px 20px;background:#E53935;color:white;border:none;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;">Confirmar</button></div></div>`;
+  document.body.appendChild(ov);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});
+}
+
+async function confirmCancelarDisparo(){
+  const motivoSel=document.getElementById('cancelar-motivo-sel').value;
+  const motivoOutro=document.getElementById('cancelar-outro-txt')?.value.trim();
+  const obs=document.getElementById('cancelar-obs').value.trim();
+  const errEl=document.getElementById('cancelar-error');
+  if(!motivoSel){errEl.textContent='Selecione o motivo.';errEl.style.display='block';return;}
+  if(motivoSel==='Outro'&&!motivoOutro){errEl.textContent='Descreva o motivo.';errEl.style.display='block';return;}
+  const motivo=motivoSel==='Outro'?motivoOutro:motivoSel;
+  const{campId,data,canal}=_disparoCtx;
+  const cp=campaigns.find(c=>c.id===campId);if(!cp)return;
+  if(!cp.disparos_cancelados)cp.disparos_cancelados={};if(!cp.disparos_concluidos)cp.disparos_concluidos={};if(!cp.disparos_adiados)cp.disparos_adiados={};
+  delete cp.disparos_concluidos[data];delete cp.disparos_adiados[data];
+  cp.disparos_cancelados[data]={motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao:new Date().toISOString()};
+  if(!cp.historico_alteracoes)cp.historico_alteracoes=[];
+  cp.historico_alteracoes.push({data_disparo:data,canal:canalLabel(canal),acao:'cancelado',motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao_fmt:new Date().toLocaleDateString('pt-BR'),data_alteracao:new Date().toISOString()});
+  try{await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_concluidos:cp.disparos_concluidos,disparos_cancelados:cp.disparos_cancelados,disparos_adiados:cp.disparos_adiados,historico_alteracoes:cp.historico_alteracoes});document.getElementById('modal-cancelar-disparo').remove();showToast('❌ Disparo cancelado.','error');renderDispatch();}
+  catch(e){document.getElementById('cancelar-error').textContent='Erro: '+e.message;document.getElementById('cancelar-error').style.display='block';}
+}
+
+// ── CALENDÁRIO DE DISPAROS NO RESUMO ───────────────────────────
+function buildDisparosTimeline(camp,ts){
+  const getters=[[g=>g.inbound?.wa||[],'inbound_wa','WhatsApp','#25D366'],[g=>g.inbound?.email||[],'inbound_email','E-mail','#2196F3'],[g=>g.inbound?.sms||[],'inbound_sms','SMS','#FF9800'],[g=>g.rede_social?.instagram||[],'rede_social_instagram','Instagram','#E91E63'],[g=>g.rede_social?.facebook||[],'rede_social_facebook','Facebook','#1877F2'],[g=>g.rede_social?.linkedin||[],'rede_social_linkedin','LinkedIn','#0A66C2'],[g=>g.rede_social?.blog||[],'rede_social_blog','Blog','#6B5CE7'],[g=>g.rede_social?.outros||[],'rede_social_outros','Outros','#9BA3B8'],[g=>g.performance?.meta_ads||[],'performance_meta_ads','Meta Ads','#1877F2'],[g=>g.performance?.google_ads||[],'performance_google_ads','Google Ads','#4285F4']];
+  const result=[];
+  getters.forEach(([getter,key,canal,cor])=>{
+    (getter(camp)||[]).forEach(data=>{
+      if(camp.disparos_cancelados&&Object.prototype.hasOwnProperty.call(camp.disparos_cancelados,data))return;
+      const concluida=!!(camp.disparos_concluidos&&camp.disparos_concluidos[data]);
+      const adiada=!!(camp.disparos_adiados&&Object.prototype.hasOwnProperty.call(camp.disparos_adiados,data)&&camp.disparos_adiados[data]!==null&&camp.disparos_adiados[data]!==undefined);
+      result.push({data,key,canal,cor,concluida,adiada});
+    });
+  });
+  return result.sort((a,b)=>a.data.localeCompare(b.data));
+}
+
+// ── NOVO MODAL - openEditModal/openNewModal overrides ──────────
+const _origOpenEditModal = openEditModal;
+const _origOpenNewModal = openNewModal;
+
+// Override openNewModal para mostrar template e resetar
+const _openNewModal_orig = openNewModal;
+openNewModal = function(){
+  _openNewModal_orig();
+  const ts = document.getElementById('template-section');
+  if(ts) ts.style.display = '';
+  const ft = document.getElementById('f-template');
+  if(ft) ft.value = '';
+};
+
+// Override openEditModal para esconder template
+const _openEditModal_orig = openEditModal;
+openEditModal = function(id){
+  _openEditModal_orig(id);
+  const ts = document.getElementById('template-section');
+  if(ts) ts.style.display = 'none';
+};
+
+// Aplicar template ao salvar
+const _origSaveCampaign = saveCampaign;
+saveCampaign = async function(){
+  const templateVal = document.getElementById('f-template')?.value;
+  const inicio = document.getElementById('f-inicio').value;
+  const fim = document.getElementById('f-fim').value;
+  if(templateVal === 'fotus_semanal' && !editingId && inicio && fim){
+    applyFotusTemplate(inicio, fim);
+  }
+  await _origSaveCampaign();
+};
+
+
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -160,60 +359,6 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .dispatch-bar.concluida{background:white!important;color:var(--gray-600)!important;border:2px solid #00C07A!important;opacity:0.85!important;}
 .dispatch-bar:hover{opacity:.85;}
 .dispatch-bar:not(.cancelada):not(.adiada):not(.concluida):hover .bar-check-btn{display:flex;}
-/* ── DASHBOARD NOVO ─────────────────────────────────────── */
-.dash-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-400);margin:24px 0 12px;display:flex;align-items:center;gap:8px;}
-.dash-section-title::after{content:'';flex:1;height:1px;background:var(--gray-200);}
-/* Taxa de execução */
-.exec-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray-100);}
-.exec-row:last-child{border-bottom:none;}
-.exec-name{font-size:12px;font-weight:600;color:var(--gray-800);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.exec-bar-wrap{width:120px;height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden;flex-shrink:0;}
-.exec-bar-fill{height:100%;border-radius:3px;transition:width .4s;}
-.exec-nums{font-size:11px;font-family:'DM Mono',monospace;color:var(--gray-500);white-space:nowrap;min-width:56px;text-align:right;}
-.exec-pct{font-size:11px;font-weight:700;min-width:34px;text-align:right;}
-.exec-alert{font-size:10px;color:#FF6F00;font-weight:700;margin-left:4px;}
-/* Disparos atrasados */
-.atrasado-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFF8F0;border-radius:8px;border-left:3px solid #FF6F00;margin-bottom:6px;}
-.atrasado-nome{font-size:12px;font-weight:700;color:var(--gray-800);flex:1;}
-.atrasado-canal{font-size:11px;color:var(--gray-600);}
-.atrasado-data{font-size:11px;font-family:'DM Mono',monospace;color:#FF6F00;font-weight:700;white-space:nowrap;}
-/* Canais planejado vs executado */
-.canal-exec-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-100);}
-.canal-exec-row:last-child{border-bottom:none;}
-.canal-exec-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.canal-exec-name{font-size:12px;font-weight:600;color:var(--gray-700);min-width:80px;}
-.canal-exec-bars{flex:1;display:flex;flex-direction:column;gap:3px;}
-.canal-exec-bar-wrap{height:5px;background:var(--gray-100);border-radius:3px;overflow:hidden;}
-.canal-exec-bar-plan{height:100%;border-radius:3px;opacity:.35;}
-.canal-exec-bar-exec{height:100%;border-radius:3px;}
-.canal-exec-nums{font-size:10px;font-family:'DM Mono',monospace;color:var(--gray-400);white-space:nowrap;text-align:right;min-width:64px;}
-.canal-exec-pct{font-size:11px;font-weight:700;min-width:34px;text-align:right;}
-/* Mapa de calor */
-.heatmap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px;}
-.heatmap-header{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;}
-.heatmap-dow{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--gray-400);text-align:center;}
-.heatmap-cell{aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:default;transition:transform .1s;position:relative;}
-.heatmap-cell:hover{transform:scale(1.12);z-index:2;}
-.heatmap-cell .hm-day{font-size:9px;font-weight:700;color:white;opacity:.8;}
-.heatmap-cell .hm-num{font-size:11px;font-weight:800;color:white;}
-.heatmap-cell.empty{background:var(--gray-100);}
-.heatmap-legend{display:flex;align-items:center;gap:6px;margin-top:8px;justify-content:flex-end;}
-.heatmap-legend span{font-size:10px;color:var(--gray-400);}
-.hm-sq{width:10px;height:10px;border-radius:2px;}
-#camp-hover-preview{position:fixed;z-index:9990;pointer-events:none;opacity:0;transition:opacity .15s;width:240px;background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid var(--gray-200);padding:14px 16px;display:none;}
-#camp-hover-preview.visible{display:block;opacity:1;}
-.chp-color-bar{height:4px;border-radius:2px;margin:-14px -16px 12px;border-radius:12px 12px 0 0;}
-.chp-name{font-size:13px;font-weight:700;color:var(--gray-800);margin-bottom:10px;line-height:1.3;}
-.chp-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;gap:8px;}
-.chp-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--gray-400);white-space:nowrap;}
-.chp-value{font-size:11px;font-weight:600;color:var(--gray-700);text-align:right;line-height:1.4;max-width:150px;}
-.chp-divider{border:none;border-top:1px solid var(--gray-100);margin:8px 0;}
-.chp-next{display:flex;align-items:center;gap:6px;margin-top:8px;}
-.chp-next-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.chp-next-text{font-size:11px;font-weight:600;color:var(--gray-700);}
-.chp-progress{margin-top:8px;}
-.chp-progress-bar{height:4px;background:var(--gray-100);border-radius:2px;overflow:hidden;margin-top:4px;}
-.chp-progress-fill{height:100%;border-radius:2px;background:var(--green);transition:width .3s;}
 .bar-check-btn{display:none;position:absolute;right:2px;top:50%;transform:translateY(-50%);background:rgba(0,192,122,0.15);border:none;border-radius:3px;cursor:pointer;font-size:9px;padding:1px 3px;line-height:1;align-items:center;z-index:10;}
 .bar-check-btn:hover{background:rgba(0,192,122,0.35);}
 .gantt-card{background:white;border-radius:16px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow-x:auto;}
@@ -258,23 +403,12 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .resumo-field{margin-bottom:7px;}
 .resumo-field label{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);display:block;margin-bottom:2px;}
 .resumo-field span{font-size:12px;font-family:'DM Mono',monospace;color:var(--gray-600);}
-/* Timeline de disparos no card comercial */
-.resumo-disparos{margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-100);}
-.resumo-disparos-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px;}
-.resumo-disparo-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--gray-100);}
-.resumo-disparo-row:last-child{border-bottom:none;}
-.resumo-disparo-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.resumo-disparo-canal{font-size:11px;font-weight:700;color:var(--gray-700);min-width:72px;}
-.resumo-disparo-data{font-size:11px;font-family:'DM Mono',monospace;color:var(--gray-500);flex:1;}
-.resumo-disparo-status{font-size:10px;font-weight:700;}
-.resumo-disparo-status.concluida{color:#00C07A;}
-.resumo-disparo-status.adiada{color:#FFB300;}
 .resumo-defesa{font-size:12px;color:var(--gray-600);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
 .btn-saiba-mais{display:inline-flex;align-items:center;gap:5px;margin-top:10px;padding:6px 14px;border-radius:8px;border:1.5px solid var(--purple-light);background:white;color:var(--purple);font-family:'Sora',sans-serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;}
 .btn-saiba-mais:hover{background:var(--purple);color:white;}
 .badge-urgente{position:absolute;top:12px;right:12px;background:var(--red);color:white;font-size:9px;font-weight:700;letter-spacing:.06em;padding:3px 8px;border-radius:6px;text-transform:uppercase;}
 .empty-col{color:var(--gray-400);font-size:13px;font-style:italic;padding:10px 0;}
-.dash-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px;}
+.dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
 .kpi-card{background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);}
 .kpi-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gray-400);margin-bottom:6px;}
 .kpi-value{font-size:32px;font-weight:700;font-family:'DM Mono',monospace;line-height:1;margin-bottom:4px;}
@@ -425,39 +559,6 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .detail-motivo-row input{flex:1;padding:5px 10px;border-radius:6px;border:1.5px solid var(--gray-200);font-family:'Sora',sans-serif;font-size:11px;outline:none;}
 .detail-motivo-row input:focus{border-color:var(--purple-light);}
 .btn-motivo-save{padding:4px 10px;border-radius:6px;background:var(--purple);color:white;border:none;font-size:11px;font-weight:700;cursor:pointer;}
-/* Collapsible form sections */
-.collapsible-section{margin:0;}
-.collapsible-header{display:flex;align-items:center;justify-content:space-between;padding:13px 0 11px;cursor:pointer;user-select:none;border-bottom:1px solid var(--gray-200);margin-bottom:0;}
-.collapsible-header:hover .collapsible-title{color:var(--purple);}
-.collapsible-title{font-size:14px;font-weight:700;color:var(--gray-800);margin:0;}
-.collapsible-arrow{font-size:12px;color:var(--gray-400);transition:transform .22s;}
-.collapsible-arrow.open{transform:rotate(180deg);}
-.collapsible-body{overflow:hidden;max-height:0;transition:max-height .3s ease;}
-.collapsible-body.open{max-height:2000px;}
-.collapsible-body-inner{padding-top:12px;}
-/* History section */
-.historico-section{margin-top:4px;}
-.historico-item{padding:10px 12px;background:var(--gray-50);border-radius:10px;border-left:3px solid var(--purple);margin-bottom:8px;}
-.historico-item-date{font-size:10px;font-weight:700;color:var(--gray-400);font-family:'DM Mono',monospace;margin-bottom:3px;}
-.historico-item-desc{font-size:12px;font-weight:600;color:var(--gray-800);}
-.historico-item-sub{font-size:11px;color:var(--gray-600);margin-top:2px;}
-.historico-item-by{font-size:10px;color:var(--gray-400);margin-top:2px;}
-/* Disparo view extra info */
-.disparo-view-info{font-size:11px;color:var(--gray-600);padding:3px 8px 6px 24px;}
-.disparo-view-info span{font-weight:700;color:var(--gray-700);}
-/* Edit modal action buttons per date */
-.disparo-action-btns{display:flex;gap:4px;flex-shrink:0;}
-.btn-da{padding:3px 8px;border-radius:6px;border:1.5px solid transparent;font-size:10px;font-weight:700;cursor:pointer;background:white;transition:all .15s;font-family:'Sora',sans-serif;line-height:1.4;}
-.btn-da.concluir{border-color:#00C07A;color:#00C07A;}
-.btn-da.concluir:hover,.btn-da.concluir.ativo{background:#00C07A;color:white;}
-.btn-da.adiar{border-color:#FFB300;color:#FFB300;}
-.btn-da.adiar:hover,.btn-da.adiar.ativo{background:#FFB300;color:white;}
-.btn-da.cancelar{border-color:#E53935;color:#E53935;}
-.btn-da.cancelar:hover,.btn-da.cancelar.ativo{background:#E53935;color:white;}
-/* Template select */
-.template-select{width:100%;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;color:var(--gray-800);background:white;outline:none;cursor:pointer;transition:border-color .2s;}
-.template-select:focus{border-color:var(--purple-light);}
-.template-info{font-size:11px;color:var(--gray-400);margin-top:5px;}
 .dash-periodo{background:white;border-radius:14px;padding:16px 20px;box-shadow:0 1px 6px rgba(0,0,0,.06);margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
 .dash-periodo label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-400);white-space:nowrap;}
 .dash-periodo input[type=date]{padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);outline:none;cursor:pointer;}
@@ -801,6 +902,104 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     .config-status { padding: 12px; border-radius: 8px; font-size: 12px; margin-bottom: 12px; }
     .config-status.success { background: #E8F5E9; color: #1B5E20; }
     .config-status.error { background: #FFEBEE; color: #B71C1C; }
+
+/* ── HOVER PREVIEW ─────────────────────────── */
+#camp-hover-preview{position:fixed;z-index:9990;pointer-events:none;opacity:0;transition:opacity .15s;width:240px;background:white;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid var(--gray-200);padding:14px 16px;display:none;}
+#camp-hover-preview.visible{display:block;opacity:1;}
+.chp-color-bar{height:4px;border-radius:12px 12px 0 0;margin:-14px -16px 12px;}
+.chp-name{font-size:13px;font-weight:700;color:var(--gray-800);margin-bottom:10px;line-height:1.3;}
+.chp-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;gap:8px;}
+.chp-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--gray-400);white-space:nowrap;}
+.chp-value{font-size:11px;font-weight:600;color:var(--gray-700);text-align:right;line-height:1.4;max-width:150px;}
+.chp-divider{border:none;border-top:1px solid var(--gray-100);margin:8px 0;}
+.chp-next{display:flex;align-items:center;gap:6px;margin-top:8px;}
+.chp-next-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.chp-next-text{font-size:11px;font-weight:600;color:var(--gray-700);}
+.chp-progress{margin-top:8px;}
+.chp-progress-bar{height:4px;background:var(--gray-100);border-radius:2px;overflow:hidden;margin-top:4px;}
+.chp-progress-fill{height:100%;border-radius:2px;background:var(--green);}
+/* ── SEÇÕES COLAPSÁVEIS ─────────────────────── */
+.collapsible-section{margin:0;}
+.collapsible-header{display:flex;align-items:center;justify-content:space-between;padding:13px 0 11px;cursor:pointer;user-select:none;border-bottom:1px solid var(--gray-200);}
+.collapsible-header:hover .collapsible-title{color:var(--purple);}
+.collapsible-title{font-size:14px;font-weight:700;color:var(--gray-800);margin:0;}
+.collapsible-arrow{font-size:12px;color:var(--gray-400);transition:transform .22s;}
+.collapsible-arrow.open{transform:rotate(180deg);}
+.collapsible-body{overflow:hidden;max-height:0;transition:max-height .3s ease;}
+.collapsible-body.open{max-height:9999px;}
+.collapsible-body-inner{padding-top:12px;}
+/* ── HISTÓRICO ──────────────────────────────── */
+.historico-section{margin-top:4px;}
+.historico-item{padding:10px 12px;background:var(--gray-50);border-radius:10px;border-left:3px solid var(--purple);margin-bottom:8px;}
+.historico-item-date{font-size:10px;font-weight:700;color:var(--gray-400);font-family:'DM Mono',monospace;margin-bottom:3px;}
+.historico-item-desc{font-size:12px;font-weight:600;color:var(--gray-800);}
+.historico-item-sub{font-size:11px;color:var(--gray-600);margin-top:2px;}
+.historico-item-by{font-size:10px;color:var(--gray-400);margin-top:2px;}
+/* ── VISUALIZAÇÃO DE DISPARO ────────────────── */
+.disparo-view-info{font-size:11px;color:var(--gray-600);padding:3px 8px 6px 24px;}
+.disparo-view-info span{font-weight:700;color:var(--gray-700);}
+/* ── BOTÕES DE AÇÃO DO DISPARO (no modal edição) */
+.disparo-action-btns{display:flex;gap:4px;flex-shrink:0;}
+.btn-da{padding:3px 8px;border-radius:6px;border:1.5px solid transparent;font-size:10px;font-weight:700;cursor:pointer;background:white;transition:all .15s;font-family:'Sora',sans-serif;line-height:1.4;}
+.btn-da.concluir{border-color:#00C07A;color:#00C07A;}
+.btn-da.concluir:hover,.btn-da.concluir.ativo{background:#00C07A;color:white;}
+.btn-da.adiar{border-color:#FFB300;color:#FFB300;}
+.btn-da.adiar:hover,.btn-da.adiar.ativo{background:#FFB300;color:white;}
+.btn-da.cancelar{border-color:#E53935;color:#E53935;}
+.btn-da.cancelar:hover,.btn-da.cancelar.ativo{background:#E53935;color:white;}
+/* ── TEMPLATE SELECT ────────────────────────── */
+.template-select{width:100%;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;color:var(--gray-800);background:white;outline:none;cursor:pointer;}
+.template-select:focus{border-color:var(--purple-light);}
+.template-info{font-size:11px;color:var(--gray-400);margin-top:5px;}
+/* ── TIMELINE DISPAROS RESUMO ───────────────── */
+.resumo-disparos{margin-top:12px;padding-top:12px;border-top:1px solid var(--gray-100);}
+.resumo-disparos-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);margin-bottom:8px;}
+.resumo-disparo-row{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--gray-100);}
+.resumo-disparo-row:last-child{border-bottom:none;}
+.resumo-disparo-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.resumo-disparo-canal{font-size:11px;font-weight:700;color:var(--gray-700);min-width:72px;}
+.resumo-disparo-data{font-size:11px;font-family:'DM Mono',monospace;color:var(--gray-500);flex:1;}
+.resumo-disparo-status{font-size:10px;font-weight:700;}
+.resumo-disparo-status.concluida{color:#00C07A;}
+.resumo-disparo-status.adiada{color:#FFB300;}
+/* ── DASHBOARD NOVO ─────────────────────────── */
+.dash-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--gray-400);margin:24px 0 12px;display:flex;align-items:center;gap:8px;}
+.dash-section-title::after{content:'';flex:1;height:1px;background:var(--gray-200);}
+.exec-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray-100);}
+.exec-row:last-child{border-bottom:none;}
+.exec-name{font-size:12px;font-weight:600;color:var(--gray-800);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.exec-bar-wrap{width:120px;height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden;flex-shrink:0;}
+.exec-bar-fill{height:100%;border-radius:3px;transition:width .4s;}
+.exec-nums{font-size:11px;font-family:'DM Mono',monospace;color:var(--gray-500);white-space:nowrap;min-width:56px;text-align:right;}
+.exec-pct{font-size:11px;font-weight:700;min-width:34px;text-align:right;}
+.exec-alert{font-size:10px;color:#FF6F00;font-weight:700;margin-left:4px;}
+.atrasado-row{display:flex;align-items:center;gap:10px;padding:8px 10px;background:#FFF8F0;border-radius:8px;border-left:3px solid #FF6F00;margin-bottom:6px;}
+.atrasado-nome{font-size:12px;font-weight:700;color:var(--gray-800);flex:1;}
+.atrasado-canal{font-size:11px;color:var(--gray-600);}
+.atrasado-data{font-size:11px;font-family:'DM Mono',monospace;color:#FF6F00;font-weight:700;white-space:nowrap;}
+.canal-exec-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--gray-100);}
+.canal-exec-row:last-child{border-bottom:none;}
+.canal-exec-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.canal-exec-name{font-size:12px;font-weight:600;color:var(--gray-700);min-width:80px;}
+.canal-exec-bars{flex:1;display:flex;flex-direction:column;gap:3px;}
+.canal-exec-bar-wrap{height:5px;background:var(--gray-100);border-radius:3px;overflow:hidden;}
+.canal-exec-bar-plan{height:100%;border-radius:3px;opacity:.35;}
+.canal-exec-bar-exec{height:100%;border-radius:3px;}
+.canal-exec-nums{font-size:10px;font-family:'DM Mono',monospace;color:var(--gray-400);white-space:nowrap;text-align:right;min-width:64px;}
+.canal-exec-pct{font-size:11px;font-weight:700;min-width:34px;text-align:right;}
+.heatmap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px;}
+.heatmap-header{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:4px;}
+.heatmap-dow{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--gray-400);text-align:center;}
+.heatmap-cell{aspect-ratio:1;border-radius:5px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:default;transition:transform .1s;position:relative;}
+.heatmap-cell:hover{transform:scale(1.12);z-index:2;}
+.heatmap-cell .hm-day{font-size:9px;font-weight:700;color:white;opacity:.8;}
+.heatmap-cell .hm-num{font-size:11px;font-weight:800;color:white;}
+.heatmap-cell.empty{background:var(--gray-100);}
+.heatmap-legend{display:flex;align-items:center;gap:6px;margin-top:8px;justify-content:flex-end;}
+.heatmap-legend span{font-size:10px;color:var(--gray-400);}
+.hm-sq{width:10px;height:10px;border-radius:2px;}
+.dash-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px;}
+
 </style>
 </head>
 <body>
@@ -978,59 +1177,26 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
         <button type="button" class="btn-atalho" onclick="setDashPeriodo('ano')" id="atalho-ano">Este ano</button>
       </div>
     </div>
-
-    <!-- KPIs -->
     <div class="dash-kpis" id="dash-kpis"></div>
-
-    <!-- LINHA 1: Taxa de Execução + Disparos Atrasados -->
     <div class="dash-section-title">📊 Execução</div>
     <div class="dash-row">
-      <div class="dash-card">
-        <h3>Taxa de Execução por Campanha</h3>
-        <div id="dash-execucao" style="margin-top:8px;"></div>
-      </div>
-      <div class="dash-card">
-        <h3>⚠️ Disparos Atrasados</h3>
-        <div id="dash-atrasados" style="margin-top:8px;"></div>
-      </div>
+      <div class="dash-card"><h3>Taxa de Execução por Campanha</h3><div id="dash-execucao" style="margin-top:8px;"></div></div>
+      <div class="dash-card"><h3>⚠️ Disparos Atrasados</h3><div id="dash-atrasados" style="margin-top:8px;"></div></div>
     </div>
-
-    <!-- LINHA 2: Canais planejado vs executado + Mapa de Calor -->
     <div class="dash-section-title">📡 Canais & Calendário</div>
     <div class="dash-row">
-      <div class="dash-card">
-        <h3>Canais — Planejado vs Executado</h3>
-        <div id="dash-canais-exec" style="margin-top:8px;"></div>
-      </div>
-      <div class="dash-card">
-        <h3>Mapa de Calor do Mês</h3>
-        <div id="dash-heatmap" style="margin-top:8px;"></div>
-      </div>
+      <div class="dash-card"><h3>Canais — Planejado vs Executado</h3><div id="dash-canais-exec" style="margin-top:8px;"></div></div>
+      <div class="dash-card"><h3>Mapa de Calor do Mês</h3><div id="dash-heatmap" style="margin-top:8px;"></div></div>
     </div>
-
-    <!-- LINHA 3: Evolução -->
     <div class="dash-section-title">📈 Evolução</div>
     <div class="dash-row">
-      <div class="dash-card" style="grid-column:span 2">
-        <h3>Ações no Período</h3>
-        <div class="dash-chart-wrap" style="height:200px;"><canvas id="chart-evolucao"></canvas></div>
-      </div>
+      <div class="dash-card" style="grid-column:span 2"><h3>Ações no Período</h3><div class="dash-chart-wrap" style="height:200px;"><canvas id="chart-evolucao"></canvas></div></div>
     </div>
-
-    <!-- LINHA 4: Categorias + Status -->
     <div class="dash-section-title">🗂️ Campanhas</div>
     <div class="dash-row">
-      <div class="dash-card">
-        <h3>Por Categoria</h3>
-        <div class="dash-chart-wrap" style="height:180px;"><canvas id="chart-categoria"></canvas></div>
-      </div>
-      <div class="dash-card">
-        <h3>Por Status</h3>
-        <div class="dash-chart-wrap" style="height:180px;"><canvas id="chart-status"></canvas></div>
-      </div>
+      <div class="dash-card"><h3>Por Categoria</h3><div class="dash-chart-wrap" style="height:180px;"><canvas id="chart-categoria"></canvas></div></div>
+      <div class="dash-card"><h3>Por Status</h3><div class="dash-chart-wrap" style="height:180px;"><canvas id="chart-status"></canvas></div></div>
     </div>
-
-    <!-- LINHA 5: Próximas + Hoje + Sem ações -->
     <div class="dash-section-title">📅 Agenda</div>
     <div class="dash-row">
       <div class="dash-card"><h3>Próximas a Encerrar</h3><div id="dash-encerrar"></div></div>
@@ -1074,17 +1240,13 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <div class="chp-row"><span class="chp-label">Segmento</span><span class="chp-value" id="chp-segmento"></span></div>
   <hr class="chp-divider">
   <div class="chp-progress">
-    <div class="chp-row" style="margin-bottom:4px;">
-      <span class="chp-label">Disparos</span>
-      <span class="chp-value" id="chp-disparos"></span>
-    </div>
+    <div class="chp-row" style="margin-bottom:4px;"><span class="chp-label">Disparos</span><span class="chp-value" id="chp-disparos"></span></div>
     <div class="chp-progress-bar"><div class="chp-progress-fill" id="chp-progress-fill"></div></div>
   </div>
   <hr class="chp-divider">
   <div class="chp-label" style="margin-bottom:5px;">Próximo Disparo</div>
   <div class="chp-next" id="chp-next"></div>
 </div>
-
 <!-- MODAL: Nova / Editar Campanha -->
 <div class="modal-overlay" id="modal-form" onsubmit="return false">
   <div class="modal">
@@ -1094,7 +1256,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="form-row2">
       <div>
         <label class="form-label">Título</label>
-        <input class="form-input" type="text" id="f-nome" autocomplete="off" onkeydown="if(event.key==='Enter')event.preventDefault()" placeholder="Nome da campanha">
+        <input class="form-input" type="text" id="f-nome" placeholder="Nome da campanha">
       </div>
       <div>
         <label class="form-label">Cor</label>
@@ -1158,15 +1320,16 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     </div>
     <div class="form-section">
       <label class="form-label">Tags</label>
-      <input class="form-input" type="text" id="f-tags" autocomplete="off" onkeydown="if(event.key==='Enter')event.preventDefault()" placeholder="Classifique a campanha (ex: black friday, promoção)">
+      <input class="form-input" type="text" id="f-tags" placeholder="Classifique a campanha (ex: black friday, promoção)">
     </div>
+    <hr class="divider">
     <div class="form-section" id="template-section">
       <label class="form-label">Template de Disparo</label>
       <select class="template-select" id="f-template">
         <option value="">Nenhum</option>
         <option value="fotus_semanal">Padrão semanal Fotus</option>
       </select>
-      <p class="template-info">⚡ O template preenche automaticamente os canais com base no período da campanha.</p>
+      <p class="template-info">⚡ Preenche automaticamente os canais com base no período.</p>
     </div>
     <hr class="divider">
     <div class="collapsible-section" id="section-crm">
@@ -1191,7 +1354,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <div class="canal-header"><span class="canal-title">Landing Page</span><button type="button" class="btn-add-canal" onclick="addCanalDate('inbound_lp')">+</button></div>
       <div class="canal-dates" id="canal-inbound_lp"></div>
     </div>
-      </div></div>
+          </div></div>
     </div>
     <hr class="divider">
     <div class="collapsible-section" id="section-social">
@@ -1224,7 +1387,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <div class="canal-header"><span class="canal-title">YouTube</span><button type="button" class="btn-add-canal" onclick="addCanalDate('rede_social_youtube')">+</button></div>
       <div class="canal-dates" id="canal-rede_social_youtube"></div>
     </div>
-      </div></div>
+          </div></div>
     </div>
     <hr class="divider">
     <div class="collapsible-section" id="section-perf">
@@ -1241,7 +1404,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <div class="canal-header"><span class="canal-title">Google Ads</span><button type="button" class="btn-add-canal" onclick="addPerfDate('performance_google_ads')">+</button></div>
       <div class="canal-dates" id="canal-performance_google_ads"></div>
     </div>
-      </div></div>
+          </div></div>
     </div>
     <hr class="divider">
     <div class="form-section" id="status-section" style="display:none;">
@@ -1316,7 +1479,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <input type="file" id="avatar-upload" accept="image/*" style="display:none" onchange="uploadAvatar(this.files[0])">
     </div>
     <div class="profile-field"><label>Nome</label><div class="profile-field-readonly" id="profile-name">USUARIO</div></div>
-    <div class="profile-field"><label>E-mail</label><div class="profile-field-readonly" id="profile-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a1d4d2d4c0d3c8cee1c7ced5d4d28fc2cecc8fc3d3">[email&#160;protected]</a></div></div>
+    <div class="profile-field"><label>E-mail</label><div class="profile-field-readonly" id="profile-email"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="8afff9ffebf8e3e5caece5fefff9a4e9e5e7a4e8f8">[email&#160;protected]</a></div></div>
     <div class="profile-field"><label>Perfil de Acesso</label><div class="profile-field-readonly" id="profile-role">Usuário</div></div>
     <div id="profile-admin-fields" style="display:none;">
       <div class="profile-field"><label>Nome (Editável)</label><input type="text" id="profile-name-edit" placeholder="Nome do usuário"></div>
@@ -1439,11 +1602,7 @@ bar.addEventListener('mouseleave',()=>{clearTimeout(_hoverTimer);hideCampPreview
 cell.appendChild(bar);}});});row.appendChild(cell);});cont.appendChild(row);}
 function renderGantt(){const dim=new Date(currentYear,currentMonth+1,0).getDate();const today=new Date();today.setHours(0,0,0,0);const td=(today.getMonth()===currentMonth&&today.getFullYear()===currentYear)?today.getDate():-1;const ms=currentYear+'-'+String(currentMonth+1).padStart(2,'0')+'-01';const me=currentYear+'-'+String(currentMonth+1).padStart(2,'0')+'-'+String(dim).padStart(2,'0');const vis=getFiltered('cal').filter(c=>c.inicio<=me&&c.fim>=ms);const cont=document.getElementById('gantt-container');cont.innerHTML='';if(!vis.length){cont.innerHTML='<div class="gantt-empty">Nenhuma campanha neste mês.</div>';return;}const tbl=document.createElement('table');tbl.className='gantt-table';const thead=document.createElement('thead');const hr=document.createElement('tr');for(let d=1;d<=dim;d++){const th=document.createElement('th');th.textContent=d;if(d===td)th.classList.add('today-col');hr.appendChild(th);}thead.appendChild(hr);tbl.appendChild(thead);const tbody=document.createElement('tbody');vis.forEach(c=>{const tr=document.createElement('tr');const sd=Math.max(1,toDate(c.inicio).getMonth()===currentMonth&&toDate(c.inicio).getFullYear()===currentYear?toDate(c.inicio).getDate():1);const ed=Math.min(dim,toDate(c.fim).getMonth()===currentMonth&&toDate(c.fim).getFullYear()===currentYear?toDate(c.fim).getDate():dim);for(let d=1;d<=dim;d++){const td2=document.createElement('td');if(d===td)td2.classList.add('today-col');if(d===sd){td2.colSpan=ed-sd+1;const bar=document.createElement('div');const gCancelada=c.status==='cancelada';const gAdiada=c.status==='adiada';bar.className='gantt-cell-bar'+(gCancelada?' cancelada':'');if(gCancelada){bar.style.borderColor=c.color;bar.style.color='var(--gray-600)';}else if(gAdiada){bar.style.background='#FFB74D';}else{bar.style.background=c.color;}bar.textContent=(gCancelada?'❌ ':gAdiada?'⏳ ':'')+c.name;bar.title=c.name+' · '+fmtFull(c.inicio)+' – '+fmtFull(c.fim);bar.onclick=()=>openDetailModal(c.id);td2.appendChild(bar);tr.appendChild(td2);d=ed;}else if(d<sd||d>ed){tr.appendChild(td2);}}tbody.appendChild(tr);});tbl.appendChild(tbody);cont.appendChild(tbl);}
 function renderSidebar(){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);const active=getFiltered('cal').filter(c=>c.inicio<=ts&&c.fim>=ts);document.getElementById('active-count').textContent=active.length;const list=document.getElementById('sidebar-active-list');list.innerHTML='';if(!active.length){list.innerHTML='<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';return;}active.forEach(c=>{const diff=Math.round((toDate(c.fim)-today)/86400000);const urg=diff<=2;const sCancelada=c.status==='cancelada';const sAdiada=c.status==='adiada';const item=document.createElement('div');item.className='camp-item'+(sCancelada?' cancelada':'');item.style.borderLeftColor=c.color;const diasLabel=sCancelada?'❌ Cancelada':sAdiada?'⏳ Adiada':(diff===0?'Encerra hoje':diff+' dias restantes');item.innerHTML=catBadge(c.categoria)+'<div class="camp-item-name">'+c.name+(urg&&!sCancelada?' 🔥':'')+'</div><div class="camp-item-vig"><span>VIGÊNCIA</span><span>'+fmt(c.inicio)+' – '+fmt(c.fim)+'</span></div><div class="camp-item-dias '+(urg&&!sCancelada?'urgent':'normal')+'">'+diasLabel+'</div>';item.onclick=()=>openDetailModal(c.id);list.appendChild(item);});}
-function renderResumo(){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);renderResumoCalendar();const f=getFiltered('res');const cols={breve:f.filter(c=>c.inicio>ts),ativas:f.filter(c=>c.inicio<=ts&&c.fim>=ts),encerradas:f.filter(c=>c.fim<ts)};Object.entries(cols).forEach(([key,list])=>{const col=document.getElementById('col-'+key);col.innerHTML='';if(!list.length){col.innerHTML='<p class="empty-col">Nenhuma campanha.</p>';return;}list.forEach((c,i)=>{const diff=Math.round((toDate(c.fim)-today)/86400000);const urg=diff>=0&&diff<=1;const card=document.createElement('div');card.className='resumo-card';card.style.animationDelay=(i*.07)+'s';const tagsHtml=renderTags(c.tags||'');const defesaTexto=(c.defesa||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();card.innerHTML=(urg?'<span class="badge-urgente">Acaba em '+diff+' dia'+(diff!==1?'s':'')+'</span>':'')+catBadge(c.categoria)+'<div class="resumo-card-name"><span class="dot" style="background:'+c.color+'"></span>'+c.name+'</div>'+(tagsHtml?'<div class="camp-tags-row" style="margin-bottom:10px">'+tagsHtml+'</div>':'')+'<div class="resumo-field"><label>Vigência</label><span>'+fmtFull(c.inicio)+' – '+fmtFull(c.fim)+'</span></div>'+(defesaTexto?'<div class="resumo-field"><label>Defesa</label><div class="resumo-defesa">'+defesaTexto+'</div></div>':'');// Calendário de disparos — apenas para campanhas COMERCIAIS
-if(getCats(c).includes('COMERCIAL')){const disparos=buildDisparosTimeline(c,ts);if(disparos.length>0){const sec=document.createElement('div');sec.className='resumo-disparos';sec.innerHTML='<div class="resumo-disparos-title">Calendário de Disparos</div>';const _canalCores={'inbound_wa':'#25D366','inbound_email':'#2196F3','inbound_sms':'#FF9800','rede_social_instagram':'#E91E63','rede_social_facebook':'#1877F2','rede_social_linkedin':'#0A66C2','rede_social_blog':'#6B5CE7','rede_social_outros':'#9BA3B8','performance_meta_ads':'#1877F2','performance_google_ads':'#4285F4'};disparos.forEach(d=>{const row=document.createElement('div');row.className='resumo-disparo-row';const isConcluida=d.concluida;const isAdiada=d.adiada;const statusHtml=isConcluida?'<span class="resumo-disparo-status concluida">✅</span>':isAdiada?'<span class="resumo-disparo-status adiada">⏳</span>':'';row.innerHTML='<div class="resumo-disparo-dot" style="background:'+(_canalCores[d.key]||c.color)+'"></div><span class="resumo-disparo-canal">'+d.canal+'</span><span class="resumo-disparo-data">'+fmtFull(d.data)+'</span>'+statusHtml;sec.appendChild(row);});card.appendChild(sec);}}card.innerHTML+='<button type="button" class="btn-saiba-mais" onclick="event.stopPropagation();openDetailModal('+c.id+')">Saiba mais →</button>';card.onclick=()=>openDetailModal(c.id);col.appendChild(card);});});}
-
-function buildDisparosTimeline(c,ts){const _getters=[[g=>g.inbound?.wa||[],'inbound_wa','WhatsApp'],[g=>g.inbound?.email||[],'inbound_email','E-mail'],[g=>g.inbound?.sms||[],'inbound_sms','SMS'],[g=>g.rede_social?.instagram||[],'rede_social_instagram','Instagram'],[g=>g.rede_social?.facebook||[],'rede_social_facebook','Facebook'],[g=>g.rede_social?.linkedin||[],'rede_social_linkedin','LinkedIn'],[g=>g.rede_social?.blog||[],'rede_social_blog','Blog'],[g=>g.rede_social?.outros||[],'rede_social_outros','Outros'],[g=>g.performance?.meta_ads||[],'performance_meta_ads','Meta Ads'],[g=>g.performance?.google_ads||[],'performance_google_ads','Google Ads']];const result=[];_getters.forEach(([getter,key,canal])=>{(getter(c)||[]).forEach(data=>{// Excluir cancelados
-const isCancelado=c.disparos_cancelados&&Object.prototype.hasOwnProperty.call(c.disparos_cancelados,data);if(isCancelado)return;const isConcluida=!!(c.disparos_concluidos&&c.disparos_concluidos[data]);const isAdiada=!!(c.disparos_adiados&&c.disparos_adiados[data]!==undefined&&c.disparos_adiados[data]!==null&&Object.prototype.hasOwnProperty.call(c.disparos_adiados,data));result.push({data,key,canal,concluida:isConcluida,adiada:isAdiada});});});return result.sort((a,b)=>a.data.localeCompare(b.data));}
+function renderResumo(){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);renderResumoCalendar();const f=getFiltered('res');const cols={breve:f.filter(c=>c.inicio>ts),ativas:f.filter(c=>c.inicio<=ts&&c.fim>=ts),encerradas:f.filter(c=>c.fim<ts)};Object.entries(cols).forEach(([key,list])=>{const col=document.getElementById('col-'+key);col.innerHTML='';if(!list.length){col.innerHTML='<p class="empty-col">Nenhuma campanha.</p>';return;}list.forEach((c,i)=>{const diff=Math.round((toDate(c.fim)-today)/86400000);const urg=diff>=0&&diff<=1;const card=document.createElement('div');card.className='resumo-card';card.style.animationDelay=(i*.07)+'s';const tagsHtml=renderTags(c.tags||'');const defesaTexto=(c.defesa||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();card.innerHTML=(urg?'<span class="badge-urgente">Acaba em '+diff+' dia'+(diff!==1?'s':'')+'</span>':'')+catBadge(c.categoria)+'<div class="resumo-card-name"><span class="dot" style="background:'+c.color+'"></span>'+c.name+'</div>'+(tagsHtml?'<div class="camp-tags-row" style="margin-bottom:10px">'+tagsHtml+'</div>':'')+'<div class="resumo-field"><label>Vigência</label><span>'+fmtFull(c.inicio)+' – '+fmtFull(c.fim)+'</span></div>'+(defesaTexto?'<div class="resumo-field"><label>Defesa</label><div class="resumo-defesa">'+defesaTexto+'</div></div>':'')+'<button type="button" class="btn-saiba-mais" onclick="event.stopPropagation();openDetailModal('+c.id+')">Saiba mais →</button>';card.onclick=()=>openDetailModal(c.id);col.appendChild(card);});});}
 function renderResumoCalendar(){const today=new Date();today.setHours(0,0,0,0);const dim=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();const cm=today.getMonth();const cy=today.getFullYear();const ms=cy+'-'+String(cm+1).padStart(2,'0')+'-01';const me=cy+'-'+String(cm+1).padStart(2,'0')+'-'+String(dim).padStart(2,'0');const comerciais=campaigns.filter(c=>getCats(c).includes('COMERCIAL')&&c.inicio<=me&&c.fim>=ms);const cont=document.getElementById('resumo-calendar');cont.innerHTML='';if(!comerciais.length){cont.innerHTML='<div style="padding:16px;text-align:center;color:var(--gray-400);font-size:13px;">Nenhuma campanha comercial neste mês.</div>';return;}const tbl=document.createElement('table');tbl.className='gantt-table';const thead=document.createElement('thead');const hr=document.createElement('tr');const th0=document.createElement('th');th0.textContent='Campanha';th0.style.width='180px';hr.appendChild(th0);for(let d=1;d<=dim;d++){const th=document.createElement('th');th.textContent=d;if(d===today.getDate()&&today.getMonth()===cm&&today.getFullYear()===cy)th.classList.add('today-col');hr.appendChild(th);}thead.appendChild(hr);tbl.appendChild(thead);const tbody=document.createElement('tbody');comerciais.forEach(c=>{const tr=document.createElement('tr');const nameCell=document.createElement('td');nameCell.style.cssText='font-weight:600;font-size:12px;padding:8px;border-right:1px solid var(--gray-200);cursor:pointer;';nameCell.style.color=c.color;nameCell.textContent=c.name;nameCell.onclick=()=>openDetailModal(c.id);tr.appendChild(nameCell);const sd=Math.max(1,toDate(c.inicio).getMonth()===cm&&toDate(c.inicio).getFullYear()===cy?toDate(c.inicio).getDate():1);const ed=Math.min(dim,toDate(c.fim).getMonth()===cm&&toDate(c.fim).getFullYear()===cy?toDate(c.fim).getDate():dim);for(let d=1;d<=dim;d++){const td=document.createElement('td');if(d===today.getDate()&&today.getMonth()===cm&&today.getFullYear()===cy)td.classList.add('today-col');if(d===sd){td.colSpan=ed-sd+1;const bar=document.createElement('div');bar.className='gantt-cell-bar';bar.style.background=c.color;bar.style.cursor='pointer';bar.textContent=c.name;bar.title=fmtFull(c.inicio)+' – '+fmtFull(c.fim);bar.onclick=()=>openDetailModal(c.id);td.appendChild(bar);tr.appendChild(td);d=ed;}else if(d<sd||d>ed){tr.appendChild(td);}}tbody.appendChild(tr);});tbl.appendChild(tbody);cont.appendChild(tbl);}
 let _dashAtalhoAtivo='mes';
 function setDashPeriodo(tipo){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);let de,ate=ts;if(tipo==='mes'){de=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';const lastDay=new Date(today.getFullYear(),today.getMonth()+1,0);ate=toStr(lastDay);}else if(tipo==='30d'){const d=new Date(today);d.setDate(d.getDate()-30);de=toStr(d);}else if(tipo==='3m'){const d=new Date(today);d.setMonth(d.getMonth()-3);de=toStr(d);}else if(tipo==='ano'){de=today.getFullYear()+'-01-01';ate=today.getFullYear()+'-12-31';}document.getElementById('dash-de').value=de;document.getElementById('dash-ate').value=ate;_dashAtalhoAtivo=tipo;['mes','30d','3m','ano'].forEach(k=>{const btn=document.getElementById('atalho-'+k);if(btn)btn.classList.toggle('ativo',k===tipo);});renderDashboard();}
@@ -1454,14 +1613,11 @@ const de=document.getElementById('dash-de')?.value||'';
 const ate=document.getElementById('dash-ate')?.value||ts;
 showLoading();let allRaw=[];
 try{allRaw=await sbFetch('campaigns?select=*&inicio=lte.'+ate+(de?'&fim=gte.'+de:'')+'&order=inicio.asc');}
-catch(e){console.warn('Erro ao buscar campanhas do dashboard:',e.message);}
+catch(e){console.warn('Erro dashboard:',e.message);}
 finally{hideLoading();}
 const all=(allRaw||[]).map(rowToLocal);
 setTimeout(()=>consolidarMesAtual(),1000);
-
 const canalMap=[[c=>c.inbound?.wa||[],'WhatsApp','#25D366'],[c=>c.inbound?.email||[],'E-mail','#2196F3'],[c=>c.inbound?.sms||[],'SMS','#FF9800'],[c=>c.rede_social?.instagram||[],'Instagram','#E91E63'],[c=>c.rede_social?.facebook||[],'Facebook','#1877F2'],[c=>c.rede_social?.linkedin||[],'LinkedIn','#0A66C2'],[c=>c.rede_social?.blog||[],'Blog','#6B5CE7'],[c=>c.rede_social?.outros||[],'Outros','#9BA3B8'],[c=>c.performance?.meta_ads||[],'Meta Ads','#1877F2'],[c=>c.performance?.google_ads||[],'Google Ads','#4285F4']];
-
-// ── KPIs ─────────────────────────────────────────────────────────
 const ativas=all.filter(c=>c.status!=='cancelada'&&c.inicio<=ts&&c.fim>=ts);
 const enc=all.filter(c=>c.status!=='cancelada'&&c.fim<ts);
 const breve=all.filter(c=>c.status==='ativa'&&c.inicio>ts);
@@ -1475,136 +1631,61 @@ document.getElementById('dash-kpis').innerHTML=
   '<div class="kpi-card"><div class="kpi-label">Encerradas</div><div class="kpi-value" style="color:var(--gray-400)">'+enc.length+'</div><div class="kpi-sub">no período</div></div>'+
   '<div class="kpi-card"><div class="kpi-label">Total Ações</div><div class="kpi-value" style="color:var(--orange)">'+td+'</div><div class="kpi-sub">em todos os canais</div></div>'+
   '<div class="kpi-card"><div class="kpi-label">Taxa de Execução</div><div class="kpi-value" style="color:'+(taxaGeral>=70?'var(--green)':taxaGeral>=40?'#FF6F00':'var(--red)')+'">'+taxaGeral+'%</div><div class="kpi-sub">'+totalExec+' de '+totalPlan+' concluídos</div></div>';
-
-// ── TAXA DE EXECUÇÃO POR CAMPANHA ────────────────────────────────
+// Taxa execução por campanha
 const execEl=document.getElementById('dash-execucao');
 const campAtivas=all.filter(c=>c.status!=='cancelada'&&c.inicio<=ts&&c.fim>=ts);
-if(!campAtivas.length){execEl.innerHTML='<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa no período.</p>';}
-else{
-  execEl.innerHTML=campAtivas.map(c=>{
-    let plan=0,exec=0,atrasados=0;
-    canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{if(!c.disparos_cancelados||!Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d)){plan++;if(c.disparos_concluidos&&c.disparos_concluidos[d])exec++;else if(d<ts&&!(c.disparos_adiados&&Object.prototype.hasOwnProperty.call(c.disparos_adiados,d)))atrasados++;}});});
-    const pct=plan>0?Math.round(exec/plan*100):0;
-    const cor=pct>=70?'var(--green)':pct>=40?'#FF6F00':'var(--red)';
-    return '<div class="exec-row">'+
-      '<span class="exec-name" title="'+c.name+'">'+c.name+'</span>'+
-      '<div class="exec-bar-wrap"><div class="exec-bar-fill" style="width:'+pct+'%;background:'+cor+'"></div></div>'+
-      '<span class="exec-nums">'+exec+'/'+plan+'</span>'+
-      '<span class="exec-pct" style="color:'+cor+'">'+pct+'%</span>'+
-      (atrasados>0?'<span class="exec-alert">⚠️'+atrasados+'</span>':'')+
-    '</div>';
-  }).join('');
-}
-
-// ── DISPAROS ATRASADOS ───────────────────────────────────────────
+if(!campAtivas.length){execEl.innerHTML='<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';}
+else{execEl.innerHTML=campAtivas.map(c=>{let plan=0,exec=0,atras=0;canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{if(!c.disparos_cancelados||!Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d)){plan++;if(c.disparos_concluidos&&c.disparos_concluidos[d])exec++;else if(d<ts&&!(c.disparos_adiados&&Object.prototype.hasOwnProperty.call(c.disparos_adiados,d)))atras++;}});});const pct=plan>0?Math.round(exec/plan*100):0;const cor=pct>=70?'var(--green)':pct>=40?'#FF6F00':'var(--red)';return'<div class="exec-row"><span class="exec-name" title="'+c.name+'">'+c.name+'</span><div class="exec-bar-wrap"><div class="exec-bar-fill" style="width:'+pct+'%;background:'+cor+'"></div></div><span class="exec-nums">'+exec+'/'+plan+'</span><span class="exec-pct" style="color:'+cor+'">'+pct+'%</span>'+(atras>0?'<span class="exec-alert">⚠️'+atras+'</span>':'')+'</div>';}).join('');}
+// Atrasados
 const atrasEl=document.getElementById('dash-atrasados');
 const atrasados=[];
-all.filter(c=>c.status!=='cancelada').forEach(c=>{
-  canalMap.forEach(([g,key,nome])=>{
-    (g(c)||[]).forEach(d=>{
-      if(d<ts&&!(c.disparos_concluidos&&c.disparos_concluidos[d])&&!(c.disparos_cancelados&&Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d))&&!(c.disparos_adiados&&Object.prototype.hasOwnProperty.call(c.disparos_adiados,d))){
-        atrasados.push({campanha:c.name,canal:nome,data:d,diasAtraso:Math.round((today-toDate(d))/86400000)});
-      }
-    });
-  });
-});
+all.filter(c=>c.status!=='cancelada').forEach(c=>{canalMap.forEach(([g,key,nome])=>{(g(c)||[]).forEach(d=>{if(d<ts&&!(c.disparos_concluidos&&c.disparos_concluidos[d])&&!(c.disparos_cancelados&&Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d))&&!(c.disparos_adiados&&Object.prototype.hasOwnProperty.call(c.disparos_adiados,d))){atrasados.push({campanha:c.name,canal:nome,data:d,diasAtraso:Math.round((today-toDate(d))/86400000)});}});});});
 atrasados.sort((a,b)=>a.data.localeCompare(b.data));
-atrasEl.innerHTML=atrasados.length?
-  atrasados.slice(0,8).map(a=>'<div class="atrasado-row"><div style="flex:1;min-width:0"><div class="atrasado-nome">'+a.campanha+'</div><div class="atrasado-canal">'+a.canal+'</div></div><div class="atrasado-data">'+fmtFull(a.data)+'<br><span style="font-size:10px;color:#BF360C">'+a.diasAtraso+'d atrás</span></div></div>').join('')+
-  (atrasados.length>8?'<p style="font-size:11px;color:var(--gray-400);margin-top:8px;">+mais '+(atrasados.length-8)+' atrasados</p>':''):
-  '<div style="text-align:center;padding:20px 0;"><div style="font-size:28px;margin-bottom:8px;">✅</div><p style="color:var(--green);font-size:12px;font-weight:700;">Nenhum disparo atrasado!</p></div>';
-
-// ── CANAIS: PLANEJADO VS EXECUTADO ───────────────────────────────
+atrasEl.innerHTML=atrasados.length?atrasados.slice(0,8).map(a=>'<div class="atrasado-row"><div style="flex:1;min-width:0"><div class="atrasado-nome">'+a.campanha+'</div><div class="atrasado-canal">'+a.canal+'</div></div><div class="atrasado-data">'+fmtFull(a.data)+'<br><span style="font-size:10px;color:#BF360C">'+a.diasAtraso+'d atrás</span></div></div>').join('')+(atrasados.length>8?'<p style="font-size:11px;color:var(--gray-400);margin-top:8px;">+mais '+(atrasados.length-8)+'</p>':''):'<div style="text-align:center;padding:20px 0;"><div style="font-size:28px">✅</div><p style="color:var(--green);font-size:12px;font-weight:700;">Nenhum atrasado!</p></div>';
+// Canais planejado vs executado
 const canaisExecEl=document.getElementById('dash-canais-exec');
-const canaisData=canalMap.map(([g,nome,cor])=>{
-  let plan=0,exec=0;
-  all.forEach(c=>{(g(c)||[]).forEach(d=>{if(!c.disparos_cancelados||!Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d)){plan++;if(c.disparos_concluidos&&c.disparos_concluidos[d])exec++;}});});
-  return{nome,cor,plan,exec};
-}).filter(x=>x.plan>0).sort((a,b)=>b.plan-a.plan);
+const _cores={'WhatsApp':'#25D366','E-mail':'#2196F3','SMS':'#FF9800','Instagram':'#E91E63','Facebook':'#1877F2','LinkedIn':'#0A66C2','Blog':'#6B5CE7','Outros':'#9BA3B8','Meta Ads':'#1877F2','Google Ads':'#4285F4'};
+const canaisData=canalMap.map(([g,nome])=>{let plan=0,exec=0;all.forEach(c=>{(g(c)||[]).forEach(d=>{if(!c.disparos_cancelados||!Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d)){plan++;if(c.disparos_concluidos&&c.disparos_concluidos[d])exec++;}});});return{nome,cor:_cores[nome]||'#9BA3B8',plan,exec};}).filter(x=>x.plan>0).sort((a,b)=>b.plan-a.plan);
 const maxPlan=Math.max(...canaisData.map(x=>x.plan),1);
-canaisExecEl.innerHTML=canaisData.length?canaisData.map(ch=>{
-  const pct=ch.plan>0?Math.round(ch.exec/ch.plan*100):0;
-  const cor=ch.cor||'#9BA3B8';
-  const pctCor=pct>=70?'var(--green)':pct>=40?'#FF6F00':'var(--red)';
-  return '<div class="canal-exec-row">'+
-    '<div class="canal-exec-dot" style="background:'+cor+'"></div>'+
-    '<span class="canal-exec-name">'+ch.nome+'</span>'+
-    '<div class="canal-exec-bars">'+
-      '<div class="canal-exec-bar-wrap"><div class="canal-exec-bar-plan" style="width:'+Math.round(ch.plan/maxPlan*100)+'%;background:'+cor+'"></div></div>'+
-      '<div class="canal-exec-bar-wrap"><div class="canal-exec-bar-exec" style="width:'+Math.round(ch.exec/maxPlan*100)+'%;background:'+cor+'"></div></div>'+
-    '</div>'+
-    '<span class="canal-exec-nums">'+ch.exec+'/'+ch.plan+'</span>'+
-    '<span class="canal-exec-pct" style="color:'+pctCor+'">'+pct+'%</span>'+
-  '</div>';
-}).join('')+
-'<div style="display:flex;gap:16px;margin-top:10px;padding-top:8px;border-top:1px solid var(--gray-100);"><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--gray-400);"><div style="width:24px;height:4px;border-radius:2px;background:var(--gray-300);opacity:.4;"></div>Planejado</div><div style="display:flex;align-items:center;gap:5px;font-size:10px;color:var(--gray-400);"><div style="width:24px;height:4px;border-radius:2px;background:var(--green);"></div>Executado</div></div>':
-'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação no período.</p>';
-
-// ── MAPA DE CALOR DO MÊS ─────────────────────────────────────────
+canaisExecEl.innerHTML=canaisData.length?canaisData.map(ch=>{const pct=ch.plan>0?Math.round(ch.exec/ch.plan*100):0;const pctCor=pct>=70?'var(--green)':pct>=40?'#FF6F00':'var(--red)';return'<div class="canal-exec-row"><div class="canal-exec-dot" style="background:'+ch.cor+'"></div><span class="canal-exec-name">'+ch.nome+'</span><div class="canal-exec-bars"><div class="canal-exec-bar-wrap"><div class="canal-exec-bar-plan" style="width:'+Math.round(ch.plan/maxPlan*100)+'%;background:'+ch.cor+'"></div></div><div class="canal-exec-bar-wrap"><div class="canal-exec-bar-exec" style="width:'+Math.round(ch.exec/maxPlan*100)+'%;background:'+ch.cor+'"></div></div></div><span class="canal-exec-nums">'+ch.exec+'/'+ch.plan+'</span><span class="canal-exec-pct" style="color:'+pctCor+'">'+pct+'%</span></div>';}).join('')+'<div style="display:flex;gap:16px;margin-top:10px;padding-top:8px;border-top:1px solid var(--gray-100);font-size:10px;color:var(--gray-400)"><span>░ Planejado</span><span>█ Executado</span></div>':'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação.</p>';
+// Mapa de calor
 const heatEl=document.getElementById('dash-heatmap');
-const hmMes=today.getMonth(),hmAno=today.getFullYear();
-const hmDim=new Date(hmAno,hmMes+1,0).getDate();
-const hmStart=new Date(hmAno,hmMes,1).getDay();
+const hmMes=today.getMonth(),hmAno=today.getFullYear(),hmDim=new Date(hmAno,hmMes+1,0).getDate(),hmStart=new Date(hmAno,hmMes,1).getDay();
 const contDia={};
-all.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{const[y,m,day]=d.split('-').map(Number);if(m-1===hmMes&&y===hmAno){const k=day;contDia[k]=(contDia[k]||0)+1;}});});});
+all.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{const[y,m,day]=d.split('-').map(Number);if(m-1===hmMes&&y===hmAno){contDia[day]=(contDia[day]||0)+1;}});});});
 const maxDia=Math.max(...Object.values(contDia),1);
 const DAYS=['D','S','T','Q','Q','S','S'];
 let hmHtml='<div class="heatmap-header">'+DAYS.map(d=>'<div class="heatmap-dow">'+d+'</div>').join('')+'</div><div class="heatmap-grid">';
 for(let i=0;i<hmStart;i++)hmHtml+='<div class="heatmap-cell empty"></div>';
-for(let d=1;d<=hmDim;d++){
-  const cnt=contDia[d]||0;
-  const int=cnt>0?Math.max(0.15,cnt/maxDia):0;
-  const bg=cnt>0?`rgba(13,81,142,${int})`:'var(--gray-100)';
-  const isToday=d===today.getDate();
-  hmHtml+='<div class="heatmap-cell" style="background:'+bg+';'+(isToday?'outline:2px solid var(--orange);':'')+'" title="'+d+'/'+String(hmMes+1).padStart(2,'0')+': '+cnt+' ação(ões)">'+
-    '<span class="hm-day" style="color:'+(cnt>0?'white':'var(--gray-400)')+'">'+d+'</span>'+
-    (cnt>0?'<span class="hm-num">'+cnt+'</span>':'')+
-  '</div>';
-}
-hmHtml+='</div><div class="heatmap-legend"><span>Menos</span>'+
-  [0.1,0.3,0.5,0.7,0.95].map(op=>'<div class="hm-sq" style="background:rgba(13,81,142,'+op+')"></div>').join('')+
-  '<span>Mais</span></div>';
+for(let d=1;d<=hmDim;d++){const cnt=contDia[d]||0;const int=cnt>0?Math.max(0.15,cnt/maxDia):0;const bg=cnt>0?'rgba(13,81,142,'+int+')':'var(--gray-100)';const isToday=d===today.getDate();hmHtml+='<div class="heatmap-cell" style="background:'+bg+';'+(isToday?'outline:2px solid var(--orange);':'')+'" title="'+d+'/'+(hmMes+1)+': '+cnt+' ação(ões)"><span class="hm-day" style="color:'+(cnt>0?'white':'var(--gray-400)')+'">'+d+'</span>'+(cnt>0?'<span class="hm-num">'+cnt+'</span>':'')+'</div>';}
+hmHtml+='</div><div class="heatmap-legend"><span>Menos</span>'+[0.1,0.3,0.5,0.7,0.95].map(op=>'<div class="hm-sq" style="background:rgba(13,81,142,'+op+')"></div>').join('')+'<span>Mais</span></div>';
 heatEl.innerHTML=hmHtml;
-
-// ── PRÓXIMAS A ENCERRAR ──────────────────────────────────────────
+// Próximas a encerrar
 const pe=[...ativas].sort((a,b)=>a.fim.localeCompare(b.fim)).slice(0,5);
-document.getElementById('dash-encerrar').innerHTML=pe.length?pe.map(c=>{const diff=Math.round((toDate(c.fim)-today)/86400000);return'<div class="timeline-item"><div class="timeline-dot" style="background:'+c.color+'"></div><div class="timeline-content"><div class="timeline-name">'+c.name+' '+catBadge(c.categoria)+'</div><div class="timeline-date">Encerra '+fmtFull(c.fim)+' · '+(diff===0?'hoje':diff+' dia(s)')+'</div></div></div>';}).join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';
-
-// ── PRÓXIMAS AÇÕES ───────────────────────────────────────────────
-const disp=[];all.forEach(c=>{canalMap.forEach(([g,key,nome,cor])=>{const _c={'WhatsApp':'#25D366','E-mail':'#2196F3','SMS':'#FF9800','Instagram':'#E91E63','Facebook':'#1877F2','LinkedIn':'#0A66C2','Blog':'#6B5CE7','Outros':'#9BA3B8','Meta Ads':'#1877F2','Google Ads':'#4285F4'};(g(c)||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:nome,color:_c[nome]||'#999',data:d,cat:c.categoria});});});});
+document.getElementById('dash-encerrar').innerHTML=pe.length?pe.map(c=>{const diff=Math.round((toDate(c.fim)-today)/86400000);return'<div class="timeline-item"><div class="timeline-dot" style="background:'+c.color+'"></div><div class="timeline-content"><div class="timeline-name">'+c.name+' '+catBadge(c.categoria)+'</div><div class="timeline-date">Encerra '+fmtFull(c.fim)+' · '+(diff===0?'hoje':diff+' dia(s)')+'</div></div></div>';}).join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ativa.</p>';
+// Próximas ações
+const disp=[];all.forEach(c=>{canalMap.forEach(([g,nome])=>{(g(c)||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:nome,color:_cores[nome]||'#999',data:d,cat:c.categoria});});});});
 disp.sort((a,b)=>a.data.localeCompare(b.data));
-document.getElementById('dash-disparos').innerHTML=disp.slice(0,6).map(d=>'<div class="timeline-item"><div class="timeline-dot" style="background:'+d.color+'"></div><div class="timeline-content"><div class="timeline-name">'+d.nome+' '+catBadge(d.cat)+'</div><div class="timeline-date">'+d.canal+' · '+fmtFull(d.data)+'</div></div></div>').join('')||'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação futura.</p>';
-
-// ── HOJE ─────────────────────────────────────────────────────────
-const hoje=[];all.forEach(c=>{canalMap.forEach(([g,key,nome])=>{const _c={'WhatsApp':'#25D366','E-mail':'#2196F3','SMS':'#FF9800','Instagram':'#E91E63','Facebook':'#1877F2','LinkedIn':'#0A66C2','Blog':'#6B5CE7','Outros':'#9BA3B8','Meta Ads':'#1877F2','Google Ads':'#4285F4'};if((g(c)||[]).includes(ts))hoje.push({campanha:c.name,color:c.color,canal:nome,cor:_c[nome]||'#999'});});});
-document.getElementById('dash-hoje').innerHTML=hoje.length?hoje.map(h=>'<div class="hoje-item"><div class="hoje-item-dot" style="background:'+h.color+'"></div><div class="hoje-item-info"><div class="hoje-item-nome">'+h.campanha+'</div><div class="hoje-item-canal">'+h.canal+'</div></div><div class="canal-stat-dot" style="background:'+h.cor+';width:8px;height:8px;border-radius:50%;"></div></div>').join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação programada para hoje.</p>';
-
-// ── SEM AÇÕES ─────────────────────────────────────────────────────
+document.getElementById('dash-disparos').innerHTML=disp.slice(0,6).map(d=>'<div class="timeline-item"><div class="timeline-dot" style="background:'+d.color+'"></div><div class="timeline-content"><div class="timeline-name">'+d.nome+' '+catBadge(d.cat)+'</div><div class="timeline-date">'+d.canal+' · '+fmtFull(d.data)+'</div></div></div>').join('')||'<p style="color:var(--gray-400);font-size:12px;">Nenhuma futura.</p>';
+// Hoje
+const hoje=[];all.forEach(c=>{canalMap.forEach(([g,nome])=>{if((g(c)||[]).includes(ts))hoje.push({campanha:c.name,color:c.color,canal:nome,cor:_cores[nome]||'#999'});});});
+document.getElementById('dash-hoje').innerHTML=hoje.length?hoje.map(h=>'<div class="hoje-item"><div class="hoje-item-dot" style="background:'+h.color+'"></div><div class="hoje-item-info"><div class="hoje-item-nome">'+h.campanha+'</div><div class="hoje-item-canal">'+h.canal+'</div></div></div>').join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma hoje.</p>';
+// Sem ações
 const semAcoes=all.filter(c=>{if(c.status==='cancelada'||c.fim<ts)return false;return canalMap.reduce((s,[g])=>s+(g(c)||[]).length,0)===0;});
-document.getElementById('dash-sem-acoes').innerHTML=semAcoes.length?semAcoes.map(c=>'<div class="sem-acao-item"><div class="sem-acao-dot" style="background:'+c.color+'"></div><div><div class="sem-acao-nome">'+c.name+'</div><div class="sem-acao-vig">'+fmt(c.inicio)+' – '+fmt(c.fim)+'</div></div></div>').join(''):'<p style="color:var(--green);font-size:12px;font-weight:600;">✅ Todas as campanhas têm ações.</p>';
-
-// ── GRÁFICOS ──────────────────────────────────────────────────────
-destroyChart('chart-categoria');
-const cc={COMERCIAL:0,CONTEUDO:0,EVENTOS:0};all.forEach(c=>{getCats(c).forEach(cat=>{if(cc[cat]!==undefined)cc[cat]++;});});
+document.getElementById('dash-sem-acoes').innerHTML=semAcoes.length?semAcoes.map(c=>'<div class="sem-acao-item"><div class="sem-acao-dot" style="background:'+c.color+'"></div><div><div class="sem-acao-nome">'+c.name+'</div><div class="sem-acao-vig">'+fmt(c.inicio)+' – '+fmt(c.fim)+'</div></div></div>').join(''):'<p style="color:var(--green);font-size:12px;font-weight:600;">✅ Todas com ações.</p>';
+// Gráficos
+destroyChart('chart-categoria');const cc={COMERCIAL:0,CONTEUDO:0,EVENTOS:0};all.forEach(c=>{getCats(c).forEach(cat=>{if(cc[cat]!==undefined)cc[cat]++;});});
 new Chart(document.getElementById('chart-categoria'),{type:'doughnut',data:{labels:['Comercial','Conteúdo','Eventos'],datasets:[{data:[cc.COMERCIAL,cc.CONTEUDO,cc.EVENTOS],backgroundColor:['#1E88E5','#43A047','#FB8C00'],borderWidth:2,borderColor:'white'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Sora',size:11},padding:12}}}}});
-
-destroyChart('chart-status');
-const sc={ativa:0,adiada:0,cancelada:0};all.forEach(c=>{const s=c.status||'ativa';if(sc[s]!==undefined)sc[s]++;});
+destroyChart('chart-status');const sc={ativa:0,adiada:0,cancelada:0};all.forEach(c=>{const s=c.status||'ativa';if(sc[s]!==undefined)sc[s]++;});
 new Chart(document.getElementById('chart-status'),{type:'doughnut',data:{labels:['Ativa','Adiada','Cancelada'],datasets:[{data:[sc.ativa,sc.adiada,sc.cancelada],backgroundColor:['#00C07A','#FFB300','#E53935'],borderWidth:2,borderColor:'white'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Sora',size:11},padding:12}}}}});
-
-destroyChart('chart-evolucao');
-const allAcoes=[];all.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{if((!de||d>=de)&&d<=ate)allAcoes.push({data:d});});});});
-allAcoes.sort((a,b)=>a.data.localeCompare(b.data));
+destroyChart('chart-evolucao');const allAcoes=[];all.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{if((!de||d>=de)&&d<=ate)allAcoes.push({data:d});});});});allAcoes.sort((a,b)=>a.data.localeCompare(b.data));
 const deDt=de?new Date(de):new Date(allAcoes[0]?.data||ts);const ateDt=new Date(ate);const diffDias=Math.round((ateDt-deDt)/86400000);const agruparPor=diffDias<=62?'semana':'mes';
 const grupos={};allAcoes.forEach(a=>{let key;if(agruparPor==='semana'){const d=new Date(a.data);const dom=new Date(d);dom.setDate(d.getDate()-d.getDay());key=toStr(dom);}else{key=a.data.slice(0,7);}grupos[key]=(grupos[key]||0)+1;});
 const evolLabels=[],evolData=[];Object.entries(grupos).sort(([a],[b])=>a.localeCompare(b)).forEach(([k,v])=>{evolLabels.push(agruparPor==='semana'?'Sem '+fmtFull(k):MONTHS_PT[parseInt(k.split('-')[1])-1]+'/'+k.split('-')[0].slice(2));evolData.push(v);});
 new Chart(document.getElementById('chart-evolucao'),{type:'bar',data:{labels:evolLabels,datasets:[{label:'Ações',data:evolData,backgroundColor:'rgba(13,81,142,.75)',borderRadius:6,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{family:'DM Mono',size:10}},grid:{color:'rgba(0,0,0,.04)'}},x:{ticks:{font:{family:'Sora',size:10}},grid:{display:false}}}}});
 }
-const cc={COMERCIAL:0,CONTEUDO:0,EVENTOS:0};all.forEach(c=>{getCats(c).forEach(cat=>{if(cc[cat]!==undefined)cc[cat]++;});});const wa=all.reduce((a,c)=>a+(c.inbound?.wa||[]).length,0),em=all.reduce((a,c)=>a+(c.inbound?.email||[]).length,0),sm=all.reduce((a,c)=>a+(c.inbound?.sms||[]).length,0),ig=all.reduce((a,c)=>a+(c.rede_social?.instagram||[]).length,0),fb=all.reduce((a,c)=>a+(c.rede_social?.facebook||[]).length,0),li=all.reduce((a,c)=>a+(c.rede_social?.linkedin||[]).length,0),bl=all.reduce((a,c)=>a+(c.rede_social?.blog||[]).length,0),ou=all.reduce((a,c)=>a+(c.rede_social?.outros||[]).length,0),ma=all.reduce((a,c)=>a+(c.performance?.meta_ads||[]).length,0),ga=all.reduce((a,c)=>a+(c.performance?.google_ads||[]).length,0);
-const pe=[...ativas].sort((a,b)=>a.fim.localeCompare(b.fim)).slice(0,5);document.getElementById('dash-encerrar').innerHTML=pe.length?pe.map(c=>{const diff=Math.round((toDate(c.fim)-today)/86400000);return'<div class="timeline-item"><div class="timeline-dot" style="background:'+c.color+'"></div><div class="timeline-content"><div class="timeline-name">'+c.name+' '+catBadge(c.categoria)+'</div><div class="timeline-date">Encerra '+fmtFull(c.fim)+' · '+(diff===0?'hoje':diff+' dia(s)')+'</div></div></div>';}).join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';
-const disp=[];all.forEach(c=>{(c.inbound?.wa||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'WhatsApp [INB-WPP]',color:'#25D366',data:d,cat:c.categoria});});(c.inbound?.email||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'E-mail [INB-EMAIL]',color:'#2196F3',data:d,cat:c.categoria});});(c.inbound?.sms||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'SMS [INB-SMS]',color:'#FF9800',data:d,cat:c.categoria});});(c.rede_social?.instagram||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Instagram [SOC-INST]',color:'#E91E63',data:d,cat:c.categoria});});(c.rede_social?.facebook||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Facebook [SOC-FACE]',color:'#1877F2',data:d,cat:c.categoria});});(c.rede_social?.linkedin||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'LinkedIn [SOC-LINK]',color:'#0A66C2',data:d,cat:c.categoria});});(c.rede_social?.blog||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Blog [SOC-BLOG]',color:'#6B5CE7',data:d,cat:c.categoria});});(c.rede_social?.outros||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Outros [SOC-OUT]',color:'#999',data:d,cat:c.categoria});});(c.performance?.meta_ads||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Meta Ads [PERF-META]',color:'#1877F2',data:d,cat:c.categoria});});(c.performance?.google_ads||[]).forEach(d=>{if(d>=ts)disp.push({nome:c.name,canal:'Google Ads [PERF-GOO]',color:'#4285F4',data:d,cat:c.categoria});});});disp.sort((a,b)=>a.data.localeCompare(b.data));document.getElementById('dash-disparos').innerHTML=disp.slice(0,6).map(d=>'<div class="timeline-item"><div class="timeline-dot" style="background:'+d.color+'"></div><div class="timeline-content"><div class="timeline-name">'+d.nome+' '+catBadge(d.cat)+'</div><div class="timeline-date">'+d.canal+' · '+fmtFull(d.data)+'</div></div></div>').join('')||'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação futura.</p>';
-const hoje=[];const canalMap=[[c=>c.inbound?.wa||[],'WhatsApp','#25D366'],[c=>c.inbound?.email||[],'E-mail','#2196F3'],[c=>c.inbound?.sms||[],'SMS','#FF9800'],[c=>c.rede_social?.instagram||[],'Instagram','#E91E63'],[c=>c.rede_social?.facebook||[],'Facebook','#1877F2'],[c=>c.rede_social?.linkedin||[],'LinkedIn','#0A66C2'],[c=>c.rede_social?.blog||[],'Blog','#6B5CE7'],[c=>c.rede_social?.outros||[],'Outros','#999'],[c=>c.performance?.meta_ads||[],'Meta Ads','#1877F2'],[c=>c.performance?.google_ads||[],'Google Ads','#4285F4'],];all.forEach(c=>{canalMap.forEach(([getter,nome,cor])=>{if((getter(c)||[]).includes(ts))hoje.push({campanha:c.name,color:c.color,canal:nome,cor});});});document.getElementById('dash-hoje').innerHTML=hoje.length?hoje.map(h=>'<div class="hoje-item"><div class="hoje-item-dot" style="background:'+h.color+'"></div><div class="hoje-item-info"><div class="hoje-item-nome">'+h.campanha+'</div><div class="hoje-item-canal">'+h.canal+'</div></div><div class="canal-stat-dot" style="background:'+h.cor+';width:8px;height:8px;border-radius:50%;"></div></div>').join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação programada para hoje.</p>';
-function destroyChart(id){const existing=Chart.getChart(id);if(existing)existing.destroy();}
+
+
 async function setDateState(campId,data,novoEstado,btnEl){const cp=campaigns.find(c=>c.id===campId);if(!cp)return;if(!cp.disparos_concluidos)cp.disparos_concluidos={};if(!cp.disparos_cancelados)cp.disparos_cancelados={};if(!cp.disparos_adiados)cp.disparos_adiados={};const jaEsta=((novoEstado==='concluida'&&cp.disparos_concluidos[data])||(novoEstado==='cancelada'&&cp.disparos_cancelados[data])||(novoEstado==='adiada'&&cp.disparos_adiados[data]));delete cp.disparos_concluidos[data];delete cp.disparos_cancelados[data];delete cp.disparos_adiados[data];const motivoInput=document.getElementById('motivo-'+campId+'-'+data.replace(/-/g,''));const motivoRow=motivoInput?.closest('.detail-motivo-row');if(!jaEsta){if(novoEstado==='concluida')cp.disparos_concluidos[data]=true;if(novoEstado==='cancelada')cp.disparos_cancelados[data]='';if(novoEstado==='adiada')cp.disparos_adiados[data]='';if(motivoRow){motivoRow.classList.toggle('visible',novoEstado!=='concluida');const color=novoEstado==='cancelada'?'#E53935':'#FFB300';motivoRow.querySelector('input').style.borderColor=color;}}else{if(motivoRow)motivoRow.classList.remove('visible');}const dateRow=btnEl?.closest('.detail-date-row');if(dateRow){dateRow.className="detail-date-row"+(jaEsta?"":novoEstado==="concluida"?" st-concluida":novoEstado==="cancelada"?" st-cancelada":" st-adiada");const estadoSpan=dateRow.querySelector('.detail-date-estado');if(estadoSpan)estadoSpan.remove();if(!jaEsta){const lbl=document.createElement('span');lbl.className='detail-date-estado';lbl.style.color=novoEstado==='concluida'?'#00C07A':novoEstado==='cancelada'?'#E53935':'#FFB300';lbl.textContent=novoEstado==='concluida'?'✅ Concluída':novoEstado==='cancelada'?'❌ Cancelada':'⏳ Adiada';dateRow.querySelector('.detail-date-label').after(lbl);}dateRow.querySelectorAll('.btn-state').forEach(b=>b.classList.remove('ativo'));if(!jaEsta)btnEl.classList.add('ativo');}try{await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_concluidos:cp.disparos_concluidos,disparos_cancelados:cp.disparos_cancelados,disparos_adiados:cp.disparos_adiados});renderDispatch();}catch(e){showToast('Erro ao salvar: '+e.message,'error');}}
 async function saveMotivo(campId,data){const cp=campaigns.find(c=>c.id===campId);if(!cp)return;const motivoInput=document.getElementById('motivo-'+campId+'-'+data.replace(/-/g,''));if(!motivoInput)return;const motivo=motivoInput.value.trim();if(cp.disparos_cancelados&&cp.disparos_cancelados[data]!==undefined)cp.disparos_cancelados[data]=motivo;if(cp.disparos_adiados&&cp.disparos_adiados[data]!==undefined)cp.disparos_adiados[data]=motivo;try{await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_cancelados:cp.disparos_cancelados,disparos_adiados:cp.disparos_adiados});showToast('Motivo salvo!');renderDispatch();}catch(e){showToast('Erro ao salvar motivo: '+e.message,'error');}}
 function rteCmd(id,cmd){const el=document.getElementById(id);if(!el)return;el.focus();document.execCommand(cmd,false,null);el.focus();}
@@ -1636,127 +1717,45 @@ let selectedStatus='ativa';
 function selectStatus(s){selectedStatus=s;['ativa','adiada','cancelada'].forEach(v=>{const el=document.getElementById('status-'+v);if(el)el.className='status-opt'+(v===s?' sel-'+v:'');});const block=document.getElementById('adiamento-block');if(block)block.classList.toggle('visible',s==='adiada');}
 function selectCat(cat){const idx=selectedCat.indexOf(cat);if(idx>-1){if(selectedCat.length>1)selectedCat.splice(idx,1);}else{selectedCat.push(cat);}['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(selectedCat.includes(c)?' sel-'+c:'');});}
 function addPerfDate(canal,inicio='',fim=''){const c=document.getElementById('canal-'+canal);const wrapper=document.createElement('div');wrapper.className='perf-pair-wrapper';wrapper.style.width='100%';const pair=document.createElement('div');pair.className='perf-date-pair';const colIn=document.createElement('div');colIn.innerHTML='<label>Data Início</label>';const inpIn=document.createElement('input');inpIn.className='form-input inp-perf-inicio';inpIn.type='date';inpIn.value=inicio;colIn.appendChild(inpIn);const colFim=document.createElement('div');colFim.innerHTML='<label>Data Fim</label>';const inpFim=document.createElement('input');inpFim.className='form-input inp-perf-fim';inpFim.type='date';inpFim.value=fim;colFim.appendChild(inpFim);const btnRemove=document.createElement('button');btnRemove.className='btn-remove-date';btnRemove.type='button';btnRemove.textContent='✕';btnRemove.style.alignSelf='flex-end';btnRemove.style.marginBottom='2px';btnRemove.onclick=()=>wrapper.remove();pair.appendChild(colIn);pair.appendChild(colFim);pair.appendChild(btnRemove);wrapper.appendChild(pair);c.appendChild(wrapper);}
-function addCanalDate(canal,value='',cancelado=false,motivoCancelamento='',concluido=false,adiado=false,infoAdiado=null){const c=document.getElementById('canal-'+canal);const wrapper=document.createElement('div');wrapper.style.width='100%';const row=document.createElement('div');row.className='canal-date-row';row.dataset.canal=canal;const inp=document.createElement('input');inp.className='form-input inp-data'+(cancelado?' canal-date-input-cancelado':'');inp.type='date';inp.value=value;const btnRemove=document.createElement('button');btnRemove.className='btn-remove-date';btnRemove.type='button';btnRemove.textContent='✕';btnRemove.onclick=()=>wrapper.remove();row.appendChild(inp);// Botões de ação (somente no modo edição)
-if(editingId){const actionBtns=document.createElement('div');actionBtns.className='disparo-action-btns';const bConcluir=document.createElement('button');bConcluir.type='button';bConcluir.className='btn-da concluir'+(concluido?' ativo':'');bConcluir.textContent='✅';bConcluir.title='Concluir';bConcluir.onclick=()=>{const d=inp.value;if(!d){showToast('Selecione uma data primeiro','error');return;}confirmConcluirDisparo(editingId,d,canal,bConcluir,row,wrapper);};const bAdiar=document.createElement('button');bAdiar.type='button';bAdiar.className='btn-da adiar'+(adiado?' ativo':'');bAdiar.textContent='⏳';bAdiar.title='Adiar';bAdiar.onclick=()=>{const d=inp.value;if(!d){showToast('Selecione uma data primeiro','error');return;}openAdiarModal(editingId,d,canal,bAdiar,row,wrapper);};const bCancelar=document.createElement('button');bCancelar.type='button';bCancelar.className='btn-da cancelar'+(cancelado?' ativo':'');bCancelar.textContent='❌';bCancelar.title='Cancelar';bCancelar.onclick=()=>{const d=inp.value;if(!d){showToast('Selecione uma data primeiro','error');return;}openCancelarModal(editingId,d,canal,bCancelar,row,wrapper);};actionBtns.appendChild(bConcluir);actionBtns.appendChild(bAdiar);actionBtns.appendChild(bCancelar);row.appendChild(actionBtns);}else{const btnCancel=document.createElement('button');btnCancel.className='btn-cancel-disparo'+(cancelado?' ativo':'');btnCancel.type='button';btnCancel.title='Cancelar esta ação';btnCancel.textContent='🚫';const justRow=document.createElement('div');justRow.className='disparo-cancelado-row'+(cancelado?' visible':'');justRow.innerHTML='<label>Motivo:</label><input type="text" placeholder="Justifique o cancelamento..." value="'+motivoCancelamento+'">';btnCancel.onclick=()=>{const isCancel=!justRow.classList.contains('visible');justRow.classList.toggle('visible',isCancel);btnCancel.classList.toggle('ativo',isCancel);inp.classList.toggle('canal-date-input-cancelado',isCancel);};row.appendChild(btnCancel);wrapper.appendChild(justRow);}row.appendChild(btnRemove);wrapper.appendChild(row);// Info de adiamento
-if(adiado&&infoAdiado){const infoEl=document.createElement('div');infoEl.className='disparo-view-info';const motivo=typeof infoAdiado==='object'?infoAdiado.motivo:(infoAdiado||'');const novaData=typeof infoAdiado==='object'?infoAdiado.nova_data:'';infoEl.innerHTML=(motivo?'<span>Motivo:</span> '+motivo:'')+(novaData?' · <span>Nova data:</span> '+fmtFull(novaData):'');wrapper.appendChild(infoEl);}c.appendChild(wrapper);}
+function addCanalDate(canal,value='',cancelado=false,motivoCancelamento='',concluido=false,adiado=false,infoAdiado=null){const c=document.getElementById('canal-'+canal);const wrapper=document.createElement('div');wrapper.style.width='100%';const row=document.createElement('div');row.className='canal-date-row';row.dataset.canal=canal;const inp=document.createElement('input');inp.className='form-input inp-data'+(cancelado?' canal-date-input-cancelado':'');inp.type='date';inp.value=value;const btnCancel=document.createElement('button');btnCancel.className='btn-cancel-disparo'+(cancelado?' ativo':'');btnCancel.type='button';btnCancel.title='Cancelar esta ação';btnCancel.textContent='🚫';const justRow=document.createElement('div');justRow.className='disparo-cancelado-row'+(cancelado?' visible':'');justRow.innerHTML='<label>Motivo:</label><input type="text" placeholder="Justifique o cancelamento..." value="'+motivoCancelamento+'">';const btnRemove=document.createElement('button');btnRemove.className='btn-remove-date';btnRemove.type='button';btnRemove.textContent='✕';btnRemove.onclick=()=>wrapper.remove();
+  if(editingId){
+    const ab=document.createElement('div');ab.className='disparo-action-btns';
+    const bC=document.createElement('button');bC.type='button';bC.className='btn-da concluir'+(concluido?' ativo':'');bC.textContent='✅';bC.title='Concluir';
+    bC.onclick=()=>{const d=inp.value;if(!d){showToast('Selecione uma data','error');return;}confirmConcluirDisparo(editingId,d,canal,bC,row);};
+    const bA=document.createElement('button');bA.type='button';bA.className='btn-da adiar'+(adiado?' ativo':'');bA.textContent='⏳';bA.title='Adiar';
+    bA.onclick=()=>{const d=inp.value;if(!d){showToast('Selecione uma data','error');return;}openAdiarModal(editingId,d,canal,bA,row);};
+    const bX=document.createElement('button');bX.type='button';bX.className='btn-da cancelar'+(cancelado?' ativo':'');bX.textContent='❌';bX.title='Cancelar';
+    bX.onclick=()=>{const d=inp.value;if(!d){showToast('Selecione uma data','error');return;}openCancelarModal(editingId,d,canal,bX,row);};
+    ab.appendChild(bC);ab.appendChild(bA);ab.appendChild(bX);row.appendChild(ab);
+  }
+  btnCancel.onclick=()=>{const isCancel=!justRow.classList.contains('visible');justRow.classList.toggle('visible',isCancel);btnCancel.classList.toggle('ativo',isCancel);inp.classList.toggle('canal-date-input-cancelado',isCancel);};row.appendChild(inp);row.appendChild(btnCancel);row.appendChild(btnRemove);wrapper.appendChild(row);wrapper.appendChild(justRow);c.appendChild(wrapper);}
 function getPerfDates(canal){return[...document.getElementById('canal-'+canal).querySelectorAll('.perf-pair-wrapper')].map(w=>{const ini=w.querySelector('.inp-perf-inicio');const fim=w.querySelector('.inp-perf-fim');if(ini&&fim&&(ini.value||fim.value))return{inicio:ini.value||'',fim:fim.value||''};return null;}).filter(Boolean);}
 function getCanalDates(canal){return[...document.getElementById('canal-'+canal).querySelectorAll('.canal-date-row')].map(row=>{const inp=row.querySelector('.inp-data');return inp&&inp.value?inp.value:null;}).filter(Boolean);}
 function getCanalCancelados(canal){const result={};[...document.getElementById('canal-'+canal).querySelectorAll('.canal-date-row')].forEach(row=>{const inp=row.querySelector('.inp-data');const justRow=row.parentElement.querySelector('.disparo-cancelado-row');const isCancelado=justRow&&justRow.classList.contains('visible');if(isCancelado&&inp&&inp.value){const motivo=justRow.querySelector('input[type=text]')?.value||'';result[inp.value]=motivo;}});return result;}
 function clearCanals(){['inbound_wa','inbound_email','inbound_sms','inbound_lp','rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros','rede_social_youtube','performance_meta_ads','performance_google_ads'].forEach(c=>document.getElementById('canal-'+c).innerHTML='');}
-function openNewModal(){if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem criar campanhas','error');return;}editingId=null;document.getElementById('template-section').style.display='';document.getElementById('f-template').value='';document.getElementById('form-title').textContent='Detalhes da Campanha';document.getElementById('btn-form-save').textContent='GRAVAR CAMPANHA';document.getElementById('btn-form-save').className='btn-save';document.getElementById('btn-delete-camp').style.display='none';['f-nome','f-inicio','f-fim','f-tags'].forEach(id=>document.getElementById(id).value='');['f-briefing','f-defesa'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='';});document.getElementById('status-section').style.display='none';clearCanals();buildColorPicker(getUniqueColor());selectedCat=['COMERCIAL'];['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(c==='COMERCIAL'?' sel-COMERCIAL':'');});document.getElementById('modal-form').classList.add('open');}
-function openEditModal(id){if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem editar campanhas','error');return;}const c=campaigns.find(x=>x.id===id);if(!c)return;editingId=id;document.getElementById('template-section').style.display='none';document.getElementById('form-title').textContent='Atualizar Campanha';document.getElementById('btn-form-save').textContent='SALVAR ALTERAÇÕES';document.getElementById('btn-form-save').className='btn-save update';document.getElementById('btn-delete-camp').style.display='block';document.getElementById('f-nome').value=c.name;document.getElementById('f-inicio').value=c.inicio;document.getElementById('f-fim').value=c.fim;const bEl=document.getElementById('f-briefing');if(bEl)bEl.innerHTML=c.briefing||'';const dEl=document.getElementById('f-defesa');if(dEl)dEl.innerHTML=c.defesa||'';document.getElementById('f-tags').value=c.tags||'';clearCanals();(c.inbound.wa||[]).forEach(d=>{const dc=c.disparos_cancelados||{};const dco=c.disparos_concluidos||{};const dao=c.disparos_adiados||{};addCanalDate('inbound_wa',d,!!dc[d],typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''),!!dco[d],Object.prototype.hasOwnProperty.call(dao,d)&&dao[d]!==undefined&&dao[d]!==null,dao[d]||null);});(c.inbound.email||[]).forEach(d=>{const dc=c.disparos_cancelados||{};const dco=c.disparos_concluidos||{};const dao=c.disparos_adiados||{};addCanalDate('inbound_email',d,!!dc[d],typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''),!!dco[d],Object.prototype.hasOwnProperty.call(dao,d)&&dao[d]!==undefined&&dao[d]!==null,dao[d]||null);});(c.inbound.sms||[]).forEach(d=>{const dc=c.disparos_cancelados||{};const dco=c.disparos_concluidos||{};const dao=c.disparos_adiados||{};addCanalDate('inbound_sms',d,!!dc[d],typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''),!!dco[d],Object.prototype.hasOwnProperty.call(dao,d)&&dao[d]!==undefined&&dao[d]!==null,dao[d]||null);});(c.inbound.lp||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_lp',d,!!dc[d],typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''));});(c.rede_social.instagram||[]).forEach(d=>{const dc=c.disparos_cancelados||{};const dco=c.disparos_concluidos||{};const dao=c.disparos_adiados||{};addCanalDate('rede_social_instagram',d,!!dc[d],typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''),!!dco[d],Object.prototype.hasOwnProperty.call(dao,d)&&dao[d]!==undefined&&dao[d]!==null,dao[d]||null);});(c.rede_social.facebook||[]).forEach(d=>{const dc=c.disparos_cancelados||{};const dco=c.disparos_concluidos||{};const dao=c.disparos_adiados||{};addCanalDate('rede_social_facebook',d,!!dc[d],typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''),!!dco[d],Object.prototype.hasOwnProperty.call(dao,d)&&dao[d]!==undefined&&dao[d]!==null,dao[d]||null);});(c.rede_social.linkedin||[]).forEach(d=>{const dc=c.disparos_cancelados||{};const dco=c.disparos_concluidos||{};const dao=c.disparos_adiados||{};addCanalDate('rede_social_linkedin',d,!!dc[d],typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''),!!dco[d],Object.prototype.hasOwnProperty.call(dao,d)&&dao[d]!==undefined&&dao[d]!==null,dao[d]||null);});(c.rede_social.blog||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_blog',d,!!dc[d],typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''));});(c.rede_social.outros||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_outros',d,!!dc[d],typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''));});(c.rede_social.youtube||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_youtube',d,!!dc[d],typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''));});const metaDates=c.performance.meta_ads||[];if(Array.isArray(metaDates)&&metaDates.length>0&&typeof metaDates[0]==='object'){metaDates.forEach(p=>addPerfDate('performance_meta_ads',p.inicio||'',p.fim||''));}else if(metaDates.length>0){addPerfDate('performance_meta_ads',metaDates[0]||'',c.performance.meta_ads_fim||'');}const googleDates=c.performance.google_ads||[];if(Array.isArray(googleDates)&&googleDates.length>0&&typeof googleDates[0]==='object'){googleDates.forEach(p=>addPerfDate('performance_google_ads',p.inicio||'',p.fim||''));}else if(googleDates.length>0){addPerfDate('performance_google_ads',googleDates[0]||'',c.performance.google_ads_fim||'');}document.getElementById('status-section').style.display='block';selectedStatus=c.status||'ativa';['ativa','adiada','cancelada'].forEach(v=>{const el=document.getElementById('status-'+v);if(el)el.className='status-opt'+(v===selectedStatus?' sel-'+v:'');});document.getElementById('adiamento-block').classList.toggle('visible',selectedStatus==='adiada');document.getElementById('f-motivo-adiamento').value=c.motivo_adiamento||'';document.getElementById('f-data-adiamento').value=c.data_adiamento||'';document.getElementById('f-deslocar-disparos').value='';buildColorPicker(c.color);selectedCat=Array.isArray(c.categoria)?[...c.categoria]:(c.categoria?[c.categoria]:['COMERCIAL']);['COMERCIAL','CONTEUDO','EVENTOS'].forEach(ct=>{document.getElementById('cat-'+ct).className='cat-opt'+(selectedCat.includes(ct)?' sel-'+ct:'');});document.getElementById('modal-form').classList.add('open');}
+function openNewModal(){if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem criar campanhas','error');return;}editingId=null;document.getElementById('form-title').textContent='Detalhes da Campanha';document.getElementById('btn-form-save').textContent='GRAVAR CAMPANHA';document.getElementById('btn-form-save').className='btn-save';document.getElementById('btn-delete-camp').style.display='none';['f-nome','f-inicio','f-fim','f-tags'].forEach(id=>document.getElementById(id).value='');['f-briefing','f-defesa'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='';});document.getElementById('status-section').style.display='none';clearCanals();buildColorPicker(getUniqueColor());selectedCat=['COMERCIAL'];['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(c==='COMERCIAL'?' sel-COMERCIAL':'');});document.getElementById('modal-form').classList.add('open');}
+function openEditModal(id){if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem editar campanhas','error');return;}const c=campaigns.find(x=>x.id===id);if(!c)return;editingId=id;document.getElementById('form-title').textContent='Atualizar Campanha';document.getElementById('btn-form-save').textContent='SALVAR ALTERAÇÕES';document.getElementById('btn-form-save').className='btn-save update';document.getElementById('btn-delete-camp').style.display='block';document.getElementById('f-nome').value=c.name;document.getElementById('f-inicio').value=c.inicio;document.getElementById('f-fim').value=c.fim;const bEl=document.getElementById('f-briefing');if(bEl)bEl.innerHTML=c.briefing||'';const dEl=document.getElementById('f-defesa');if(dEl)dEl.innerHTML=c.defesa||'';document.getElementById('f-tags').value=c.tags||'';clearCanals();(c.inbound.wa||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_wa',d,!!dc[d],dc[d]||'');});(c.inbound.email||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_email',d,!!dc[d],dc[d]||'');});(c.inbound.sms||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_sms',d,!!dc[d],dc[d]||'');});(c.inbound.lp||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_lp',d,!!dc[d],dc[d]||'');});(c.rede_social.instagram||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_instagram',d,!!dc[d],dc[d]||'');});(c.rede_social.facebook||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_facebook',d,!!dc[d],dc[d]||'');});(c.rede_social.linkedin||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_linkedin',d,!!dc[d],dc[d]||'');});(c.rede_social.blog||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_blog',d,!!dc[d],dc[d]||'');});(c.rede_social.outros||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_outros',d,!!dc[d],dc[d]||'');});(c.rede_social.youtube||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_youtube',d,!!dc[d],dc[d]||'');});const metaDates=c.performance.meta_ads||[];if(Array.isArray(metaDates)&&metaDates.length>0&&typeof metaDates[0]==='object'){metaDates.forEach(p=>addPerfDate('performance_meta_ads',p.inicio||'',p.fim||''));}else if(metaDates.length>0){addPerfDate('performance_meta_ads',metaDates[0]||'',c.performance.meta_ads_fim||'');}const googleDates=c.performance.google_ads||[];if(Array.isArray(googleDates)&&googleDates.length>0&&typeof googleDates[0]==='object'){googleDates.forEach(p=>addPerfDate('performance_google_ads',p.inicio||'',p.fim||''));}else if(googleDates.length>0){addPerfDate('performance_google_ads',googleDates[0]||'',c.performance.google_ads_fim||'');}document.getElementById('status-section').style.display='block';selectedStatus=c.status||'ativa';['ativa','adiada','cancelada'].forEach(v=>{const el=document.getElementById('status-'+v);if(el)el.className='status-opt'+(v===selectedStatus?' sel-'+v:'');});document.getElementById('adiamento-block').classList.toggle('visible',selectedStatus==='adiada');document.getElementById('f-motivo-adiamento').value=c.motivo_adiamento||'';document.getElementById('f-data-adiamento').value=c.data_adiamento||'';document.getElementById('f-deslocar-disparos').value='';buildColorPicker(c.color);selectedCat=Array.isArray(c.categoria)?[...c.categoria]:(c.categoria?[c.categoria]:['COMERCIAL']);['COMERCIAL','CONTEUDO','EVENTOS'].forEach(ct=>{document.getElementById('cat-'+ct).className='cat-opt'+(selectedCat.includes(ct)?' sel-'+ct:'');});document.getElementById('modal-form').classList.add('open');}
 function closeFormModal(){document.getElementById('modal-form').classList.remove('open');}
-async function saveCampaign(){const name=document.getElementById('f-nome').value.trim();const inicio=document.getElementById('f-inicio').value;const fim=document.getElementById('f-fim').value;if(!name||!inicio||!fim){showToast('Preencha nome e datas','error');return;}if(inicio>fim){showToast('Data início deve ser anterior ao fim','error');return;}// Aplicar template antes de coletar datas
-const templateVal=document.getElementById('f-template')?.value;if(templateVal==='fotus_semanal'&&!editingId){applyFotusTemplate(inicio,fim);}const existente=editingId?campaigns.find(c=>c.id===editingId):null;const data={name:toUpper(name),color:selectedColor,categoria:[...selectedCat],status:selectedStatus,inicio,fim,briefing:document.getElementById('f-briefing').innerHTML.trim(),defesa:document.getElementById('f-defesa').innerHTML.trim(),tags:document.getElementById('f-tags').value.trim(),inbound_wa:getCanalDates('inbound_wa'),inbound_email:getCanalDates('inbound_email'),inbound_sms:getCanalDates('inbound_sms'),inbound_lp:getCanalDates('inbound_lp'),rede_social_instagram:getCanalDates('rede_social_instagram'),rede_social_facebook:getCanalDates('rede_social_facebook'),rede_social_linkedin:getCanalDates('rede_social_linkedin'),rede_social_blog:getCanalDates('rede_social_blog'),rede_social_outros:getCanalDates('rede_social_outros'),rede_social_youtube:getCanalDates('rede_social_youtube'),disparos_cancelados:{...getCanalCancelados('inbound_wa'),...getCanalCancelados('inbound_email'),...getCanalCancelados('inbound_sms'),...getCanalCancelados('rede_social_instagram'),...getCanalCancelados('rede_social_facebook'),...getCanalCancelados('rede_social_linkedin'),...getCanalCancelados('rede_social_blog'),...getCanalCancelados('rede_social_outros'),...getCanalCancelados('performance_meta_ads'),...getCanalCancelados('performance_google_ads')},disparos_concluidos:existente?existente.disparos_concluidos||{}:{},disparos_adiados:existente?existente.disparos_adiados||{}:{},historico_alteracoes:existente?existente.historico_alteracoes||[]:[],motivo_adiamento:selectedStatus==='adiada'?document.getElementById('f-motivo-adiamento').value:'',data_adiamento:selectedStatus==='adiada'?document.getElementById('f-data-adiamento').value:'',disparos_deslocados:{},performance_meta_ads:getPerfDates('performance_meta_ads'),performance_meta_ads_inicio:'',performance_meta_ads_fim:'',performance_google_ads:getPerfDates('performance_google_ads'),performance_google_ads_inicio:'',performance_google_ads_fim:''};const novaDataDisparos=document.getElementById('f-deslocar-disparos')?.value;if(selectedStatus==='adiada'&&novaDataDisparos){['inbound_wa','inbound_email','inbound_sms','rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros','performance_meta_ads','performance_google_ads'].forEach(k=>{if(data[k]&&data[k].length>0)data[k]=data[k].map(()=>novaDataDisparos);});data.disparos_deslocados={data_original:data.inicio,deslocado_para:novaDataDisparos};}const btn=document.getElementById('btn-form-save');btn.disabled=true;btn.textContent='Salvando...';showLoading();try{if(editingId){await dbUpdate(editingId,data);const idx=campaigns.findIndex(c=>c.id===editingId);if(idx>=0){const updated={...campaigns[idx]};Object.assign(updated,{name:data.name,color:data.color,categoria:data.categoria,inicio:data.inicio,fim:data.fim,briefing:data.briefing,defesa:data.defesa,tags:data.tags,disparos_concluidos:data.disparos_concluidos,disparos_cancelados:data.disparos_cancelados,disparos_adiados:data.disparos_adiados,historico_alteracoes:data.historico_alteracoes});updated.inbound={wa:data.inbound_wa,sms:data.inbound_sms,email:data.inbound_email,lp:data.inbound_lp};updated.rede_social={instagram:data.rede_social_instagram,facebook:data.rede_social_facebook,linkedin:data.rede_social_linkedin,blog:data.rede_social_blog,outros:data.rede_social_outros,youtube:data.rede_social_youtube};updated.performance={meta_ads:data.performance_meta_ads,meta_ads_inicio:data.performance_meta_ads_inicio,meta_ads_fim:data.performance_meta_ads_fim,google_ads:data.performance_google_ads,google_ads_inicio:data.performance_google_ads_inicio,google_ads_fim:data.performance_google_ads_fim};updated.mes_ref=getMesRef(data.inicio);campaigns[idx]=updated;}showToast('Campanha atualizada com sucesso!');}else{const novo=await dbInsert(data);if(novo)campaigns.push(novo);showToast('Campanha gravada com sucesso!');}closeFormModal();renderAll();}catch(e){showToast('Erro ao salvar: '+e.message,'error');}finally{hideLoading();btn.disabled=false;btn.textContent=editingId?'SALVAR ALTERAÇÕES':'GRAVAR CAMPANHA';}}
+async function saveCampaign(){const name=document.getElementById('f-nome').value.trim();const inicio=document.getElementById('f-inicio').value;const fim=document.getElementById('f-fim').value;if(!name||!inicio||!fim){showToast('Preencha nome e datas','error');return;}if(inicio>fim){showToast('Data início deve ser anterior ao fim','error');return;}const existente=editingId?campaigns.find(c=>c.id===editingId):null;
+const data={name:toUpper(name),color:selectedColor,categoria:[...selectedCat],status:selectedStatus,inicio,fim,briefing:document.getElementById('f-briefing').innerHTML.trim(),defesa:document.getElementById('f-defesa').innerHTML.trim(),tags:document.getElementById('f-tags').value.trim(),inbound_wa:getCanalDates('inbound_wa'),inbound_email:getCanalDates('inbound_email'),inbound_sms:getCanalDates('inbound_sms'),inbound_lp:getCanalDates('inbound_lp'),rede_social_instagram:getCanalDates('rede_social_instagram'),rede_social_facebook:getCanalDates('rede_social_facebook'),rede_social_linkedin:getCanalDates('rede_social_linkedin'),rede_social_blog:getCanalDates('rede_social_blog'),rede_social_outros:getCanalDates('rede_social_outros'),rede_social_youtube:getCanalDates('rede_social_youtube'),disparos_concluidos:existente?existente.disparos_concluidos||{}:{},disparos_adiados:existente?existente.disparos_adiados||{}:{},historico_alteracoes:existente?existente.historico_alteracoes||[]:[],disparos_cancelados:{...getCanalCancelados('inbound_wa'),...getCanalCancelados('inbound_email'),...getCanalCancelados('inbound_sms'),...getCanalCancelados('rede_social_instagram'),...getCanalCancelados('rede_social_facebook'),...getCanalCancelados('rede_social_linkedin'),...getCanalCancelados('rede_social_blog'),...getCanalCancelados('rede_social_outros'),...getCanalCancelados('performance_meta_ads'),...getCanalCancelados('performance_google_ads')},motivo_adiamento:selectedStatus==='adiada'?document.getElementById('f-motivo-adiamento').value:'',data_adiamento:selectedStatus==='adiada'?document.getElementById('f-data-adiamento').value:'',disparos_deslocados:{},performance_meta_ads:getPerfDates('performance_meta_ads'),performance_meta_ads_inicio:'',performance_meta_ads_fim:'',performance_google_ads:getPerfDates('performance_google_ads'),performance_google_ads_inicio:'',performance_google_ads_fim:''};const novaDataDisparos=document.getElementById('f-deslocar-disparos')?.value;if(selectedStatus==='adiada'&&novaDataDisparos){['inbound_wa','inbound_email','inbound_sms','rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros','performance_meta_ads','performance_google_ads'].forEach(k=>{if(data[k]&&data[k].length>0)data[k]=data[k].map(()=>novaDataDisparos);});data.disparos_deslocados={data_original:data.inicio,deslocado_para:novaDataDisparos};}const btn=document.getElementById('btn-form-save');btn.disabled=true;btn.textContent='Salvando...';showLoading();try{if(editingId){await dbUpdate(editingId,data);const idx=campaigns.findIndex(c=>c.id===editingId);if(idx>=0){const updated={...campaigns[idx]};Object.assign(updated,{name:data.name,color:data.color,categoria:data.categoria,inicio:data.inicio,fim:data.fim,briefing:data.briefing,defesa:data.defesa,tags:data.tags,disparos_concluidos:data.disparos_concluidos,disparos_cancelados:data.disparos_cancelados,disparos_adiados:data.disparos_adiados,historico_alteracoes:data.historico_alteracoes});updated.inbound={wa:data.inbound_wa,sms:data.inbound_sms,email:data.inbound_email,lp:data.inbound_lp};updated.rede_social={instagram:data.rede_social_instagram,facebook:data.rede_social_facebook,linkedin:data.rede_social_linkedin,blog:data.rede_social_blog,outros:data.rede_social_outros,youtube:data.rede_social_youtube};updated.performance={meta_ads:data.performance_meta_ads,meta_ads_inicio:data.performance_meta_ads_inicio,meta_ads_fim:data.performance_meta_ads_fim,google_ads:data.performance_google_ads,google_ads_inicio:data.performance_google_ads_inicio,google_ads_fim:data.performance_google_ads_fim};updated.mes_ref=getMesRef(data.inicio);campaigns[idx]=updated;}showToast('Campanha atualizada com sucesso!');}else{const novo=await dbInsert(data);if(novo)campaigns.push(novo);showToast('Campanha gravada com sucesso!');}closeFormModal();renderAll();}catch(e){showToast('Erro ao salvar: '+e.message,'error');}finally{hideLoading();btn.disabled=false;btn.textContent=editingId?'SALVAR ALTERAÇÕES':'GRAVAR CAMPANHA';}}
 async function deleteCampaign(){if(!confirm('Excluir esta campanha?'))return;showLoading();try{await dbDelete(editingId);campaigns=campaigns.filter(c=>c.id!==editingId);closeFormModal();renderAll();showToast('Campanha excluída.');}catch(e){showToast('Erro ao excluir: '+e.message,'error');}finally{hideLoading();}}
-function openDetailModal(id){const c=campaigns.find(x=>x.id===id);if(!c)return;detailId=id;document.getElementById('detail-color-bar').style.background=c.color;document.getElementById('detail-name').textContent=c.name;document.getElementById('detail-cat-badge').innerHTML=catBadge(c.categoria);const tagsRow=document.getElementById('detail-tags-row');if(tagsRow)tagsRow.innerHTML=renderTags(c.tags||'');document.getElementById('detail-vig').textContent=fmtFull(c.inicio)+' – '+fmtFull(c.fim);const st=getStatus(c);document.getElementById('detail-status').innerHTML='<span style="color:'+st.color+';font-weight:600">'+st.label+'</span>';const brifEl=document.getElementById('detail-briefing');brifEl.className='detail-rich';brifEl.innerHTML=c.briefing||'<span style="color:var(--gray-400)">—</span>';const defEl=document.getElementById('detail-defesa');defEl.className='detail-rich';defEl.innerHTML=c.defesa||'<span style="color:var(--gray-400)">—</span>';const canais=document.getElementById('detail-canais');canais.innerHTML='';const canalData=[[c.inbound.wa,'WhatsApp','#25D366'],[c.inbound.email,'E-mail','#2196F3'],[c.inbound.sms,'SMS','#FF9800'],[c.rede_social.instagram,'Instagram','#E91E63'],[c.rede_social.facebook,'Facebook','#1877F2'],[c.rede_social.linkedin,'LinkedIn','#0A66C2'],[c.rede_social.blog,'Blog','#6B5CE7'],[c.rede_social.outros,'Outros','#9BA3B8'],[c.performance.meta_ads,'Meta Ads','#1877F2'],[c.performance.google_ads,'Google Ads','#4285F4']];let perfPeriods='';if(c.performance.meta_ads_inicio&&c.performance.meta_ads_fim){perfPeriods+='<div style="font-size:11px;color:var(--gray-600);margin-top:6px;">Meta Ads: '+fmtFull(c.performance.meta_ads_inicio)+' – '+fmtFull(c.performance.meta_ads_fim)+'</div>';}if(c.performance.google_ads_inicio&&c.performance.google_ads_fim){perfPeriods+='<div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Google Ads: '+fmtFull(c.performance.google_ads_inicio)+' – '+fmtFull(c.performance.google_ads_fim)+'</div>';}let hasAny=false;canalData.forEach(([dates,lbl,col])=>{if(!(dates&&dates.length))return;hasAny=true;const sec=document.createElement('div');sec.className='detail-canal-section';sec.innerHTML='<div class="detail-canal-title"><div class="detail-canal-dot" style="background:'+col+'"></div>'+lbl+'</div>';dates.forEach(d=>{const isConcluida=!!(c.disparos_concluidos&&c.disparos_concluidos[d]);const isCancelada=!!(c.disparos_cancelados&&c.disparos_cancelados[d]!==undefined&&Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d));const isAdiada=!!(c.disparos_adiados&&c.disparos_adiados[d]!==undefined&&c.disparos_adiados[d]!==null&&Object.prototype.hasOwnProperty.call(c.disparos_adiados,d));const stClass=isConcluida?'st-concluida':isCancelada?'st-cancelada':isAdiada?'st-adiada':'';const stLabel=isConcluida?'<span class="detail-date-estado" style="color:#00C07A">✅ Concluída</span>':isCancelada?'<span class="detail-date-estado" style="color:#E53935">❌ Cancelada</span>':isAdiada?'<span class="detail-date-estado" style="color:#FFB300">⏳ Adiada</span>':'<span class="detail-date-estado" style="color:var(--gray-400)">📅 Programada</span>';const row=document.createElement('div');row.className='detail-date-row '+stClass;row.innerHTML='<span class="detail-date-label">'+fmtFull(d)+'</span>'+stLabel;sec.appendChild(row);if(isCancelada){const info=c.disparos_cancelados[d];const motivo=typeof info==='object'?info.motivo:(info||'');const obs=typeof info==='object'?(info.observacao||''):'';if(motivo||obs){const infoEl=document.createElement('div');infoEl.className='disparo-view-info';infoEl.innerHTML=(motivo?'<span>Motivo:</span> '+motivo:'')+(obs?' · <span>Obs:</span> '+obs:'');sec.appendChild(infoEl);}}else if(isAdiada){const info=c.disparos_adiados[d];const motivo=typeof info==='object'?info.motivo:(info||'');const novaData=typeof info==='object'?(info.nova_data||''):'';const obs=typeof info==='object'?(info.observacao||''):'';let txt='';if(motivo)txt+='<span>Motivo:</span> '+motivo;if(novaData)txt+=(txt?' · ':'')+'<span>Nova data:</span> '+fmtFull(novaData);if(obs)txt+=' · <span>Obs:</span> '+obs;if(txt){const infoEl=document.createElement('div');infoEl.className='disparo-view-info';infoEl.innerHTML=txt;sec.appendChild(infoEl);}}});canais.appendChild(sec);});if(perfPeriods){const pd=document.createElement('div');pd.innerHTML=perfPeriods;canais.appendChild(pd);}if(!hasAny)canais.innerHTML='<span style="color:var(--gray-400);font-size:13px;">Nenhum canal configurado.</span>';// Renderizar histórico
-const historico=c.historico_alteracoes||[];const histSec=document.getElementById('detail-historico-section');const histList=document.getElementById('detail-historico-list');if(historico.length>0){histSec.style.display='';histList.innerHTML='';[...historico].reverse().forEach(h=>{const item=document.createElement('div');item.className='historico-item';const acaoLabel=h.acao==='adiado'?'⏳ Adiado':h.acao==='cancelado'?'❌ Cancelado':'✅ Concluído';item.innerHTML='<div class="historico-item-date">'+h.data_alteracao_fmt+'</div><div class="historico-item-desc">'+h.canal+' '+acaoLabel+(h.nova_data?' → '+fmtFull(h.nova_data):'')+' <span style="font-size:10px;color:var(--gray-400)">| Data: '+fmtFull(h.data_disparo)+'</span></div>'+(h.motivo?'<div class="historico-item-sub">Motivo: '+h.motivo+(h.observacao?' · '+h.observacao:'')+'</div>':'')+'<div class="historico-item-by">Por: '+h.alterado_por+'</div>';histList.appendChild(item);});}else{histSec.style.display='none';}const isUserRole=currentUser&&currentUser.role==='user';document.getElementById('btn-edit-from-detail').style.display=isUserRole?'none':'';const detailAcoesSection=document.getElementById('detail-acoes-section');if(detailAcoesSection)detailAcoesSection.style.display='';document.getElementById('modal-detail').classList.add('open');}
-function closeDetailModal(){document.getElementById('modal-detail').classList.remove('open');}
-
-// ── COLLAPSIBLE SECTIONS ──────────────────────────────────────────
-function toggleSection(sectionId){const sec=document.getElementById(sectionId);const body=sec.querySelector('.collapsible-body');const arrow=sec.querySelector('.collapsible-arrow');body.classList.toggle('open');arrow.classList.toggle('open');}
-
-// ── HOVER PREVIEW ─────────────────────────────────────────────────
-let _hoverTimer=null;
-const _canalColors={'inbound_wa':'#25D366','inbound_email':'#2196F3','inbound_sms':'#FF9800','rede_social_instagram':'#E91E63','rede_social_facebook':'#1877F2','rede_social_linkedin':'#0A66C2','rede_social_blog':'#6B5CE7','rede_social_outros':'#9BA3B8','performance_meta_ads':'#1877F2','performance_google_ads':'#4285F4'};
-const _canalGetters=[[c=>c.inbound?.wa||[],'inbound_wa','WhatsApp'],[c=>c.inbound?.email||[],'inbound_email','E-mail'],[c=>c.inbound?.sms||[],'inbound_sms','SMS'],[c=>c.rede_social?.instagram||[],'rede_social_instagram','Instagram'],[c=>c.rede_social?.facebook||[],'rede_social_facebook','Facebook'],[c=>c.rede_social?.linkedin||[],'rede_social_linkedin','LinkedIn'],[c=>c.rede_social?.blog||[],'rede_social_blog','Blog'],[c=>c.rede_social?.outros||[],'rede_social_outros','Outros'],[c=>c.performance?.meta_ads||[],'performance_meta_ads','Meta Ads'],[c=>c.performance?.google_ads||[],'performance_google_ads','Google Ads']];
-
-function showCampPreview(campId, anchorEl){
-  const cp=campaigns.find(c=>c.id===campId);
-  if(!cp)return;
-  const prev=document.getElementById('camp-hover-preview');
-
-  // Conteúdo
-  document.getElementById('chp-color-bar').style.background=cp.color;
-  document.getElementById('chp-name').textContent=cp.name;
-
-  // Objetivo (briefing sem HTML)
-  const obj=(cp.briefing||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-  document.getElementById('chp-objetivo').textContent=obj||'—';
-
-  // Segmento (tags ou categoria)
-  const seg=cp.tags?cp.tags.split(',').map(t=>t.trim()).filter(Boolean).join(', '):'';
-  document.getElementById('chp-segmento').textContent=seg||catLabel(cp.categoria)||'—';
-
-  // Disparos: total, executados
-  const today=toStr(new Date());
-  let total=0,executados=0;
-  _canalGetters.forEach(([getter])=>{
-    const dates=getter(cp)||[];
-    total+=dates.length;
-    dates.forEach(d=>{if(cp.disparos_concluidos&&cp.disparos_concluidos[d])executados++;});
-  });
-  const pct=total>0?Math.round(executados/total*100):0;
-  document.getElementById('chp-disparos').textContent=executados+' de '+total+' ('+pct+'%)';
-  document.getElementById('chp-progress-fill').style.width=pct+'%';
-
-  // Próximo disparo
-  const futuros=[];
-  _canalGetters.forEach(([getter,key,label])=>{
-    (getter(cp)||[]).forEach(d=>{
-      if(d>=today&&!(cp.disparos_concluidos&&cp.disparos_concluidos[d])&&!(cp.disparos_cancelados&&Object.prototype.hasOwnProperty.call(cp.disparos_cancelados,d))){
-        futuros.push({data:d,label,color:_canalColors[key]||cp.color});
-      }
-    });
-  });
-  futuros.sort((a,b)=>a.data.localeCompare(b.data));
-  const nextEl=document.getElementById('chp-next');
-  if(futuros.length>0){
-    const n=futuros[0];
-    nextEl.innerHTML='<div class="chp-next-dot" style="background:'+n.color+'"></div><div class="chp-next-text">'+fmtFull(n.data)+' — '+n.label+'</div>';
-  }else{
-    nextEl.innerHTML='<div class="chp-next-text" style="color:var(--gray-400)">Nenhum programado</div>';
+function openDetailModal(id){const c=campaigns.find(x=>x.id===id);if(!c)return;detailId=id;document.getElementById('detail-color-bar').style.background=c.color;document.getElementById('detail-name').textContent=c.name;document.getElementById('detail-cat-badge').innerHTML=catBadge(c.categoria);const tagsRow=document.getElementById('detail-tags-row');if(tagsRow)tagsRow.innerHTML=renderTags(c.tags||'');document.getElementById('detail-vig').textContent=fmtFull(c.inicio)+' – '+fmtFull(c.fim);const st=getStatus(c);document.getElementById('detail-status').innerHTML='<span style="color:'+st.color+';font-weight:600">'+st.label+'</span>';const brifEl=document.getElementById('detail-briefing');brifEl.className='detail-rich';brifEl.innerHTML=c.briefing||'<span style="color:var(--gray-400)">—</span>';const defEl=document.getElementById('detail-defesa');defEl.className='detail-rich';defEl.innerHTML=c.defesa||'<span style="color:var(--gray-400)">—</span>';const canais=document.getElementById('detail-canais');canais.innerHTML='';const canalData=[[c.inbound.wa,'WhatsApp','#25D366'],[c.inbound.email,'E-mail','#2196F3'],[c.inbound.sms,'SMS','#FF9800'],[c.rede_social.instagram,'Instagram','#E91E63'],[c.rede_social.facebook,'Facebook','#1877F2'],[c.rede_social.linkedin,'LinkedIn','#0A66C2'],[c.rede_social.blog,'Blog','#6B5CE7'],[c.rede_social.outros,'Outros','#9BA3B8'],[c.performance.meta_ads,'Meta Ads','#1877F2'],[c.performance.google_ads,'Google Ads','#4285F4']];let perfPeriods='';if(c.performance.meta_ads_inicio&&c.performance.meta_ads_fim){perfPeriods+='<div style="font-size:11px;color:var(--gray-600);margin-top:6px;">Meta Ads: '+fmtFull(c.performance.meta_ads_inicio)+' – '+fmtFull(c.performance.meta_ads_fim)+'</div>';}if(c.performance.google_ads_inicio&&c.performance.google_ads_fim){perfPeriods+='<div style="font-size:11px;color:var(--gray-600);margin-top:4px;">Google Ads: '+fmtFull(c.performance.google_ads_inicio)+' – '+fmtFull(c.performance.google_ads_fim)+'</div>';}let hasAny=false;canalData.forEach(([dates,lbl,col])=>{if(!(dates&&dates.length))return;hasAny=true;const sec=document.createElement('div');sec.className='detail-canal-section';sec.innerHTML='<div class="detail-canal-title"><div class="detail-canal-dot" style="background:'+col+'"></div>'+lbl+'</div>';dates.forEach(d=>{const isConcluida=!!(c.disparos_concluidos&&c.disparos_concluidos[d]);const isCancelada=!!(c.disparos_cancelados&&c.disparos_cancelados[d]);const isAdiada=!!(c.disparos_adiados&&c.disparos_adiados[d]);const stClass=isConcluida?'st-concluida':isCancelada?'st-cancelada':isAdiada?'st-adiada':'';const stLabel=isConcluida?'<span class="detail-date-estado" style="color:#00C07A">✅ Concluída</span>':isCancelada?'<span class="detail-date-estado" style="color:#E53935">❌ Cancelada</span>':isAdiada?'<span class="detail-date-estado" style="color:#FFB300">⏳ Adiada</span>':'';const row=document.createElement('div');row.className='detail-date-row '+stClass;row.innerHTML='<span class="detail-date-label">'+fmtFull(d)+'</span>'+stLabel+'<div class="detail-state-btns"><button type="button" class="btn-state concluir'+(isConcluida?' ativo':'')+'" onclick="setDateState('+c.id+',&quot;'+d+'&quot;,&quot;concluida&quot;,this)">✅</button><button type="button" class="btn-state adiar'+(isAdiada?' ativo':'')+'" onclick="setDateState('+c.id+',&quot;'+d+'&quot;,&quot;adiada&quot;,this)">⏳</button><button type="button" class="btn-state cancelar'+(isCancelada?' ativo':'')+'" onclick="setDateState('+c.id+',&quot;'+d+'&quot;,&quot;cancelada&quot;,this)">❌</button></div>';const motivoRow=document.createElement('div');motivoRow.className='detail-motivo-row'+(isCancelada||isAdiada?' visible':'');const motivoVal=isCancelada?(c.disparos_cancelados[d]||''):isAdiada?(c.disparos_adiados[d]||''):'';const motivoColor=isCancelada?'#E53935':'#FFB300';motivoRow.innerHTML='<input type="text" placeholder="Motivo (opcional)" value="'+motivoVal+'" style="border-color:'+motivoColor+'" id="motivo-'+c.id+'-'+d.replace(/-/g,'')+'"><button type="button" class="btn-motivo-save" onclick="saveMotivo('+c.id+',&quot;'+d+'&quot;)">Salvar</button>';sec.appendChild(row);sec.appendChild(motivoRow);});canais.appendChild(sec);});if(perfPeriods){const pd=document.createElement('div');pd.innerHTML=perfPeriods;canais.appendChild(pd);}if(!hasAny)canais.innerHTML='<span style="color:var(--gray-400);font-size:13px;">Nenhum canal configurado.</span>';const isUserRole=currentUser&&currentUser.role==='user';document.getElementById('btn-edit-from-detail').style.display=isUserRole?'none':'';const detailAcoesSection=document.getElementById('detail-acoes-section');if(detailAcoesSection)detailAcoesSection.style.display=isUserRole?'none':'';// Histórico
+  const historico=(c.historico_alteracoes||[]);
+  const histSec=document.getElementById('detail-historico-section');
+  const histList=document.getElementById('detail-historico-list');
+  if(histSec && histList){
+    if(historico.length>0){
+      histSec.style.display='';histList.innerHTML='';
+      [...historico].reverse().forEach(h=>{
+        const item=document.createElement('div');item.className='historico-item';
+        const al=h.acao==='adiado'?'⏳ Adiado':h.acao==='cancelado'?'❌ Cancelado':'✅ Concluído';
+        item.innerHTML='<div class="historico-item-date">'+h.data_alteracao_fmt+'</div><div class="historico-item-desc">'+h.canal+' '+al+(h.nova_data?' → '+fmtFull(h.nova_data):'')+' <span style="font-size:10px;color:var(--gray-400)">| '+fmtFull(h.data_disparo)+'</span></div>'+(h.motivo?'<div class="historico-item-sub">Motivo: '+h.motivo+(h.observacao?' · '+h.observacao:'')+'</div>':'')+'<div class="historico-item-by">Por: '+h.alterado_por+'</div>';
+        histList.appendChild(item);
+      });
+    }else{histSec.style.display='none';}
   }
-
-  // Posicionamento
-  const rect=anchorEl.getBoundingClientRect();
-  const vw=window.innerWidth,vh=window.innerHeight;
-  prev.style.display='block';
-  prev.style.opacity='0';
-  const pw=prev.offsetWidth||240,ph=prev.offsetHeight||200;
-  let left=rect.left,top=rect.bottom+6;
-  if(left+pw>vw-8)left=vw-pw-8;
-  if(top+ph>vh-8)top=rect.top-ph-6;
-  prev.style.left=left+'px';
-  prev.style.top=top+'px';
-  prev.classList.add('visible');
-}
-
-function hideCampPreview(){
-  const prev=document.getElementById('camp-hover-preview');
-  prev.classList.remove('visible');
-  setTimeout(()=>{if(!prev.classList.contains('visible'))prev.style.display='none';},150);
-}
-
-function catLabel(cat){
-  const arr=Array.isArray(cat)?cat:[cat||''];
-  return arr.map(c=>({COMERCIAL:'Comercial',CONTEUDO:'Conteúdo',EVENTOS:'Eventos'}[c]||c)).join(', ');
-}
-
-// ── DISPARO ACTIONS (modal edição) ────────────────────────────────
-let _disparoCtx={campId:null,data:null,canal:null,btnEl:null,rowEl:null,wrapperEl:null};
-
-async function confirmConcluirDisparo(campId,data,canal,btnEl,rowEl,wrapperEl){const cp=campaigns.find(c=>c.id===campId);if(!cp)return;if(!cp.disparos_concluidos)cp.disparos_concluidos={};if(!cp.disparos_adiados)cp.disparos_adiados={};if(!cp.disparos_cancelados)cp.disparos_cancelados={};const jaEsta=!!cp.disparos_concluidos[data];delete cp.disparos_concluidos[data];delete cp.disparos_adiados[data];delete cp.disparos_cancelados[data];if(!jaEsta){cp.disparos_concluidos[data]=true;btnEl.classList.add('ativo');}else{btnEl.classList.remove('ativo');}rowEl.querySelectorAll('.btn-da').forEach(b=>b.classList.remove('ativo'));if(!jaEsta)btnEl.classList.add('ativo');// Adicionar ao histórico
-if(!jaEsta){if(!cp.historico_alteracoes)cp.historico_alteracoes=[];cp.historico_alteracoes.push({data_disparo:data,canal:canalLabel(canal),acao:'concluido',alterado_por:currentUser.nome,data_alteracao_fmt:new Date().toLocaleDateString('pt-BR'),data_alteracao:new Date().toISOString()});}try{await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_concluidos:cp.disparos_concluidos,disparos_cancelados:cp.disparos_cancelados,disparos_adiados:cp.disparos_adiados,historico_alteracoes:cp.historico_alteracoes||[]});showToast(jaEsta?'Status removido':'✅ Marcado como concluído!','success');renderDispatch();}catch(e){showToast('Erro ao salvar: '+e.message,'error');}}
-
-function openAdiarModal(campId,data,canal,btnEl,rowEl,wrapperEl){_disparoCtx={campId,data,canal,btnEl,rowEl,wrapperEl};document.getElementById('modal-adiar-disparo')?.remove();const ov=document.createElement('div');ov.id='modal-adiar-disparo';ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;';ov.innerHTML=`<div style="background:white;border-radius:20px;padding:28px 32px;width:460px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);font-family:'Sora',sans-serif;"><div style="font-size:17px;font-weight:700;margin-bottom:4px;">⏳ Adiar Disparo</div><div style="font-size:12px;color:#9BA3B8;margin-bottom:20px;">${canalLabel(canal)} · ${fmtFull(data)}</div><div style="margin-bottom:14px;"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6375;display:block;margin-bottom:6px;">Nova Data *</label><input type="date" id="adiar-nova-data" style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;outline:none;"></div><div style="margin-bottom:14px;"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6375;display:block;margin-bottom:6px;">Motivo da Alteração *</label><select id="adiar-motivo-sel" style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;background:white;outline:none;cursor:pointer;" onchange="document.getElementById('adiar-outro-wrap').style.display=this.value==='Outro'?'block':'none'"><option value="">Selecione o motivo...</option><option>Ajuste de calendário</option><option>Dependência de material</option><option>Mudança de estratégia</option><option>Problema operacional</option><option>Aguardando aprovação</option><option>Outro</option></select><div id="adiar-outro-wrap" style="display:none;margin-top:8px;"><input type="text" id="adiar-outro-txt" placeholder="Descreva o motivo..." style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;outline:none;"></div></div><div style="margin-bottom:20px;"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6375;display:block;margin-bottom:6px;">Observação (opcional)</label><input type="text" id="adiar-obs" placeholder="Ex: conflito com webinar" style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;outline:none;"></div><div id="adiar-error" style="color:#E53935;font-size:12px;margin-bottom:10px;display:none;"></div><div style="display:flex;gap:10px;justify-content:flex-end;"><button type="button" onclick="document.getElementById('modal-adiar-disparo').remove()" style="padding:10px 18px;border:1.5px solid #E2E6EF;background:white;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;color:#5A6375;">Cancelar</button><button type="button" onclick="confirmAdiarDisparo()" style="padding:10px 20px;background:#FFB300;color:white;border:none;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;">Confirmar Adiamento</button></div></div>`;document.body.appendChild(ov);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});}
-
-async function confirmAdiarDisparo(){const novaData=document.getElementById('adiar-nova-data').value;const motivoSel=document.getElementById('adiar-motivo-sel').value;const motivoOutro=document.getElementById('adiar-outro-txt')?.value.trim();const obs=document.getElementById('adiar-obs').value.trim();const errEl=document.getElementById('adiar-error');if(!novaData){errEl.textContent='Selecione a nova data.';errEl.style.display='block';return;}if(!motivoSel){errEl.textContent='Selecione o motivo (obrigatório).';errEl.style.display='block';return;}if(motivoSel==='Outro'&&!motivoOutro){errEl.textContent='Descreva o motivo.';errEl.style.display='block';return;}const motivo=motivoSel==='Outro'?motivoOutro:motivoSel;const{campId,data,canal,btnEl,rowEl}=_disparoCtx;const cp=campaigns.find(c=>c.id===campId);if(!cp)return;if(!cp.disparos_adiados)cp.disparos_adiados={};if(!cp.disparos_concluidos)cp.disparos_concluidos={};if(!cp.disparos_cancelados)cp.disparos_cancelados={};delete cp.disparos_concluidos[data];delete cp.disparos_cancelados[data];cp.disparos_adiados[data]={nova_data:novaData,motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao:new Date().toISOString()};if(!cp.historico_alteracoes)cp.historico_alteracoes=[];cp.historico_alteracoes.push({data_disparo:data,canal:canalLabel(canal),acao:'adiado',nova_data:novaData,motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao_fmt:new Date().toLocaleDateString('pt-BR'),data_alteracao:new Date().toISOString()});try{await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_concluidos:cp.disparos_concluidos,disparos_cancelados:cp.disparos_cancelados,disparos_adiados:cp.disparos_adiados,historico_alteracoes:cp.historico_alteracoes});document.getElementById('modal-adiar-disparo').remove();showToast('⏳ Disparo adiado para '+fmtFull(novaData),'success');renderDispatch();}catch(e){document.getElementById('adiar-error').textContent='Erro ao salvar: '+e.message;document.getElementById('adiar-error').style.display='block';}}
-
-function openCancelarModal(campId,data,canal,btnEl,rowEl,wrapperEl){_disparoCtx={campId,data,canal,btnEl,rowEl,wrapperEl};document.getElementById('modal-cancelar-disparo')?.remove();const ov=document.createElement('div');ov.id='modal-cancelar-disparo';ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:10000;display:flex;align-items:center;justify-content:center;';ov.innerHTML=`<div style="background:white;border-radius:20px;padding:28px 32px;width:460px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.25);font-family:'Sora',sans-serif;"><div style="font-size:17px;font-weight:700;margin-bottom:4px;">❌ Cancelar Disparo</div><div style="font-size:12px;color:#9BA3B8;margin-bottom:20px;">${canalLabel(canal)} · ${fmtFull(data)}</div><div style="margin-bottom:14px;"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6375;display:block;margin-bottom:6px;">Motivo da Alteração *</label><select id="cancelar-motivo-sel" style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;background:white;outline:none;cursor:pointer;" onchange="document.getElementById('cancelar-outro-wrap').style.display=this.value==='Outro'?'block':'none'"><option value="">Selecione o motivo...</option><option>Mudança de estratégia</option><option>Campanha pausada</option><option>Material indisponível</option><option>Erro de planejamento</option><option>Outro</option></select><div id="cancelar-outro-wrap" style="display:none;margin-top:8px;"><input type="text" id="cancelar-outro-txt" placeholder="Descreva o motivo..." style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;outline:none;"></div></div><div style="margin-bottom:20px;"><label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#5A6375;display:block;margin-bottom:6px;">Observação (opcional)</label><input type="text" id="cancelar-obs" placeholder="Detalhes adicionais..." style="width:100%;padding:10px 14px;border:1.5px solid #E2E6EF;border-radius:10px;font-family:'Sora',sans-serif;font-size:13px;outline:none;"></div><div id="cancelar-error" style="color:#E53935;font-size:12px;margin-bottom:10px;display:none;"></div><div style="display:flex;gap:10px;justify-content:flex-end;"><button type="button" onclick="document.getElementById('modal-cancelar-disparo').remove()" style="padding:10px 18px;border:1.5px solid #E2E6EF;background:white;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;color:#5A6375;">Voltar</button><button type="button" onclick="confirmCancelarDisparo()" style="padding:10px 20px;background:#E53935;color:white;border:none;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;">Confirmar Cancelamento</button></div></div>`;document.body.appendChild(ov);ov.addEventListener('click',e=>{if(e.target===ov)ov.remove();});}
-
-async function confirmCancelarDisparo(){const motivoSel=document.getElementById('cancelar-motivo-sel').value;const motivoOutro=document.getElementById('cancelar-outro-txt')?.value.trim();const obs=document.getElementById('cancelar-obs').value.trim();const errEl=document.getElementById('cancelar-error');if(!motivoSel){errEl.textContent='Selecione o motivo (obrigatório).';errEl.style.display='block';return;}if(motivoSel==='Outro'&&!motivoOutro){errEl.textContent='Descreva o motivo.';errEl.style.display='block';return;}const motivo=motivoSel==='Outro'?motivoOutro:motivoSel;const{campId,data,canal}=_disparoCtx;const cp=campaigns.find(c=>c.id===campId);if(!cp)return;if(!cp.disparos_cancelados)cp.disparos_cancelados={};if(!cp.disparos_concluidos)cp.disparos_concluidos={};if(!cp.disparos_adiados)cp.disparos_adiados={};delete cp.disparos_concluidos[data];delete cp.disparos_adiados[data];cp.disparos_cancelados[data]={motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao:new Date().toISOString()};if(!cp.historico_alteracoes)cp.historico_alteracoes=[];cp.historico_alteracoes.push({data_disparo:data,canal:canalLabel(canal),acao:'cancelado',motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao_fmt:new Date().toLocaleDateString('pt-BR'),data_alteracao:new Date().toISOString()});try{await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_concluidos:cp.disparos_concluidos,disparos_cancelados:cp.disparos_cancelados,disparos_adiados:cp.disparos_adiados,historico_alteracoes:cp.historico_alteracoes});document.getElementById('modal-cancelar-disparo').remove();showToast('❌ Disparo cancelado.','error');renderDispatch();}catch(e){document.getElementById('cancelar-error').textContent='Erro ao salvar: '+e.message;document.getElementById('cancelar-error').style.display='block';}}
-
-function canalLabel(canal){const map={'inbound_wa':'WhatsApp','inbound_email':'E-mail','inbound_sms':'SMS','inbound_lp':'Landing Page','rede_social_instagram':'Instagram','rede_social_facebook':'Facebook','rede_social_linkedin':'LinkedIn','rede_social_blog':'Blog','rede_social_outros':'Outros','rede_social_youtube':'YouTube','performance_meta_ads':'Meta Ads','performance_google_ads':'Google Ads'};return map[canal]||canal;}
-
-// ── TEMPLATE FOTUS SEMANAL ────────────────────────────────────────
-function applyFotusTemplate(inicio,fim){if(!inicio||!fim)return;const start=new Date(inicio+'T12:00:00');const end=new Date(fim+'T12:00:00');const waArr=[],emailArr=[],smsArr=[];let cur=new Date(start);while(cur<=end){const dow=cur.getDay();// 0=dom,1=seg,2=ter,3=qua,4=qui,5=sex,6=sab
-if(dow===1)emailArr.push(toStr(cur));// Segunda = Email
-if(dow===3)waArr.push(toStr(cur));// Quarta = WhatsApp
-if(dow===4)smsArr.push(toStr(cur));// Quinta = SMS
-if(dow===5)waArr.push(toStr(cur));// Sexta = WhatsApp
-cur.setDate(cur.getDate()+1);}// Limpar e preencher canais
-document.getElementById('canal-inbound_wa').innerHTML='';document.getElementById('canal-inbound_email').innerHTML='';document.getElementById('canal-inbound_sms').innerHTML='';waArr.forEach(d=>addCanalDate('inbound_wa',d));emailArr.forEach(d=>addCanalDate('inbound_email',d));smsArr.forEach(d=>addCanalDate('inbound_sms',d));showToast('⚡ Template aplicado: '+emailArr.length+' emails, '+waArr.length+' WhatsApp, '+smsArr.length+' SMS','success');}
+  document.getElementById('modal-detail').classList.add('open');}
+function closeDetailModal(){document.getElementById('modal-detail').classList.remove('open');}
 function editFromDetail(){if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem editar campanhas','error');return;}closeDetailModal();openEditModal(detailId);}
 function openProfileModal(){if(!currentUser)return;document.getElementById('profile-name').textContent=currentUser.nome;document.getElementById('profile-email').textContent=currentUser.email;document.getElementById('profile-role').textContent=currentUser.role==='admin'?'Administrador':'Usuário';const initial=currentUser.nome.charAt(0);const avatarEl=document.getElementById('profile-avatar-display');if(currentUser.foto){avatarEl.innerHTML='<img src="'+currentUser.foto+'" alt="Avatar">';}else{avatarEl.textContent=initial;}document.getElementById('profile-admin-fields').style.display=currentUser.role==='admin'?'block':'none';if(currentUser.role==='admin'){document.getElementById('profile-name-edit').value=currentUser.nome;}const historyEl=document.getElementById('access-history-list');historyEl.innerHTML='';if(currentUser.acessos&&currentUser.acessos.length>0){currentUser.acessos.slice(0,3).forEach(acesso=>{const item=document.createElement('div');item.className='access-item';item.innerHTML='<div class="access-date">'+acesso+'</div>';historyEl.appendChild(item);});}else{historyEl.innerHTML='<div class="access-item"><div class="access-date">Nenhum acesso registrado</div></div>';}document.getElementById('modal-profile').classList.add('open');}
 function closeProfileModal(){document.getElementById('modal-profile').classList.remove('open');document.getElementById('profile-current-password').value='';document.getElementById('profile-new-password').value='';document.getElementById('profile-confirm-password').value='';}
@@ -2478,12 +2477,9 @@ Considere: mercado brasileiro, públicos B2B (integradores solares), tendências
 
     let result;
     try {
-      const rawContent = data.choices[0].message.content;
-      console.log('🔍 Resposta Groq (primeiros 800 chars):', rawContent.slice(0, 800));
-      console.log('📏 Tamanho total da resposta:', rawContent.length, 'chars');
-      result = robustJsonParse(rawContent);
+      result = robustJsonParse(data.choices[0].message.content);
     } catch (e) {
-      console.error('Parse falhou. Resposta bruta:', data.choices[0].message.content.slice(0, 800));
+      console.error('Parse falhou. Resposta bruta:', data.choices[0].message.content.slice(0, 500));
       throw new Error('Erro ao processar resposta da IA: ' + e.message);
     }
     
@@ -2650,18 +2646,28 @@ async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, times
 
 </script>
 
-
-<!-- CONFIG PANEL (Groq) -->
-<div id="config-panel" class="config-panel">
-  <button type="button" class="config-close" onclick="toggleConfigPanel()">✕</button>
-  <h2>⚙️ Configuração</h2>
-  <div id="config-status" class="config-status"></div>
-  <label>Chave Groq API</label>
-  <input type="password" id="groq-key-input" placeholder="gsk_..." autocomplete="off" />
-  <button type="button" onclick="saveGroqKey()">💾 Salvar Chave</button>
-  <button type="button" onclick="testGroqKey()" style="background:var(--teal)">🧪 Testar</button>
-  <button type="button" onclick="clearGroqKey()" style="background:var(--red)">🗑️ Remover</button>
+<!-- MODAL GROQ CONFIG (GLOBAL) -->
+<div class="intel-modal-overlay" id="intel-modal-groq" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:9999;" onclick="if(event.target===this)closeGroqConfigModal()">
+  <div class="intel-modal" style="background:white;border-radius:16px;padding:24px;width:90%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div class="intel-modal-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-size:16px;font-weight:700;">⚙️ Configurar API Groq</span>
+      <button type="button" onclick="closeGroqConfigModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray-400);">✕</button>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="form-label" style="display:block;font-size:13px;font-weight:600;color:var(--gray-800);margin-bottom:6px;">Chave da API Groq</label>
+      <input class="form-input" id="groq-api-key-input" type="password" placeholder="Cole sua chave da API aqui" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:'DM Mono',monospace;font-size:12px;outline:none;">
+      <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">Obtenha em: <a href="https://console.groq.com" target="_blank" style="color:var(--purple);text-decoration:none;">console.groq.com</a></p>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button type="button" class="btn-cancel" onclick="closeGroqConfigModal()" style="padding:10px 16px;border:1.5px solid var(--gray-200);background:white;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;color:var(--gray-600);">Cancelar</button>
+      <button type="button" class="btn-save" onclick="saveGroqConfig()" style="padding:10px 16px;background:var(--purple);color:white;border:none;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;">SALVAR</button>
+    </div>
+  </div>
 </div>
 
+<div id="config-panel" class="config-panel"><button type="button" class="config-close" onclick="toggleConfigPanel()">✕</button><h2>⚙️ Configuração</h2><div id="config-status"></div><label>Chave Groq API</label><input type="password" id="groq-key-input" placeholder="gsk_..." /><button type="button" onclick=saveGroqKey()">💾 Salvar</button>
+<button type="button" onclick="testGroqKey()" style="background:var(--teal);margin-top:0">🧪 Testar</button>
+<button type="button" onclick="clearGroqKey()" style="background:var(--red);margin-top:0">🗑️ Remover</button>
+</div>
 </body>
 </html>
