@@ -3451,15 +3451,38 @@ function _deduplicateDeals(rows){
   return Object.values(map);
 }
 
+// ── Testa conexão com Supabase ──
+async function _crmTestarConexao(){
+  try {
+    const r = await sbFetch('crm_deals?select=id&limit=1');
+    return true;
+  } catch(e) {
+    console.error('Conexão Supabase falhou:', e);
+    return false;
+  }
+}
+
 // ── POST upsert em lotes de 200 (Supabase merge-duplicates) ──
-async function _crmPostBatch(rows){
+async function _crmPostBatch(rows, onProgress){
   const SZ=200;
   for(let i=0;i<rows.length;i+=SZ){
     const batch=rows.slice(i,i+SZ);
-    const opts={method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'resolution=merge-duplicates,return=minimal'}};
+    const opts={
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'apikey':SUPA_KEY,
+        'Authorization':'Bearer '+SUPA_KEY,
+        'Prefer':'resolution=merge-duplicates,return=minimal'
+      }
+    };
     opts.body=JSON.stringify(batch);
     const res=await fetch(SUPA_URL+'/rest/v1/crm_deals?on_conflict=deal_key',opts);
-    if(!res.ok){const t=await res.text();throw new Error(t);}
+    if(!res.ok){
+      const t=await res.text();
+      throw new Error(t);
+    }
+    if(onProgress) onProgress(Math.min(i+SZ, rows.length), rows.length);
   }
 }
 
@@ -3503,7 +3526,9 @@ async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
   });
 
   // Upsert tudo de uma vez (insert + update automático pelo deal_key único)
-  await _crmPostBatch(newRows);
+  await _crmPostBatch(newRows, (done, total)=>{
+    showToast(`⏳ Salvando… ${done}/${total} registros`, 'success');
+  });
   if(histRows.length) await _crmHistBatch(histRows);
 
   const inseridos = newRows.filter(r=>!existMap[r.deal_key]).length;
@@ -4002,66 +4027,57 @@ async function _addCrmSnap(snap) {
 
   showLoading();
   try {
-    const importedAt = new Date().toISOString();
+    showToast('Verificando conexao com Supabase...','success');
+    const conectado = await _crmTestarConexao();
+    if(!conectado){
+      showToast('Sem conexao com Supabase — verifique a URL e a chave de API.','error');
+      hideLoading(); return;
+    }
 
-    // Monta payload com deal_key já calculado
+    const importedAt = new Date().toISOString();
+    showToast('Processando ' + snap.rows.length.toLocaleString('pt-BR') + ' registros...','success');
+
     const mapped = snap.rows.map(r=>{
-      const campanha   = (r.camp||'').trim();
-      const responsavel= (r.resp||'').trim();
-      const nome       = (r.nome||'').trim();
-      const funil      = (r.funil||'').trim();
-      const deal_key   = [nome, funil, campanha, responsavel].join('||');
+      const campanha    = (r.camp||'').trim();
+      const responsavel = (r.resp||'').trim();
+      const nome        = (r.nome||'').trim();
+      const funil       = (r.funil||'').trim();
+      const deal_key    = [nome, funil, campanha, responsavel].join('||');
       return {
-        deal_key,
-        nome,
-        empresa:         (r.empresa||'').trim(),
+        deal_key, nome,
+        empresa:          (r.empresa||'').trim(),
         funil,
-        etapa:           (r.etapa||'').trim(),
-        etapa_ref:       (r.ref||'').trim(),
-        estado:          (r.estado||'').trim(),
-        motivo_perda:    (r.motivo||'').trim(),
-        valor_unico:     r.valor||0,
-        potencia_kwp:    _parseKwp(r.kwp)||null,
-        data_criacao:    r.dt_criacao||null,
-        data_fechamento: r.dt_fechamento||null,
-        fonte:           (r.fonte||'').trim(),
-        campanha,
-        responsavel,
+        etapa:            (r.etapa||'').trim(),
+        etapa_ref:        (r.ref||'').trim(),
+        estado:           (r.estado||'').trim(),
+        motivo_perda:     (r.motivo||'').trim(),
+        valor_unico:      r.valor||0,
+        potencia_kwp:     _parseKwp(r.kwp)||null,
+        data_criacao:     r.dt_criacao||null,
+        data_fechamento:  r.dt_fechamento||null,
+        fonte:            (r.fonte||'').trim(),
+        campanha, responsavel,
         ultima_importacao: importedAt,
-        funil_arquivo:   snap.label,
-        importado_por:   currentUser?.nome||currentUser?.email||'sistema'
+        funil_arquivo:    snap.label,
+        importado_por:    currentUser?.nome||currentUser?.email||'sistema'
       };
     });
 
-    // Deduplica (já tem deal_key, mantém etapa mais avançada)
-    const dedupRows = _deduplicateDeals(mapped);
-
-    // Verifica integridade antes de enviar
-    const semChave = dedupRows.filter(r=>!r.deal_key);
-    if(semChave.length){
-      console.warn('Rows sem deal_key:', semChave.slice(0,3));
-      showToast('Aviso: '+semChave.length+' registros sem chave ignorados','error');
-      dedupRows.splice(0, dedupRows.length, ...dedupRows.filter(r=>r.deal_key));
-    }
+    const validos = mapped.filter(r=>r.deal_key && r.etapa_ref);
+    console.log('CRM import: ' + snap.rows.length + ' raw / ' + validos.length + ' validos');
+    const dedupRows = _deduplicateDeals(validos);
+    console.log('CRM import: ' + dedupRows.length + ' apos dedup');
 
     const res = await _crmUpsertHybrid(dedupRows, importedAt, snap.label);
-
-    showToast(
-      `✅ ${res.inseridos} novos · ${res.atualizados} atualizados · ${res.mudancas} mudanças de etapa`,
-      'success'
-    );
-
+    showToast(res.inseridos + ' novos / ' + res.atualizados + ' atualizados / ' + res.mudancas + ' mudancas','success');
     await _crmLoadFromSupabase();
+
   } catch(e){
-    showToast('Erro ao salvar: '+e.message,'error');
-    console.error(e);
-    _crmSnaps.unshift(snap);
-    if(_crmSnaps.length>3) _crmSnaps.pop();
-    _crmSnapIdx=0; _crmFunil=null;
+    console.error('Erro import CRM:', e);
+    showToast('ERRO: ' + String(e.message||JSON.stringify(e)).substring(0,150), 'error');
   } finally {
     hideLoading();
   }
-
   if(document.getElementById('view-crm').classList.contains('active')) renderCrmView();
 }
 
