@@ -1677,7 +1677,31 @@ async function setDateState(campId,data,novoEstado,btnEl){const cp=campaigns.fin
 async function saveMotivo(campId,data){const cp=campaigns.find(c=>c.id===campId);if(!cp)return;const motivoInput=document.getElementById('motivo-'+campId+'-'+data.replace(/-/g,''));if(!motivoInput)return;const motivo=motivoInput.value.trim();if(cp.disparos_cancelados&&cp.disparos_cancelados[data]!==undefined)cp.disparos_cancelados[data]=motivo;if(cp.disparos_adiados&&cp.disparos_adiados[data]!==undefined)cp.disparos_adiados[data]=motivo;try{await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_cancelados:cp.disparos_cancelados,disparos_adiados:cp.disparos_adiados});showToast('Motivo salvo!');renderDispatch();}catch(e){showToast('Erro ao salvar motivo: '+e.message,'error');}}
 function rteCmd(id,cmd){const el=document.getElementById(id);if(!el)return;el.focus();document.execCommand(cmd,false,null);el.focus();}
 function rteColor(id,color){const el=document.getElementById(id);if(!el)return;el.focus();document.execCommand('foreColor',false,color);el.focus();}
-async function toggleConcluido(campId,data){const cp=campaigns.find(c=>c.id===campId);if(!cp)return;if(!cp.disparos_concluidos)cp.disparos_concluidos={};if(cp.disparos_concluidos[data]){delete cp.disparos_concluidos[data];}else{cp.disparos_concluidos[data]=true;}try{await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_concluidos:cp.disparos_concluidos});renderDispatch();}catch(e){showToast('Erro ao salvar: '+e.message,'error');}}
+async function toggleConcluido(campId,data){
+  const cp=campaigns.find(c=>c.id===campId);if(!cp)return;
+  if(!cp.disparos_concluidos)cp.disparos_concluidos={};
+  const jaEsta=!!cp.disparos_concluidos[data];
+  if(jaEsta){delete cp.disparos_concluidos[data];}
+  else{
+    cp.disparos_concluidos[data]=true;
+    if(!cp.historico_alteracoes)cp.historico_alteracoes=[];
+    cp.historico_alteracoes.push({
+      data_disparo:data,canal:'',acao:'concluido',
+      alterado_por:currentUser.nome,
+      data_alteracao_fmt:new Date().toLocaleDateString('pt-BR'),
+      data_alteracao:new Date().toISOString()
+    });
+  }
+  try{
+    // Detectar o canal deste disparo
+    const canalMap=[['WhatsApp',cp.inbound?.wa||[]],['E-mail',cp.inbound?.email||[]],['SMS',cp.inbound?.sms||[]],['Instagram',cp.rede_social?.instagram||[]],['Facebook',cp.rede_social?.facebook||[]],['LinkedIn',cp.rede_social?.linkedin||[]],['Blog',cp.rede_social?.blog||[]],['Outros',cp.rede_social?.outros||[]],['Meta Ads',cp.performance?.meta_ads||[]],['Google Ads',cp.performance?.google_ads||[]]];
+    let canalNome='';
+    for(const [nome,datas] of canalMap){if(datas.includes(data)){canalNome=nome;break;}}
+    await saveDisparoStatus(campId,data,canalNome,jaEsta?'programado':'concluido',null,null,null);
+    await sbFetch('campaigns?id=eq.'+campId,'PATCH',{disparos_concluidos:cp.disparos_concluidos});
+    renderDispatch();
+  }catch(e){showToast('Erro ao salvar: '+e.message,'error');}
+}
 async function consolidarMes(mesRef){const[ano,mes]=mesRef.split('-').map(Number);const ms=mesRef+'-01';const me=mesRef+'-'+String(new Date(ano,mes,0).getDate()).padStart(2,'0');const today=toStr(new Date());let rows=[];try{rows=await sbFetch('campaigns?select=*&inicio=lte.'+me+'&fim=gte.'+ms);}catch(e){return;}const all_no_mes=(rows||[]).map(rowToLocal);const canalMap=[[c=>c.inbound?.wa||[],'whatsapp'],[c=>c.inbound?.email||[],'email'],[c=>c.inbound?.sms||[],'sms'],[c=>c.rede_social?.instagram||[],'instagram'],[c=>c.rede_social?.facebook||[],'facebook'],[c=>c.rede_social?.linkedin||[],'linkedin'],[c=>c.rede_social?.blog||[],'blog'],[c=>c.rede_social?.outros||[],'outros'],[c=>c.performance?.meta_ads||[],'meta_ads'],[c=>c.performance?.google_ads||[],'google_ads'],];const payload={mes_ref:mesRef,total_campanhas:all_no_mes.length,campanhas_ativas:all_no_mes.filter(c=>c.status==='ativa'&&c.inicio<=today&&c.fim>=today).length,campanhas_em_breve:all_no_mes.filter(c=>c.status==='ativa'&&c.inicio>today).length,campanhas_encerradas:all_no_mes.filter(c=>c.status!=='cancelada'&&c.fim<today).length,campanhas_adiadas:all_no_mes.filter(c=>c.status==='adiada').length,campanhas_canceladas:all_no_mes.filter(c=>c.status==='cancelada').length,campanhas_sem_acoes:all_no_mes.filter(c=>{if(c.status==='cancelada'||c.fim<today)return false;return canalMap.reduce((s,[g])=>s+(g(c)||[]).length,0)===0;}).length,acoes_whatsapp:all_no_mes.reduce((s,c)=>s+(c.inbound?.wa||[]).length,0),acoes_email:all_no_mes.reduce((s,c)=>s+(c.inbound?.email||[]).length,0),acoes_sms:all_no_mes.reduce((s,c)=>s+(c.inbound?.sms||[]).length,0),acoes_instagram:all_no_mes.reduce((s,c)=>s+(c.rede_social?.instagram||[]).length,0),acoes_facebook:all_no_mes.reduce((s,c)=>s+(c.rede_social?.facebook||[]).length,0),acoes_linkedin:all_no_mes.reduce((s,c)=>s+(c.rede_social?.linkedin||[]).length,0),acoes_blog:all_no_mes.reduce((s,c)=>s+(c.rede_social?.blog||[]).length,0),acoes_outros:all_no_mes.reduce((s,c)=>s+(c.rede_social?.outros||[]).length,0),acoes_meta_ads:all_no_mes.reduce((s,c)=>s+(c.performance?.meta_ads||[]).length,0),acoes_google_ads:all_no_mes.reduce((s,c)=>s+(c.performance?.google_ads||[]).length,0),total_acoes:all_no_mes.reduce((s,c)=>s+canalMap.reduce((t,[g])=>t+(g(c)||[]).length,0),0),campanhas_comercial:all_no_mes.filter(c=>getCats(c).includes('COMERCIAL')).length,campanhas_conteudo:all_no_mes.filter(c=>getCats(c).includes('CONTEUDO')).length,campanhas_eventos:all_no_mes.filter(c=>getCats(c).includes('EVENTOS')).length,atualizado_em:new Date().toISOString()};try{await sbFetch('dashboard_mensal?mes_ref=eq.'+mesRef,'DELETE');await sbFetch('dashboard_mensal','POST',payload);}catch(e){console.warn('Erro ao consolidar mês '+mesRef+':',e.message);}}
 async function consolidarMesAtual(){const mesRef=currentYear+'-'+String(currentMonth+1).padStart(2,'0');await consolidarMes(mesRef);}
 function renderUsuarios(){const tbody=document.getElementById('usuarios-tbody');tbody.innerHTML='';USERS.forEach(u=>{const tr=document.createElement('tr');const lastAccess=u.acessos&&u.acessos.length>0?u.acessos[0]:'Nunca';tr.innerHTML='<td><div class="usuario-avatar-cell"><div class="usuario-avatar-small">'+(u.foto?'<img src="'+u.foto+'">':u.nome.charAt(0))+'</div><div class="usuario-info"><div class="usuario-name">'+u.nome+'</div><div class="usuario-email">'+u.email+'</div></div></div></td><td>'+u.email+'</td><td><span class="usuario-role '+(u.role==='admin'?'admin':'user')+'">'+(u.role==='admin'?'Administrador':'Usuário')+'</span></td><td class="usuario-acesso">'+lastAccess+'</td><td><div class="usuario-actions"><button type="button" class="btn-usuario-action" onclick="openEditUserModal('+u.id+')">✏️</button><button type="button" class="btn-usuario-action" onclick="viewUserDetails('+u.id+')">👁️</button>'+(currentUser.id!==u.id?'<button type="button" class="btn-usuario-action btn-usuario-delete" onclick="deleteUser('+u.id+')">🗑️</button>':'')+'</div></td>';tbody.appendChild(tr);});}
@@ -1917,7 +1941,7 @@ function openDetailModal(id){
       [...historico].reverse().forEach(h=>{
         const item=document.createElement('div');item.className='historico-item';
         const al=h.acao==='adiado'?'⏳ Adiado':h.acao==='cancelado'?'❌ Cancelado':'✅ Concluído';
-        item.innerHTML='<div class="historico-item-date">'+h.data_alteracao_fmt+'</div><div class="historico-item-desc">'+h.canal+' — '+al+(h.nova_data?' → '+fmtFull(h.nova_data):'')+' <span style="font-size:10px;color:var(--gray-400)">| '+fmtFull(h.data_disparo)+'</span></div>'+(h.motivo?'<div class="historico-item-sub">Motivo: '+h.motivo+(h.observacao?' · '+h.observacao:'')+'</div>':'')+'<div class="historico-item-by">Por: '+h.alterado_por+'</div>';
+        item.innerHTML='<div class="historico-item-date">'+h.data_alteracao_fmt+'</div><div class="historico-item-desc">'+h.canal+' — '+al+(h.nova_data?' → '+fmtFull(h.nova_data):'')+' <span style="font-size:10px;color:var(--gray-400)">| '+fmtFull(h.data_disparo)+'</span></div>'+(h.motivo?'<div class="historico-item-sub">Motivo: '+h.motivo+(h.observacao?' · '+h.observacao:'')+'</div>':'')+(h.alterado_por?'<div class="historico-item-by">Por: '+h.alterado_por+'</div>':'');
         histList.appendChild(item);
       });
     }else{histSec.style.display='none';}
