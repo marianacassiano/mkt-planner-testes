@@ -3538,7 +3538,7 @@ function _deduplicateNegociações(rows){
 // ── Testa conexão com Supabase ──
 async function _crmTestarConexao(){
   try {
-    const r = await sbFetch('crm_negociações?select=id&limit=1');
+    const r = await sbFetch('crm_deals?select=id&limit=1');
     return true;
   } catch(e) {
     console.error('Conexão Supabase falhou:', e);
@@ -3561,7 +3561,7 @@ async function _crmPostBatch(rows, onProgress){
       }
     };
     opts.body=JSON.stringify(batch);
-    const res=await fetch(SUPA_URL+'/rest/v1/crm_negociações?on_conflict=deal_key',opts);
+    const res=await fetch(SUPA_URL+'/rest/v1/crm_deals?on_conflict=deal_key',opts);
     if(!res.ok){
       const t=await res.text();
       throw new Error(t);
@@ -3584,7 +3584,7 @@ async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
   // Busca todos os negociações existentes com paginação
   let existing = [], _off = 0, _ps = 1000;
   while(true){
-    const _p = await sbFetchRange('crm_negociações?select=deal_key,etapa,etapa_ref,estado', _off, _off+_ps-1);
+    const _p = await sbFetchRange('crm_deals?select=deal_key,etapa,etapa_ref,estado', _off, _off+_ps-1);
     if(!_p||!_p.length) break;
     existing = existing.concat(_p);
     if(_p.length < _ps) break;
@@ -3631,14 +3631,14 @@ async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
   return { inseridos, atualizados, mudancas: histRows.length };
 }
 
-// ── Carrega estado atual do Supabase (crm_negociações) ──
+// ── Carrega estado atual do Supabase (crm_deals) ──
 async function _crmLoadFromSupabase(){
   showLoading();
   try {
     // Supabase limita 1000 rows por request — pagina até buscar tudo
     let rows = [], offset = 0, pageSize = 1000;
     while(true){
-      const page = await sbFetchRange('crm_negociações?select=*&order=ultima_importacao.desc', offset, offset+pageSize-1);
+      const page = await sbFetchRange('crm_deals?select=*&order=ultima_importacao.desc', offset, offset+pageSize-1);
       if(!page||!page.length) break;
       rows = rows.concat(page);
       if(page.length < pageSize) break;
