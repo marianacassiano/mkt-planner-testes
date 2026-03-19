@@ -1081,42 +1081,22 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <div><label class="form-label">Data Início</label><input class="form-input" type="date" id="f-inicio"></div>
       <div><label class="form-label">Data Fim</label><input class="form-input" type="date" id="f-fim"></div>
     </div>
-    <div class="form-row2">
-      <div>
-        <label class="form-label">Briefing / Objetivo</label>
-        <div class="rte-wrap" id="rte-briefing-wrap">
-          <div class="rte-toolbar">
-            <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','bold')"><b>B</b></button>
-            <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','italic')"><i>I</i></button>
-            <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','underline')"><u>U</u></button>
-            <div class="rte-sep"></div>
-            <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','insertUnorderedList')">≡</button>
-            <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','insertOrderedList')">①</button>
-            <div class="rte-sep"></div>
-            <div class="rte-color-btn"><input type="color" value="#E53935" onchange="rteColor('f-briefing',this.value)"></div>
-            <div class="rte-sep"></div>
-            <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','removeFormat')" style="font-size:11px">✕</button>
-          </div>
-          <div class="rte-body" id="f-briefing" contenteditable="true" data-placeholder="O que queremos comunicar?"></div>
+    <div class="form-section">
+      <label class="form-label">Objetivo e Regras</label>
+      <div class="rte-wrap" id="rte-briefing-wrap">
+        <div class="rte-toolbar">
+          <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','bold')"><b>B</b></button>
+          <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','italic')"><i>I</i></button>
+          <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','underline')"><u>U</u></button>
+          <div class="rte-sep"></div>
+          <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','insertUnorderedList')">≡</button>
+          <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','insertOrderedList')">①</button>
+          <div class="rte-sep"></div>
+          <div class="rte-color-btn"><input type="color" value="#E53935" onchange="rteColor('f-briefing',this.value)"></div>
+          <div class="rte-sep"></div>
+          <button type="button" class="rte-btn" onclick="rteCmd('f-briefing','removeFormat')" style="font-size:11px">✕</button>
         </div>
-      </div>
-      <div>
-        <label class="form-label">Defesa / Regras</label>
-        <div class="rte-wrap" id="rte-defesa-wrap">
-          <div class="rte-toolbar">
-            <button type="button" class="rte-btn" onclick="rteCmd('f-defesa','bold')"><b>B</b></button>
-            <button type="button" class="rte-btn" onclick="rteCmd('f-defesa','italic')"><i>I</i></button>
-            <button type="button" class="rte-btn" onclick="rteCmd('f-defesa','underline')"><u>U</u></button>
-            <div class="rte-sep"></div>
-            <button type="button" class="rte-btn" onclick="rteCmd('f-defesa','insertUnorderedList')">≡</button>
-            <button type="button" class="rte-btn" onclick="rteCmd('f-defesa','insertOrderedList')">①</button>
-            <div class="rte-sep"></div>
-            <div class="rte-color-btn"><input type="color" value="#E53935" onchange="rteColor('f-defesa',this.value)"></div>
-            <div class="rte-sep"></div>
-            <button type="button" class="rte-btn" onclick="rteCmd('f-defesa','removeFormat')" style="font-size:11px">✕</button>
-          </div>
-          <div class="rte-body" id="f-defesa" contenteditable="true" data-placeholder="Regras, condições e argumentos..."></div>
-        </div>
+        <div class="rte-body" id="f-briefing" contenteditable="true" data-placeholder="Objetivo, público-alvo, mecânica e regras da campanha..."></div>
       </div>
     </div>
     <div class="form-section">
@@ -1248,8 +1228,8 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <div class="detail-section"><div class="detail-label">Vigência</div><div class="detail-value mono" id="detail-vig"></div></div>
       <div class="detail-section"><div class="detail-label">Status</div><div class="detail-value" id="detail-status"></div></div>
     </div>
-    <div class="detail-section"><div class="detail-label">Briefing / Objetivo</div><div class="detail-value" id="detail-briefing"></div></div>
-    <div class="detail-section"><div class="detail-label">Defesa / Regras</div><div class="detail-value" id="detail-defesa"></div></div>
+    <div class="detail-section"><div class="detail-label">Objetivo e Regras</div><div class="detail-value" id="detail-briefing"></div></div>
+    <div class="detail-section"><div class="detail-label" style="display:none">Defesa</div><div class="detail-value" id="detail-defesa" style="display:none"></div></div>
     <div id="detail-acoes-section">
       <div class="detail-section"><div class="detail-label">Ações Programadas</div><div class="canal-tags" id="detail-canais"></div></div>
     </div>
@@ -1396,6 +1376,59 @@ function _addDataToCanal(cp, canal, data){
   else if(_canalToPerf[canal]) cp.performance[_canalToPerf[canal]].push(data);
 }
 
+
+// ── POLLING: atualização silenciosa a cada 1 minuto ──────────
+let _pollingTimer = null;
+let _lastCampaignsHash = '';
+
+function _hashCampaigns(rows){
+  // Hash completo: todos os campos relevantes da campanha
+  return (rows||[]).map(r=>
+    [r.id, r.name, r.status, r.color, r.inicio, r.fim,
+     r.briefing, r.defesa, r.tags, r.motivo_adiamento, r.data_adiamento,
+     r.categoria, r.mes_ref].join('|')
+  ).join(';;');
+}
+
+async function _checkUpdates(){
+  if(!currentUser) return;
+  try{
+    const mesStr = currentYear+'-'+String(currentMonth+1).padStart(2,'0');
+    const monthStart = mesStr+'-01';
+    const dim = new Date(currentYear, currentMonth+1, 0).getDate();
+    const monthEnd = mesStr+'-'+String(dim).padStart(2,'0');
+    const rows = await sbFetch('campaigns?select=*&inicio=lte.'+monthEnd+'&fim=gte.'+monthStart+'&order=id.asc');
+    const hash = _hashCampaigns(rows);
+    if(_lastCampaignsHash && hash !== _lastCampaignsHash){
+      console.log('🔄 Atualizações detectadas, recarregando...');
+      campaigns = (rows||[]).map(rowToLocal);
+      await loadAllDisparos();
+      renderAll();
+    }
+    _lastCampaignsHash = hash;
+  }catch(e){
+    console.warn('Polling erro:', e.message);
+  }
+}
+
+function startPolling(){
+  if(_pollingTimer) clearInterval(_pollingTimer);
+  const mesStr = currentYear+'-'+String(currentMonth+1).padStart(2,'0');
+  const monthStart = mesStr+'-01';
+  const dim = new Date(currentYear, currentMonth+1, 0).getDate();
+  const monthEnd = mesStr+'-'+String(dim).padStart(2,'0');
+  sbFetch('campaigns?select=*&inicio=lte.'+monthEnd+'&fim=gte.'+monthStart+'&order=id.asc')
+    .then(rows=>{ _lastCampaignsHash = _hashCampaigns(rows); })
+    .catch(()=>{});
+  _pollingTimer = setInterval(_checkUpdates, 60000);
+  console.log('✅ Polling iniciado (1 min)');
+}
+
+function stopPolling(){
+  if(_pollingTimer){ clearInterval(_pollingTimer); _pollingTimer=null; }
+}
+
+
 async function loadCampDisparos(campId){
   try{
     const rows=await sbFetch('campaign_disparos?campaign_id=eq.'+campId+'&order=data_disparo.asc');
@@ -1516,9 +1549,9 @@ const SESSION_KEY='fotus_session';const SESSION_TTL=24*60*60*1000;
 function saveSession(user){const session={userId:user.id,expiresAt:Date.now()+SESSION_TTL};localStorage.setItem(SESSION_KEY,JSON.stringify(session));}
 function clearSession(){localStorage.removeItem(SESSION_KEY);}
 function getValidSession(){try{const raw=localStorage.getItem(SESSION_KEY);if(!raw)return null;const session=JSON.parse(raw);if(Date.now()>session.expiresAt){clearSession();return null;}return session;}catch(e){clearSession();return null;}}
-async function restoreSession(){const session=getValidSession();if(!session)return false;await loadUsers();const user=USERS.find(u=>u.id===session.userId);if(!user){clearSession();return false;}currentUser=user;document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';const rb=document.getElementById('role-badge');rb.textContent=user.role==='admin'?'Administrador':'Usuário';rb.className='role-badge '+(user.role==='admin'?'admin':'user');updateUserMenu();applyRoleRestrictions();loadGroqConfig().catch(e=>console.error('Groq config:',e));loadCampaigns().catch(e=>console.error('Erro ao carregar campanhas:',e));return true;}
+async function restoreSession(){const session=getValidSession();if(!session)return false;await loadUsers();const user=USERS.find(u=>u.id===session.userId);if(!user){clearSession();return false;}currentUser=user;document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';const rb=document.getElementById('role-badge');rb.textContent=user.role==='admin'?'Administrador':'Usuário';rb.className='role-badge '+(user.role==='admin'?'admin':'user');updateUserMenu();applyRoleRestrictions();loadGroqConfig().catch(e=>console.error('Groq config:',e));loadCampaigns().then(()=>startPolling()).catch(e=>console.error('Erro ao carregar campanhas:',e));return true;}
 function recordAccess(){if(!currentUser)return;const now=new Date();const accessStr=now.toLocaleString('pt-BR');if(!currentUser.acessos)currentUser.acessos=[];currentUser.acessos.unshift(accessStr);if(currentUser.acessos.length>3)currentUser.acessos.pop();dbUserUpdate(currentUser.id,{acessos:currentUser.acessos}).catch(e=>console.error('Erro ao salvar acesso:',e));}
-async function doLogin(){const email=document.getElementById('inp-email').value.trim();const senha=document.getElementById('inp-senha').value;if(!email||!senha){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail e senha são obrigatórios';return;}await loadUsers();const user=USERS.find(u=>u.email===email&&u.senha===senha);if(!user){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail ou senha incorretos';return;}currentUser=user;saveSession(user);recordAccess();loadGroqConfig().catch(e=>console.error('Groq config:',e));document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';const rb=document.getElementById('role-badge');rb.textContent=user.role==='admin'?'Administrador':'Usuário';rb.className='role-badge '+(user.role==='admin'?'admin':'user');updateUserMenu();applyRoleRestrictions();loadCampaigns().catch(e=>console.error('Erro ao carregar campanhas:',e));}
+async function doLogin(){const email=document.getElementById('inp-email').value.trim();const senha=document.getElementById('inp-senha').value;if(!email||!senha){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail e senha são obrigatórios';return;}await loadUsers();const user=USERS.find(u=>u.email===email&&u.senha===senha);if(!user){document.getElementById('login-error').style.display='block';document.getElementById('login-error').textContent='E-mail ou senha incorretos';return;}currentUser=user;saveSession(user);recordAccess();loadGroqConfig().catch(e=>console.error('Groq config:',e));document.getElementById('login-screen').style.display='none';document.getElementById('app').style.display='block';const rb=document.getElementById('role-badge');rb.textContent=user.role==='admin'?'Administrador':'Usuário';rb.className='role-badge '+(user.role==='admin'?'admin':'user');updateUserMenu();applyRoleRestrictions();loadCampaigns().then(()=>startPolling()).catch(e=>console.error('Erro ao carregar campanhas:',e));}
 function updateUserMenu(){const initial=currentUser.nome.charAt(0);const avatarBtn=document.getElementById('user-avatar-btn');if(currentUser.foto){avatarBtn.innerHTML='<img src="'+currentUser.foto+'" alt="Avatar" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">';}else{avatarBtn.textContent=initial;}const emailEl=document.getElementById('topbar-user-email');if(emailEl)emailEl.textContent=currentUser.email.toLowerCase();document.getElementById('dropdown-name').textContent=currentUser.nome;document.getElementById('dropdown-email').textContent=currentUser.email;const avatarEl=document.getElementById('dropdown-avatar');if(currentUser.foto){avatarEl.innerHTML='<img src="'+currentUser.foto+'" alt="Avatar">';}else{avatarEl.textContent=initial;}}
 function toggleUserMenu(){const dropdown=document.getElementById('user-dropdown');dropdown.classList.toggle('open');document.addEventListener('click',e=>{if(!e.target.closest('.user-menu'))dropdown.classList.remove('open');});}
 
@@ -1535,7 +1568,7 @@ async function loadGroqConfig() {
 }
 function applyRoleRestrictions(){const isUser=currentUser.role==='user';const _niR=document.getElementById('nav-intel');if(_niR)_niR.style.display=isUser?'none':'';
   document.getElementById('nav-cal').style.display=isUser?'none':'';document.getElementById('nav-dash').style.display=isUser?'none':'';document.getElementById('nav-usuarios').style.display=isUser?'none':'';document.getElementById('btn-nova-camp').style.display=isUser?'none':'';if(isUser)showView('resumo');}
-function doLogout(){currentUser=null;campaigns=[];clearSession();document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('inp-email').value='';document.getElementById('inp-senha').value='';['nav-cal','nav-dash','nav-usuarios','nav-intel','btn-nova-camp'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});}
+function doLogout(){stopPolling();currentUser=null;campaigns=[];clearSession();document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('inp-email').value='';document.getElementById('inp-senha').value='';['nav-cal','nav-dash','nav-usuarios','nav-intel','btn-nova-camp'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});}
 document.getElementById('inp-senha').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
 function showView(v){['calendario','resumo','dashboard','intel','usuarios'].forEach(n=>document.getElementById('view-'+n).classList.toggle('active',v===n));document.getElementById('nav-cal').classList.toggle('active',v==='calendario');document.getElementById('nav-res').classList.toggle('active',v==='resumo');document.getElementById('nav-dash').classList.toggle('active',v==='dashboard');document.getElementById('nav-usuarios').classList.toggle('active',v==='usuarios');
   const _ni=document.getElementById('nav-intel');if(_ni)_ni.classList.toggle('active',v==='intel');if(v==='resumo')renderResumo();if(v==='dashboard'){initDashPeriodo();renderDashboard();}if(v==='usuarios')renderUsuarios();
@@ -1548,7 +1581,7 @@ function toStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'
 function getStatus(c){const t=new Date();t.setHours(0,0,0,0);const ts=toStr(t);if(c.status==='cancelada')return{label:'❌ Cancelada',color:'var(--red)'};if(c.status==='adiada'){const motivo=c.motivo_adiamento?' · '+c.motivo_adiamento:'';return{label:'⏳ Adiada'+motivo,color:'#FB8C00'};}if(c.fim<ts)return{label:'Encerrada',color:'var(--gray-400)'};if(c.inicio>ts)return{label:'Em Breve',color:'var(--purple)'};const diff=Math.round((toDate(c.fim)-t)/86400000);return diff<=2?{label:'🔥 Encerra em '+diff+' dia'+(diff!==1?'s':''),color:'var(--red)'}:{label:'Ativa · '+diff+' dias restantes',color:'var(--green)'};}
 function catBadge(cat){return catBadges(cat);}
 function darken(hex,p){let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return'rgb('+Math.max(0,Math.round(r*(1-p/100)))+','+Math.max(0,Math.round(g*(1-p/100)))+','+Math.max(0,Math.round(b*(1-p/100)))+')'; }
-function changeMonth(d){currentMonth+=d;if(currentMonth>11){currentMonth=0;currentYear++;}if(currentMonth<0){currentMonth=11;currentYear--;}loadCampaigns();}
+function changeMonth(d){currentMonth+=d;if(currentMonth>11){currentMonth=0;currentYear++;}if(currentMonth<0){currentMonth=11;currentYear--;}loadCampaigns().then(()=>startPolling());}
 function renderDispatch(){document.getElementById('cal-month-label').textContent=MONTHS_PT[currentMonth]+' '+currentYear;const today=new Date();today.setHours(0,0,0,0);const dim=new Date(currentYear,currentMonth+1,0).getDate();const firstDay=new Date(currentYear,currentMonth,1).getDay();const cont=document.getElementById('dispatch-grid');cont.innerHTML='';const hrow=document.createElement('div');hrow.className='week-row header';WEEKDAYS.forEach(n=>{const h=document.createElement('div');h.className='week-header-cell';h.textContent=n;hrow.appendChild(h);});cont.appendChild(hrow);const filtered=getFiltered('cal');let week=[];for(let i=0;i<firstDay;i++){week.push(null);}for(let d=1;d<=dim;d++){const dt=new Date(currentYear,currentMonth,d);const str=toStr(dt);week.push({d,str});if(week.length===7){renderWeekRow(week,filtered,cont,today);week=[];}}if(week.length>0){while(week.length<7){week.push(null);}renderWeekRow(week,filtered,cont,today);}}
 function renderWeekRow(week,filtered,cont,today){const row=document.createElement('div');row.className='week-row';week.forEach(day=>{const cell=document.createElement('div');cell.className='day-cell';if(!day){cell.classList.add('empty');row.appendChild(cell);return;}if(day.d===today.getDate()&&currentMonth===today.getMonth()&&currentYear===today.getFullYear())cell.classList.add('today');cell.innerHTML='<div class="day-num">'+day.d+'</div>';filtered.forEach(cp=>{[[cp.inbound.wa,'WPP',0],[cp.inbound.email,'EMAIL',18],[cp.inbound.sms,'SMS',35],[cp.rede_social.instagram,'INST',52],[cp.rede_social.facebook,'FACE',70],[cp.rede_social.linkedin,'LINK',88],[cp.rede_social.blog,'BLOG',106],[cp.rede_social.outros,'OUTROS',124],[cp.performance.meta_ads,'META ADS',142],[cp.performance.google_ads,'GOOGLE ADS',160]].forEach(([dates,lbl,dk])=>{if((dates||[]).includes(day.str)){const bar=document.createElement('div');const isCampCancelada=cp.status==='cancelada';const isAdiada=cp.status==='adiada';const isDisparoCancelado=!isCampCancelada&&cp.disparos_cancelados&&cp.disparos_cancelados[day.str];const motivoDisp=isDisparoCancelado?cp.disparos_cancelados[day.str]:'';const isDisparoConcluido=!isCampCancelada&&!isDisparoCancelado&&cp.disparos_concluidos&&cp.disparos_concluidos[day.str];const isDisparoAdiado=!isCampCancelada&&!isDisparoCancelado&&!isDisparoConcluido&&cp.disparos_adiados&&cp.disparos_adiados[day.str]!==undefined&&cp.disparos_adiados[day.str]!==null&&Object.prototype.hasOwnProperty.call(cp.disparos_adiados,day.str);if(isCampCancelada){bar.className='dispatch-bar cancelada';bar.textContent='❌ '+cp.name+' · '+lbl;bar.title='Campanha cancelada · '+cp.name+' · '+lbl;}else if(isDisparoCancelado){bar.className='dispatch-bar cancelada';bar.textContent='❌ '+cp.name+' · '+lbl;bar.title='Ação cancelada'+(motivoDisp?' · '+motivoDisp:'')+' · '+cp.name+' · '+lbl;}else if(isDisparoAdiado){bar.className='dispatch-bar adiada';const motivoAdio=cp.disparos_adiados[day.str]||'';bar.textContent='⏳ '+cp.name+' · '+lbl;bar.title='Ação adiada'+(motivoAdio?' · '+motivoAdio:'')+' · '+cp.name+' · '+lbl;}else if(isAdiada){bar.className='dispatch-bar adiada';bar.textContent='⏳ '+cp.name+' · '+lbl;bar.title='Campanha adiada · '+cp.name+' · '+lbl;}else if(isDisparoConcluido){bar.className='dispatch-bar concluida';bar.textContent='✅ '+cp.name+' · '+lbl;bar.title='Ação concluída · '+cp.name+' · '+lbl;}else{bar.className='dispatch-bar';bar.style.background=darken(cp.color,dk);bar.textContent=cp.name+' · '+lbl;bar.title=cp.name+' · '+lbl;const checkBtn=document.createElement('button');checkBtn.className='bar-check-btn';checkBtn.textContent='✅';checkBtn.title='Marcar como concluída';checkBtn.onclick=(e)=>{e.stopPropagation();toggleConcluido(cp.id,day.str);};bar.appendChild(checkBtn);}bar.onclick=()=>openDetailModal(cp.id);
 bar.addEventListener('mouseenter',()=>{clearTimeout(_hoverTimer);_hoverTimer=setTimeout(()=>showCampPreview(cp.id,bar),300);});
@@ -1556,7 +1589,7 @@ bar.addEventListener('mouseleave',()=>{clearTimeout(_hoverTimer);hideCampPreview
 cell.appendChild(bar);}});});row.appendChild(cell);});cont.appendChild(row);}
 function renderGantt(){const dim=new Date(currentYear,currentMonth+1,0).getDate();const today=new Date();today.setHours(0,0,0,0);const td=(today.getMonth()===currentMonth&&today.getFullYear()===currentYear)?today.getDate():-1;const ms=currentYear+'-'+String(currentMonth+1).padStart(2,'0')+'-01';const me=currentYear+'-'+String(currentMonth+1).padStart(2,'0')+'-'+String(dim).padStart(2,'0');const vis=getFiltered('cal').filter(c=>c.inicio<=me&&c.fim>=ms);const cont=document.getElementById('gantt-container');cont.innerHTML='';if(!vis.length){cont.innerHTML='<div class="gantt-empty">Nenhuma campanha neste mês.</div>';return;}const tbl=document.createElement('table');tbl.className='gantt-table';const thead=document.createElement('thead');const hr=document.createElement('tr');for(let d=1;d<=dim;d++){const th=document.createElement('th');th.textContent=d;if(d===td)th.classList.add('today-col');hr.appendChild(th);}thead.appendChild(hr);tbl.appendChild(thead);const tbody=document.createElement('tbody');vis.forEach(c=>{const tr=document.createElement('tr');const sd=Math.max(1,toDate(c.inicio).getMonth()===currentMonth&&toDate(c.inicio).getFullYear()===currentYear?toDate(c.inicio).getDate():1);const ed=Math.min(dim,toDate(c.fim).getMonth()===currentMonth&&toDate(c.fim).getFullYear()===currentYear?toDate(c.fim).getDate():dim);for(let d=1;d<=dim;d++){const td2=document.createElement('td');if(d===td)td2.classList.add('today-col');if(d===sd){td2.colSpan=ed-sd+1;const bar=document.createElement('div');const gCancelada=c.status==='cancelada';const gAdiada=c.status==='adiada';bar.className='gantt-cell-bar'+(gCancelada?' cancelada':'');if(gCancelada){bar.style.borderColor=c.color;bar.style.color='var(--gray-600)';}else if(gAdiada){bar.style.background='#FFB74D';}else{bar.style.background=c.color;}bar.textContent=(gCancelada?'❌ ':gAdiada?'⏳ ':'')+c.name;bar.title=c.name+' · '+fmtFull(c.inicio)+' – '+fmtFull(c.fim);bar.onclick=()=>openDetailModal(c.id);td2.appendChild(bar);tr.appendChild(td2);d=ed;}else if(d<sd||d>ed){tr.appendChild(td2);}}tbody.appendChild(tr);});tbl.appendChild(tbody);cont.appendChild(tbl);}
 function renderSidebar(){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);const active=getFiltered('cal').filter(c=>c.inicio<=ts&&c.fim>=ts);document.getElementById('active-count').textContent=active.length;const list=document.getElementById('sidebar-active-list');list.innerHTML='';if(!active.length){list.innerHTML='<p style="color:var(--gray-400);font-size:12px;">Nenhuma campanha ativa.</p>';return;}active.forEach(c=>{const diff=Math.round((toDate(c.fim)-today)/86400000);const urg=diff<=2;const sCancelada=c.status==='cancelada';const sAdiada=c.status==='adiada';const item=document.createElement('div');item.className='camp-item'+(sCancelada?' cancelada':'');item.style.borderLeftColor=c.color;const diasLabel=sCancelada?'❌ Cancelada':sAdiada?'⏳ Adiada':(diff===0?'Encerra hoje':diff+' dias restantes');item.innerHTML=catBadge(c.categoria)+'<div class="camp-item-name">'+c.name+(urg&&!sCancelada?' 🔥':'')+'</div><div class="camp-item-vig"><span>VIGÊNCIA</span><span>'+fmt(c.inicio)+' – '+fmt(c.fim)+'</span></div><div class="camp-item-dias '+(urg&&!sCancelada?'urgent':'normal')+'">'+diasLabel+'</div>';item.onclick=()=>openDetailModal(c.id);list.appendChild(item);});}
-function renderResumo(){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);renderResumoCalendar();const f=getFiltered('res');const cols={breve:f.filter(c=>c.inicio>ts),ativas:f.filter(c=>c.inicio<=ts&&c.fim>=ts),encerradas:f.filter(c=>c.fim<ts)};Object.entries(cols).forEach(([key,list])=>{const col=document.getElementById('col-'+key);col.innerHTML='';if(!list.length){col.innerHTML='<p class="empty-col">Nenhuma campanha.</p>';return;}list.forEach((c,i)=>{const diff=Math.round((toDate(c.fim)-today)/86400000);const urg=diff>=0&&diff<=1;const card=document.createElement('div');card.className='resumo-card';card.style.animationDelay=(i*.07)+'s';const tagsHtml=renderTags(c.tags||'');const defesaTexto=(c.defesa||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();card.innerHTML=(urg?'<span class="badge-urgente">Acaba em '+diff+' dia'+(diff!==1?'s':'')+'</span>':'')+catBadge(c.categoria)+'<div class="resumo-card-name"><span class="dot" style="background:'+c.color+'"></span>'+c.name+'</div>'+(tagsHtml?'<div class="camp-tags-row" style="margin-bottom:10px">'+tagsHtml+'</div>':'')+'<div class="resumo-field"><label>Vigência</label><span>'+fmtFull(c.inicio)+' – '+fmtFull(c.fim)+'</span></div>'+(defesaTexto?'<div class="resumo-field"><label>Defesa</label><div class="resumo-defesa">'+defesaTexto+'</div></div>':'')+'<button type="button" class="btn-saiba-mais" onclick="event.stopPropagation();openDetailModal('+c.id+')">Saiba mais →</button>';card.onclick=()=>openDetailModal(c.id);col.appendChild(card);});});}
+function renderResumo(){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);renderResumoCalendar();const f=getFiltered('res');const cols={breve:f.filter(c=>c.inicio>ts),ativas:f.filter(c=>c.inicio<=ts&&c.fim>=ts),encerradas:f.filter(c=>c.fim<ts)};Object.entries(cols).forEach(([key,list])=>{const col=document.getElementById('col-'+key);col.innerHTML='';if(!list.length){col.innerHTML='<p class="empty-col">Nenhuma campanha.</p>';return;}list.forEach((c,i)=>{const diff=Math.round((toDate(c.fim)-today)/86400000);const urg=diff>=0&&diff<=1;const card=document.createElement('div');card.className='resumo-card';card.style.animationDelay=(i*.07)+'s';const tagsHtml=renderTags(c.tags||'');const defesaTexto=(c.briefing||c.defesa||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();card.innerHTML=(urg?'<span class="badge-urgente">Acaba em '+diff+' dia'+(diff!==1?'s':'')+'</span>':'')+catBadge(c.categoria)+'<div class="resumo-card-name"><span class="dot" style="background:'+c.color+'"></span>'+c.name+'</div>'+(tagsHtml?'<div class="camp-tags-row" style="margin-bottom:10px">'+tagsHtml+'</div>':'')+'<div class="resumo-field"><label>Vigência</label><span>'+fmtFull(c.inicio)+' – '+fmtFull(c.fim)+'</span></div>'+(defesaTexto?'<div class="resumo-field"><label>Defesa</label><div class="resumo-defesa">'+defesaTexto+'</div></div>':'')+'<button type="button" class="btn-saiba-mais" onclick="event.stopPropagation();openDetailModal('+c.id+')">Saiba mais →</button>';card.onclick=()=>openDetailModal(c.id);col.appendChild(card);});});}
 function renderResumoCalendar(){const today=new Date();today.setHours(0,0,0,0);const dim=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();const cm=today.getMonth();const cy=today.getFullYear();const ms=cy+'-'+String(cm+1).padStart(2,'0')+'-01';const me=cy+'-'+String(cm+1).padStart(2,'0')+'-'+String(dim).padStart(2,'0');const comerciais=campaigns.filter(c=>getCats(c).includes('COMERCIAL')&&c.inicio<=me&&c.fim>=ms);const cont=document.getElementById('resumo-calendar');cont.innerHTML='';if(!comerciais.length){cont.innerHTML='<div style="padding:16px;text-align:center;color:var(--gray-400);font-size:13px;">Nenhuma campanha comercial neste mês.</div>';return;}const tbl=document.createElement('table');tbl.className='gantt-table';const thead=document.createElement('thead');const hr=document.createElement('tr');const th0=document.createElement('th');th0.textContent='Campanha';th0.style.width='180px';hr.appendChild(th0);for(let d=1;d<=dim;d++){const th=document.createElement('th');th.textContent=d;if(d===today.getDate()&&today.getMonth()===cm&&today.getFullYear()===cy)th.classList.add('today-col');hr.appendChild(th);}thead.appendChild(hr);tbl.appendChild(thead);const tbody=document.createElement('tbody');comerciais.forEach(c=>{const tr=document.createElement('tr');const nameCell=document.createElement('td');nameCell.style.cssText='font-weight:600;font-size:12px;padding:8px;border-right:1px solid var(--gray-200);cursor:pointer;';nameCell.style.color=c.color;nameCell.textContent=c.name;nameCell.onclick=()=>openDetailModal(c.id);tr.appendChild(nameCell);const sd=Math.max(1,toDate(c.inicio).getMonth()===cm&&toDate(c.inicio).getFullYear()===cy?toDate(c.inicio).getDate():1);const ed=Math.min(dim,toDate(c.fim).getMonth()===cm&&toDate(c.fim).getFullYear()===cy?toDate(c.fim).getDate():dim);for(let d=1;d<=dim;d++){const td=document.createElement('td');if(d===today.getDate()&&today.getMonth()===cm&&today.getFullYear()===cy)td.classList.add('today-col');if(d===sd){td.colSpan=ed-sd+1;const bar=document.createElement('div');bar.className='gantt-cell-bar';bar.style.background=c.color;bar.style.cursor='pointer';bar.textContent=c.name;bar.title=fmtFull(c.inicio)+' – '+fmtFull(c.fim);bar.onclick=()=>openDetailModal(c.id);td.appendChild(bar);tr.appendChild(td);d=ed;}else if(d<sd||d>ed){tr.appendChild(td);}}tbody.appendChild(tr);});tbl.appendChild(tbody);cont.appendChild(tbl);}
 let _dashAtalhoAtivo='mes';
 function setDashPeriodo(tipo){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);let de,ate=ts;if(tipo==='mes'){de=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';const lastDay=new Date(today.getFullYear(),today.getMonth()+1,0);ate=toStr(lastDay);}else if(tipo==='30d'){const d=new Date(today);d.setDate(d.getDate()-30);de=toStr(d);}else if(tipo==='3m'){const d=new Date(today);d.setMonth(d.getMonth()-3);de=toStr(d);}else if(tipo==='ano'){de=today.getFullYear()+'-01-01';ate=today.getFullYear()+'-12-31';}document.getElementById('dash-de').value=de;document.getElementById('dash-ate').value=ate;_dashAtalhoAtivo=tipo;['mes','30d','3m','ano'].forEach(k=>{const btn=document.getElementById('atalho-'+k);if(btn)btn.classList.toggle('ativo',k===tipo);});renderDashboard();}
@@ -1687,7 +1720,7 @@ function getPerfDates(canal){return[...document.getElementById('canal-'+canal).q
 function getCanalDates(canal){return[...document.getElementById('canal-'+canal).querySelectorAll('.canal-date-row')].map(row=>{const inp=row.querySelector('.inp-data');return inp&&inp.value?inp.value:null;}).filter(Boolean);}
 function getCanalCancelados(canal){const result={};[...document.getElementById('canal-'+canal).querySelectorAll('.canal-date-row')].forEach(row=>{const inp=row.querySelector('.inp-data');const justRow=row.parentElement.querySelector('.disparo-cancelado-row');const isCancelado=justRow&&justRow.classList.contains('visible');if(isCancelado&&inp&&inp.value){const motivo=justRow.querySelector('input[type=text]')?.value||'';result[inp.value]=motivo;}});return result;}
 function clearCanals(){['inbound_wa','inbound_email','inbound_sms','inbound_lp','rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros','rede_social_youtube','performance_meta_ads','performance_google_ads'].forEach(c=>document.getElementById('canal-'+c).innerHTML='');}
-function openNewModal(){if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem criar campanhas','error');return;}editingId=null;document.getElementById('form-title').textContent='Detalhes da Campanha';document.getElementById('btn-form-save').textContent='GRAVAR CAMPANHA';document.getElementById('btn-form-save').className='btn-save';document.getElementById('btn-delete-camp').style.display='none';['f-nome','f-inicio','f-fim','f-tags'].forEach(id=>document.getElementById(id).value='');['f-briefing','f-defesa'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='';});document.getElementById('status-section').style.display='none';clearCanals();buildColorPicker(getUniqueColor());selectedCat=['COMERCIAL'];['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(c==='COMERCIAL'?' sel-COMERCIAL':'');});document.getElementById('modal-form').classList.add('open');}
+function openNewModal(){if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem criar campanhas','error');return;}editingId=null;document.getElementById('form-title').textContent='Detalhes da Campanha';document.getElementById('btn-form-save').textContent='GRAVAR CAMPANHA';document.getElementById('btn-form-save').className='btn-save';document.getElementById('btn-delete-camp').style.display='none';['f-nome','f-inicio','f-fim','f-tags'].forEach(id=>document.getElementById(id).value='');['f-briefing'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='';});document.getElementById('status-section').style.display='none';clearCanals();buildColorPicker(getUniqueColor());selectedCat=['COMERCIAL'];['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(c==='COMERCIAL'?' sel-COMERCIAL':'');});document.getElementById('modal-form').classList.add('open');}
 function openEditModal(id){
   if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem editar campanhas','error');return;}
   const camp=campaigns.find(x=>x.id===id);if(!camp)return;
@@ -1700,8 +1733,7 @@ function openEditModal(id){
   document.getElementById('f-nome').value=camp.name;
   document.getElementById('f-inicio').value=camp.inicio;
   document.getElementById('f-fim').value=camp.fim;
-  const bEl=document.getElementById('f-briefing');if(bEl)bEl.innerHTML=camp.briefing||'';
-  const dEl=document.getElementById('f-defesa');if(dEl)dEl.innerHTML=camp.defesa||'';
+  const bEl=document.getElementById('f-briefing');if(bEl)bEl.innerHTML=camp.briefing||(camp.defesa?'<p>'+camp.defesa+'</p>':'')||'';  // unifica briefing+defesa legado
   document.getElementById('f-tags').value=camp.tags||'';
   clearCanals();
   // Preencher datas dos canais a partir dos arrays em memória (populados por loadAllDisparos)
@@ -1768,7 +1800,7 @@ async function saveCampaign(){
     name:toUpper(name), color:selectedColor,
     categoria:[...selectedCat], status:selectedStatus, inicio, fim,
     briefing:document.getElementById('f-briefing').innerHTML.trim(),
-    defesa:document.getElementById('f-defesa').innerHTML.trim(),
+    defesa:'',  // Campo unificado em briefing
     tags:document.getElementById('f-tags').value.trim(),
     motivo_adiamento:selectedStatus==='adiada'?document.getElementById('f-motivo-adiamento').value:'',
     data_adiamento:selectedStatus==='adiada'?document.getElementById('f-data-adiamento').value:''
