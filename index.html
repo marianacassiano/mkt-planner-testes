@@ -1088,7 +1088,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 <!-- MODAL: Nova / Editar Campanha -->
 <div class="modal-overlay" id="modal-form">
   <div class="modal">
-    <button class="modal-close" onclick="closeFormModal()">✕</button>
+    <button type="button" class="modal-close" onclick="closeFormModal()">✕</button>
     <h2 id="form-title">Detalhes da Campanha</h2>
     <p class="modal-sub">Configure o período, categoria, briefing e canais.</p>
     <div class="form-row2">
@@ -1109,9 +1109,9 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="form-section">
       <label class="form-label">Categoria</label>
       <div class="cat-selector">
-        <button class="cat-opt" id="cat-COMERCIAL" onclick="selectCat('COMERCIAL')">Comercial</button>
-        <button class="cat-opt" id="cat-CONTEUDO" onclick="selectCat('CONTEUDO')">Conteúdo</button>
-        <button class="cat-opt" id="cat-EVENTOS" onclick="selectCat('EVENTOS')">Eventos</button>
+        <button type="button" class="cat-opt" id="cat-COMERCIAL" onclick="selectCat('COMERCIAL')">Comercial</button>
+        <button type="button" class="cat-opt" id="cat-CONTEUDO" onclick="selectCat('CONTEUDO')">Conteúdo</button>
+        <button type="button" class="cat-opt" id="cat-EVENTOS" onclick="selectCat('EVENTOS')">Eventos</button>
       </div>
     </div>
     <div class="form-row2">
@@ -1176,19 +1176,19 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       </div>
       <div class="collapsible-body open"><div class="collapsible-body-inner">
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">WhatsApp</span><button class="btn-add-canal" onclick="addCanalDate('inbound_wa')">+</button></div>
+      <div class="canal-header"><span class="canal-title">WhatsApp</span><button type="button" class="btn-add-canal" onclick="addCanalDate('inbound_wa')">+</button></div>
       <div class="canal-dates" id="canal-inbound_wa"></div>
     </div>
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">E-mail</span><button class="btn-add-canal" onclick="addCanalDate('inbound_email')">+</button></div>
+      <div class="canal-header"><span class="canal-title">E-mail</span><button type="button" class="btn-add-canal" onclick="addCanalDate('inbound_email')">+</button></div>
       <div class="canal-dates" id="canal-inbound_email"></div>
     </div>
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">SMS</span><button class="btn-add-canal" onclick="addCanalDate('inbound_sms')">+</button></div>
+      <div class="canal-header"><span class="canal-title">SMS</span><button type="button" class="btn-add-canal" onclick="addCanalDate('inbound_sms')">+</button></div>
       <div class="canal-dates" id="canal-inbound_sms"></div>
     </div>
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">Landing Page</span><button class="btn-add-canal" onclick="addCanalDate('inbound_lp')">+</button></div>
+      <div class="canal-header"><span class="canal-title">Landing Page</span><button type="button" class="btn-add-canal" onclick="addCanalDate('inbound_lp')">+</button></div>
       <div class="canal-dates" id="canal-inbound_lp"></div>
     </div>
       </div></div>
@@ -1201,27 +1201,27 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       </div>
       <div class="collapsible-body"><div class="collapsible-body-inner">
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">Instagram</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_instagram')">+</button></div>
+      <div class="canal-header"><span class="canal-title">Instagram</span><button type="button" class="btn-add-canal" onclick="addCanalDate('rede_social_instagram')">+</button></div>
       <div class="canal-dates" id="canal-rede_social_instagram"></div>
     </div>
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">Facebook</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_facebook')">+</button></div>
+      <div class="canal-header"><span class="canal-title">Facebook</span><button type="button" class="btn-add-canal" onclick="addCanalDate('rede_social_facebook')">+</button></div>
       <div class="canal-dates" id="canal-rede_social_facebook"></div>
     </div>
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">LinkedIn</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_linkedin')">+</button></div>
+      <div class="canal-header"><span class="canal-title">LinkedIn</span><button type="button" class="btn-add-canal" onclick="addCanalDate('rede_social_linkedin')">+</button></div>
       <div class="canal-dates" id="canal-rede_social_linkedin"></div>
     </div>
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">Blog</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_blog')">+</button></div>
+      <div class="canal-header"><span class="canal-title">Blog</span><button type="button" class="btn-add-canal" onclick="addCanalDate('rede_social_blog')">+</button></div>
       <div class="canal-dates" id="canal-rede_social_blog"></div>
     </div>
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">Outros</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_outros')">+</button></div>
+      <div class="canal-header"><span class="canal-title">Outros</span><button type="button" class="btn-add-canal" onclick="addCanalDate('rede_social_outros')">+</button></div>
       <div class="canal-dates" id="canal-rede_social_outros"></div>
     </div>
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">YouTube</span><button class="btn-add-canal" onclick="addCanalDate('rede_social_youtube')">+</button></div>
+      <div class="canal-header"><span class="canal-title">YouTube</span><button type="button" class="btn-add-canal" onclick="addCanalDate('rede_social_youtube')">+</button></div>
       <div class="canal-dates" id="canal-rede_social_youtube"></div>
     </div>
       </div></div>
@@ -1234,11 +1234,11 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       </div>
       <div class="collapsible-body"><div class="collapsible-body-inner">
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">Meta Ads</span><button class="btn-add-canal" onclick="addPerfDate('performance_meta_ads')">+</button></div>
+      <div class="canal-header"><span class="canal-title">Meta Ads</span><button type="button" class="btn-add-canal" onclick="addPerfDate('performance_meta_ads')">+</button></div>
       <div class="canal-dates" id="canal-performance_meta_ads"></div>
     </div>
     <div class="canal-block">
-      <div class="canal-header"><span class="canal-title">Google Ads</span><button class="btn-add-canal" onclick="addPerfDate('performance_google_ads')">+</button></div>
+      <div class="canal-header"><span class="canal-title">Google Ads</span><button type="button" class="btn-add-canal" onclick="addPerfDate('performance_google_ads')">+</button></div>
       <div class="canal-dates" id="canal-performance_google_ads"></div>
     </div>
       </div></div>
@@ -1247,9 +1247,9 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="form-section" id="status-section" style="display:none;">
       <label class="form-label">Status da Campanha</label>
       <div class="status-bar">
-        <button class="status-opt sel-ativa" id="status-ativa" onclick="selectStatus('ativa')">✅ Ativa</button>
-        <button class="status-opt" id="status-adiada" onclick="selectStatus('adiada')">⏳ Adiar</button>
-        <button class="status-opt" id="status-cancelada" onclick="selectStatus('cancelada')">❌ Cancelar</button>
+        <button type="button" class="status-opt sel-ativa" id="status-ativa" onclick="selectStatus('ativa')">✅ Ativa</button>
+        <button type="button" class="status-opt" id="status-adiada" onclick="selectStatus('adiada')">⏳ Adiar</button>
+        <button type="button" class="status-opt" id="status-cancelada" onclick="selectStatus('cancelada')">❌ Cancelar</button>
       </div>
       <div class="adiamento-block" id="adiamento-block">
         <div class="form-row2" style="margin-bottom:12px;">
@@ -1265,9 +1265,9 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     </div>
     <hr class="divider">
     <div class="modal-actions">
-      <div class="modal-actions-left"><button class="btn-delete" id="btn-delete-camp" style="display:none" onclick="deleteCampaign()">Excluir</button></div>
-      <button class="btn-cancel" onclick="closeFormModal()">Cancelar</button>
-      <button class="btn-save" id="btn-form-save" onclick="saveCampaign()">GRAVAR CAMPANHA</button>
+      <div class="modal-actions-left"><button type="button" class="btn-delete" id="btn-delete-camp" style="display:none" onclick="deleteCampaign()">Excluir</button></div>
+      <button type="button" class="btn-cancel" onclick="closeFormModal()">Cancelar</button>
+      <button type="button" class="btn-save" id="btn-form-save" onclick="saveCampaign()">GRAVAR CAMPANHA</button>
     </div>
   </div>
 </div>
@@ -2650,23 +2650,6 @@ async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, times
 
 </script>
 
-<!-- MODAL GROQ CONFIG (GLOBAL) -->
-<div class="intel-modal-overlay" id="intel-modal-groq" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:9999;" onclick="if(event.target===this)closeGroqConfigModal()">
-  <div class="intel-modal" style="background:white;border-radius:16px;padding:24px;width:90%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);">
-    <div class="intel-modal-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <span style="font-size:16px;font-weight:700;">⚙️ Configurar API Groq</span>
-      <button onclick="closeGroqConfigModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray-400);">✕</button>
-    </div>
-    <div style="margin-bottom:14px;">
-      <label class="form-label" style="display:block;font-size:13px;font-weight:600;color:var(--gray-800);margin-bottom:6px;">Chave da API Groq</label>
-      <input class="form-input" id="groq-api-key-input" type="password" placeholder="Cole sua chave da API aqui" style="width:100%;padding:10px 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:'DM Mono',monospace;font-size:12px;outline:none;">
-      <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">Obtenha em: <a href="https://console.groq.com" target="_blank" style="color:var(--purple);text-decoration:none;">console.groq.com</a></p>
-    </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;">
-      <button class="btn-cancel" onclick="closeGroqConfigModal()" style="padding:10px 16px;border:1.5px solid var(--gray-200);background:white;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;color:var(--gray-600);">Cancelar</button>
-      <button class="btn-save" onclick="saveGroqConfig()" style="padding:10px 16px;background:var(--purple);color:white;border:none;border-radius:10px;cursor:pointer;font-family:'Sora',sans-serif;font-size:13px;font-weight:700;">SALVAR</button>
-    </div>
-  </div>
-</div>
 
-<div id="config-panel" class="config-panel"><button class="config-close" onclick="toggleConfigPanel()">✕</button><h2>⚙️ Configuração</h2><div id="config-status"></div><label>Chave Groq API</label><input type="password" id="groq-key-input" placeholder="gsk_..." /><button onclick=
+</body>
+</html>
