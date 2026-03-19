@@ -3451,21 +3451,15 @@ function _deduplicateDeals(rows){
   return Object.values(map);
 }
 
-// ── POST em lotes de 200 (Supabase tem limite de payload) ──
-async function _crmPostBatch(rows, headers={}){
+// ── POST upsert em lotes de 200 (Supabase merge-duplicates) ──
+async function _crmPostBatch(rows){
   const SZ=200;
   for(let i=0;i<rows.length;i+=SZ){
-    await sbFetch('crm_deals','POST',rows.slice(i,i+SZ));
-  }
-}
-
-// ── PATCH em lotes de 200 usando deal_key ──
-async function _crmPatchBatch(rows){
-  for(const r of rows){
-    await sbFetch(
-      `crm_deals?deal_key=eq.${encodeURIComponent(r.deal_key)}`,
-      'PATCH', r
-    );
+    const batch=rows.slice(i,i+SZ);
+    const opts={method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'resolution=merge-duplicates,return=representation'}};
+    opts.body=JSON.stringify(batch);
+    const res=await fetch(SUPA_URL+'/rest/v1/crm_deals',opts);
+    if(!res.ok){const t=await res.text();throw new Error(t);}
   }
 }
 
@@ -3477,60 +3471,44 @@ async function _crmHistBatch(rows){
   }
 }
 
-// ── UPSERT HÍBRIDO:
-//    1. Busca deals existentes pela chave
-//    2. Para cada deal do CSV: se existe e mudou etapa → atualiza + grava histórico
-//                              se não existe → insere
-// ──
+// ── UPSERT HÍBRIDO ──
 async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
-  // Busca estado atual de todos os deals
-  const existing = await sbFetch('crm_deals?select=deal_key,etapa,etapa_ref,estado,campanha,funil&limit=100000') || [];
+  // Busca estado atual para detectar mudanças de etapa
+  const existing = await sbFetch('crm_deals?select=deal_key,etapa,etapa_ref,estado&limit=100000') || [];
   const existMap={};
   existing.forEach(r=>{ existMap[r.deal_key]=r; });
 
-  const toInsert=[], toUpdate=[], histRows=[];
-
+  const histRows=[];
   newRows.forEach(r=>{
-    const key = _dealKey(r);
-    const ex  = existMap[key];
-
-    if(!ex){
-      // Deal novo → inserir
-      toInsert.push({...r, deal_key:key});
-    } else {
-      // Deal existente → sempre atualiza dados
-      const changed = ex.etapa_ref !== r.etapa_ref || ex.estado !== r.estado;
-      toUpdate.push({...r, deal_key:key});
-
-      if(changed){
-        // Grava histórico da mudança
-        histRows.push({
-          deal_key:        key,
-          nome:            r.nome,
-          empresa:         r.empresa,
-          funil:           r.funil,
-          campanha:        r.campanha,
-          responsavel:     r.responsavel,
-          etapa_anterior:  ex.etapa,
-          etapa_ref_anterior: ex.etapa_ref,
-          estado_anterior: ex.estado,
-          etapa_nova:      r.etapa,
-          etapa_ref_nova:  r.etapa_ref,
-          estado_novo:     r.estado,
-          data_mudanca:    importedAt,
-          funil_arquivo:   arquivoLabel,
-          importado_por:   currentUser?.nome||currentUser?.email||'sistema'
-        });
-      }
+    const ex = existMap[r.deal_key];
+    if(ex && (ex.etapa_ref !== r.etapa_ref || ex.estado !== r.estado)){
+      histRows.push({
+        deal_key:           r.deal_key,
+        nome:               r.nome,
+        empresa:            r.empresa,
+        funil:              r.funil,
+        campanha:           r.campanha,
+        responsavel:        r.responsavel,
+        etapa_anterior:     ex.etapa,
+        etapa_ref_anterior: ex.etapa_ref,
+        estado_anterior:    ex.estado,
+        etapa_nova:         r.etapa,
+        etapa_ref_nova:     r.etapa_ref,
+        estado_novo:        r.estado,
+        data_mudanca:       importedAt,
+        funil_arquivo:      arquivoLabel,
+        importado_por:      currentUser?.nome||currentUser?.email||'sistema'
+      });
     }
   });
 
-  // Executa operações
-  if(toInsert.length) await _crmPostBatch(toInsert);
-  if(toUpdate.length) await _crmPatchBatch(toUpdate);
+  // Upsert tudo de uma vez (insert + update automático pelo deal_key único)
+  await _crmPostBatch(newRows);
   if(histRows.length) await _crmHistBatch(histRows);
 
-  return { inseridos:toInsert.length, atualizados:toUpdate.length, mudancas:histRows.length };
+  const inseridos = newRows.filter(r=>!existMap[r.deal_key]).length;
+  const atualizados = newRows.length - inseridos;
+  return { inseridos, atualizados, mudancas: histRows.length };
 }
 
 // ── Carrega estado atual do Supabase (crm_deals) ──
