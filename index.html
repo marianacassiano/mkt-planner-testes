@@ -3444,9 +3444,9 @@ function _dealKey(r){ return [r.nome,r.funil,r.campanha,r.responsavel].map(v=>(v
 function _deduplicateDeals(rows){
   const map={};
   rows.forEach(r=>{
-    const k=_dealKey(r);
-    if(!map[k]){ map[k]={...r, deal_key:k}; return; }
-    if(_etapaScore(r.etapa_ref) > _etapaScore(map[k].etapa_ref)) map[k]={...r, deal_key:k};
+    const k=r.deal_key;
+    if(!map[k]){ map[k]=r; return; }
+    if(_etapaScore(r.etapa_ref) > _etapaScore(map[k].etapa_ref)) map[k]=r;
   });
   return Object.values(map);
 }
@@ -4000,31 +4000,50 @@ async function _addCrmSnap(snap) {
   try {
     const importedAt = new Date().toISOString();
 
-    // Deduplica por chave (mantém etapa mais avançada em caso de empate)
-    const dedupRows = _deduplicateDeals(snap.rows.map(r=>({
-      nome:            r.nome,
-      empresa:         r.empresa,
-      funil:           r.funil,
-      etapa:           r.etapa,
-      etapa_ref:       r.ref,
-      estado:          r.estado,
-      motivo_perda:    r.motivo,
-      valor_unico:     r.valor||0,
-      potencia_kwp:    _parseKwp(r.kwp)||null,
-      data_criacao:    r.dt_criacao||null,
-      data_fechamento: r.dt_fechamento||null,
-      fonte:           r.fonte,
-      campanha:        r.camp,
-      responsavel:     r.resp,
-      ultima_importacao: importedAt,
-      funil_arquivo:   snap.label,
-      importado_por:   currentUser?.nome||currentUser?.email||'sistema'
-    })));
+    // Monta payload com deal_key já calculado
+    const mapped = snap.rows.map(r=>{
+      const campanha   = (r.camp||'').trim();
+      const responsavel= (r.resp||'').trim();
+      const nome       = (r.nome||'').trim();
+      const funil      = (r.funil||'').trim();
+      const deal_key   = [nome, funil, campanha, responsavel].join('||');
+      return {
+        deal_key,
+        nome,
+        empresa:         (r.empresa||'').trim(),
+        funil,
+        etapa:           (r.etapa||'').trim(),
+        etapa_ref:       (r.ref||'').trim(),
+        estado:          (r.estado||'').trim(),
+        motivo_perda:    (r.motivo||'').trim(),
+        valor_unico:     r.valor||0,
+        potencia_kwp:    _parseKwp(r.kwp)||null,
+        data_criacao:    r.dt_criacao||null,
+        data_fechamento: r.dt_fechamento||null,
+        fonte:           (r.fonte||'').trim(),
+        campanha,
+        responsavel,
+        ultima_importacao: importedAt,
+        funil_arquivo:   snap.label,
+        importado_por:   currentUser?.nome||currentUser?.email||'sistema'
+      };
+    });
+
+    // Deduplica (já tem deal_key, mantém etapa mais avançada)
+    const dedupRows = _deduplicateDeals(mapped);
+
+    // Verifica integridade antes de enviar
+    const semChave = dedupRows.filter(r=>!r.deal_key);
+    if(semChave.length){
+      console.warn('Rows sem deal_key:', semChave.slice(0,3));
+      showToast('Aviso: '+semChave.length+' registros sem chave ignorados','error');
+      dedupRows.splice(0, dedupRows.length, ...dedupRows.filter(r=>r.deal_key));
+    }
 
     const res = await _crmUpsertHybrid(dedupRows, importedAt, snap.label);
 
     showToast(
-      `✅ ${res.inseridos} novos · ${res.atualizados} atualizados · ${res.mudancas} mudanças de etapa registradas`,
+      `✅ ${res.inseridos} novos · ${res.atualizados} atualizados · ${res.mudancas} mudanças de etapa`,
       'success'
     );
 
@@ -4032,7 +4051,6 @@ async function _addCrmSnap(snap) {
   } catch(e){
     showToast('Erro ao salvar: '+e.message,'error');
     console.error(e);
-    // Fallback em memória
     _crmSnaps.unshift(snap);
     if(_crmSnaps.length>3) _crmSnaps.pop();
     _crmSnapIdx=0; _crmFunil=null;
