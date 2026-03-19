@@ -4095,7 +4095,14 @@ async function renderCrmView() {
   const k = _crmCalcKpis(activeRows);
   const r = _crmRankings(activeRows);
 
-  el.innerHTML = `<div style="padding:24px 32px;">${header}
+  el.innerHTML = `<div style="padding:24px 32px;">
+    <!-- Botão voltar -->
+    <div style="margin-bottom:16px;">
+      <button onclick="_crmSetFunil('TODOS')" style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border:1.5px solid var(--gray-200);border-radius:10px;background:white;font-family:'Sora',sans-serif;font-size:12px;font-weight:600;color:var(--gray-600);cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--purple-light)';this.style.color='var(--purple)'" onmouseout="this.style.borderColor='var(--gray-200)';this.style.color='var(--gray-600)'">
+        ← Voltar para todos os funis
+      </button>
+    </div>
+    ${header}
     <!-- KPIs -->
     <div class="crm-panel" style="margin-bottom:20px;">
       <div class="crm-panel-title">${_crmFunil}${_crmCamp ? " · " + _crmCamp : ""} — KPIs</div>
