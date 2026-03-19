@@ -884,7 +884,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <!-- CALENDÁRIO -->
   <div class="view active" id="view-calendario">
     <div class="view-toprow">
-      <input type="text" class="search-input" id="search-cal" placeholder="🔍 Buscar campanha..." oninput="renderAll()">
+      <input type="text" class="search-input" id="search-cal" autocomplete="off" placeholder="🔍 Buscar campanha..." oninput="renderAll()">
       <div class="cal-cat-tabs">
         <button type="button" class="cal-cat-tab ativo" id="tab-cat-TODOS" onclick="setCatTab('TODOS')">Todos</button>
         <button type="button" class="cal-cat-tab tab-com" id="tab-cat-COMERCIAL" onclick="setCatTab('COMERCIAL')">Comercial</button>
@@ -933,7 +933,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <!-- RESUMO -->
   <div class="view" id="view-resumo">
     <div class="view-toprow" id="resumo-toprow">
-      <input type="text" class="search-input" id="search-res" placeholder="🔍 Buscar campanha..." oninput="renderResumo()" style="margin-left:0;">
+      <input type="text" class="search-input" id="search-res" autocomplete="off" placeholder="🔍 Buscar campanha..." oninput="renderResumo()" style="margin-left:0;">
     </div>
     <h3 style="font-size:16px;font-weight:700;margin-top:32px;margin-bottom:16px;">Calendário de Campanhas Comerciais</h3>
     <div id="resumo-calendar" style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);"></div>
@@ -1086,7 +1086,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 </div>
 
 <!-- MODAL: Nova / Editar Campanha -->
-<div class="modal-overlay" id="modal-form">
+<div class="modal-overlay" id="modal-form" onsubmit="return false">
   <div class="modal">
     <button type="button" class="modal-close" onclick="closeFormModal()">✕</button>
     <h2 id="form-title">Detalhes da Campanha</h2>
@@ -1094,7 +1094,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="form-row2">
       <div>
         <label class="form-label">Título</label>
-        <input class="form-input" type="text" id="f-nome" placeholder="Nome da campanha">
+        <input class="form-input" type="text" id="f-nome" autocomplete="off" onkeydown="if(event.key==='Enter')event.preventDefault()" placeholder="Nome da campanha">
       </div>
       <div>
         <label class="form-label">Cor</label>
@@ -1158,7 +1158,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     </div>
     <div class="form-section">
       <label class="form-label">Tags</label>
-      <input class="form-input" type="text" id="f-tags" placeholder="Classifique a campanha (ex: black friday, promoção)">
+      <input class="form-input" type="text" id="f-tags" autocomplete="off" onkeydown="if(event.key==='Enter')event.preventDefault()" placeholder="Classifique a campanha (ex: black friday, promoção)">
     </div>
     <div class="form-section" id="template-section">
       <label class="form-label">Template de Disparo</label>
@@ -2650,6 +2650,18 @@ async function saveAnalysisToSupabase(radar, ideias, alertas, competitors, times
 
 </script>
 
+
+<!-- CONFIG PANEL (Groq) -->
+<div id="config-panel" class="config-panel">
+  <button type="button" class="config-close" onclick="toggleConfigPanel()">✕</button>
+  <h2>⚙️ Configuração</h2>
+  <div id="config-status" class="config-status"></div>
+  <label>Chave Groq API</label>
+  <input type="password" id="groq-key-input" placeholder="gsk_..." autocomplete="off" />
+  <button type="button" onclick="saveGroqKey()">💾 Salvar Chave</button>
+  <button type="button" onclick="testGroqKey()" style="background:var(--teal)">🧪 Testar</button>
+  <button type="button" onclick="clearGroqKey()" style="background:var(--red)">🗑️ Remover</button>
+</div>
 
 </body>
 </html>
