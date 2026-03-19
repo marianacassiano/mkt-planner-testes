@@ -862,6 +862,23 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .hm-sq{width:10px;height:10px;border-radius:2px;}
 .dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
 
+
+/* ── CRM TOOLTIPS ─────────────────────────────────── */
+.crm-tip{position:relative;cursor:help;}
+.crm-tip:hover .crm-tip-box{opacity:1;pointer-events:auto;transform:translateY(0);}
+.crm-tip-box{
+  position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%) translateY(4px);
+  background:var(--gray-800);color:white;font-size:11px;font-weight:400;
+  font-family:'Sora',sans-serif;line-height:1.5;
+  padding:8px 12px;border-radius:8px;white-space:nowrap;max-width:240px;white-space:normal;
+  opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;
+  z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,.25);
+}
+.crm-tip-box::after{
+  content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+  border:5px solid transparent;border-top-color:var(--gray-800);
+}
+
 /* ── CRM DASHBOARD ─────────────────────────────────── */
 .crm-kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
 .crm-kpi{background:white;border-radius:14px;padding:16px 18px;box-shadow:0 1px 6px rgba(0,0,0,.06);}
@@ -3879,6 +3896,24 @@ function _campTableHtml(rows){
   </tbody></table>`;
 }
 
+// ── Definições de tooltip por KPI ──
+const CRM_KPI_TIPS = {
+  'Total base':      'Total de deals neste funil/campanha no momento da última importação.',
+  'Não Tratado':     'Deals que ainda não foram abordados pelo time comercial.',
+  'Em Contato':      'Deals em que o responsável já realizou algum contato com o cliente.',
+  'Orçamento':       'Deals que avançaram para proposta, reunião agendada ou qualificação SQL.',
+  'Venda':           'Deals fechados: pedidos, aguardando entrega, ganhos ou HandOFF.',
+  'Taxa conversão':  'Percentual do total da base que virou venda. Principal indicador de eficiência da campanha.',
+  'Conv. ORC→VND':   'Dos deals que chegaram a orçamento, quantos % foram fechados como venda.',
+  'Receita total':   'Soma do Valor Único de todos os deals com estado "Vendida".',
+  'Ticket médio':    'Valor médio por venda fechada. Indica o perfil financeiro dos integradores compradores.',
+  'Pipeline $':      'Valor potencial em orçamento — quanto pode se tornar receita se os deals forem fechados.',
+  'kWp vendido':     'Potência total (kWp) dos sistemas solares vendidos no período.',
+  'kWp médio/venda': 'Tamanho médio dos sistemas vendidos em kWp. Indica o perfil do projeto.',
+  'Ciclo médio':     'Média de dias entre a criação do deal e o fechamento da venda.',
+  'Campanha top':    'Campanha com maior taxa de conversão no funil atual (mínimo 3 deals).',
+};
+
 // ── Bloco de KPI cards ──
 function _kpiCardsHtml(k){
   const cards=[
@@ -3898,7 +3933,8 @@ function _kpiCardsHtml(k){
     {l:'Campanha top',  v:k.topCamp,                          s:k.topCampPct+'% conversão',         c:'var(--purple)'},
   ];
   return `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;">
-    ${cards.map(c=>`<div class="crm-kpi">
+    ${cards.map(c=>`<div class="crm-kpi crm-tip">
+      <div class="crm-tip-box">${CRM_KPI_TIPS[c.l]||''}</div>
       <div class="crm-kpi-label">${c.l}</div>
       <div class="crm-kpi-val" style="color:${c.c};font-size:${c.v.length>10?'14px':'18px'}">${c.v}</div>
       <div class="crm-kpi-sub">${c.s}</div>
@@ -4008,8 +4044,8 @@ async function renderCrmView() {
       <div style="font-size:48px;margin-bottom:16px;">📊</div>
       <h2 style="font-size:22px;font-weight:700;margin-bottom:8px;">Dashboard CRM</h2>
       <p style="font-size:13px;color:var(--gray-400);margin-bottom:32px;line-height:1.6;">Importe os CSVs do CRM (Funil SDR, BDR, Comercial) para gerar o relatório.<br>Os dados ficam salvos no Supabase e disponíveis para toda a equipe.</p>
-      <label class="crm-upload-btn">📂 IMPORTAR CSV<input type="file" accept=".csv" style="display:none" onchange="handleCrmFile(this)"></label>
-      <p style="font-size:11px;color:var(--gray-400);margin-top:14px;">Importe um funil por vez — pode importar vários.</p>
+      ${currentUser&&currentUser.role==='admin' ? `<label class="crm-upload-btn">📂 IMPORTAR CSV<input type="file" accept=".csv" style="display:none" onchange="handleCrmFile(this)"></label>
+      <p style="font-size:11px;color:var(--gray-400);margin-top:14px;">Importe um funil por vez — pode importar vários.</p>` : '<p style="font-size:13px;color:var(--gray-400);">Nenhum dado disponível ainda. Aguarde o administrador importar os dados.</p>'}
     </div>`;
     return;
   }
@@ -4111,19 +4147,19 @@ async function renderCrmView() {
       <!-- Rankings -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
         <div class="crm-panel">
-          <div class="crm-panel-title">🏅 Top responsáveis — kWp vendido</div>
+          <div class="crm-panel-title crm-tip">🏅 Top responsáveis — kWp vendido<div class="crm-tip-box">Ranking dos vendedores que mais instalaram potência solar (kWp) no período.</div></div>
           ${_rankHtml(rAll.respKwp, d=>d.kwp, d=>_kwp(d.kwp), '#FAB515')}
         </div>
         <div class="crm-panel">
-          <div class="crm-panel-title">💰 Top responsáveis — receita</div>
+          <div class="crm-panel-title crm-tip">💰 Top responsáveis — receita<div class="crm-tip-box">Ranking dos vendedores que geraram maior receita financeira (R$) no período.</div></div>
           ${_rankHtml(rAll.respVal, d=>d.val, d=>_brl(d.val), '#0D518E')}
         </div>
         <div class="crm-panel">
-          <div class="crm-panel-title">🏢 Top empresas — qtd compras</div>
+          <div class="crm-panel-title crm-tip">🏢 Top empresas — qtd compras<div class="crm-tip-box">Integradores com mais deals fechados. Candidatos a estratégia Key Account.</div></div>
           ${_rankHtml(rAll.empresaQtd, d=>d.qtd, d=>d.qtd+' compras', '#00B2C8')}
         </div>
         <div class="crm-panel">
-          <div class="crm-panel-title">⚡ Top empresas — kWp comprado</div>
+          <div class="crm-panel-title crm-tip">⚡ Top empresas — kWp comprado<div class="crm-tip-box">Integradores que mais adquiriram potência solar. Clientes de alto impacto.</div></div>
           ${_rankHtml(rAll.empresaKwp, d=>d.kwp, d=>_kwp(d.kwp), '#00C07A')}
         </div>
       </div>
@@ -4171,19 +4207,19 @@ async function renderCrmView() {
     <!-- Rankings do funil -->
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
       <div class="crm-panel">
-        <div class="crm-panel-title">🏅 Top responsáveis — kWp vendido</div>
+        <div class="crm-panel-title crm-tip">🏅 Top responsáveis — kWp vendido<div class="crm-tip-box">Ranking dos vendedores que mais instalaram potência solar (kWp) no período.</div></div>
         ${_rankHtml(r.respKwp, d=>d.kwp, d=>_kwp(d.kwp), '#FAB515')}
       </div>
       <div class="crm-panel">
-        <div class="crm-panel-title">💰 Top responsáveis — receita</div>
+        <div class="crm-panel-title crm-tip">💰 Top responsáveis — receita<div class="crm-tip-box">Ranking dos vendedores que geraram maior receita financeira (R$) no período.</div></div>
         ${_rankHtml(r.respVal, d=>d.val, d=>_brl(d.val), '#0D518E')}
       </div>
       <div class="crm-panel">
-        <div class="crm-panel-title">🏢 Top empresas — qtd compras</div>
+        <div class="crm-panel-title crm-tip">🏢 Top empresas — qtd compras<div class="crm-tip-box">Integradores com mais deals fechados. Candidatos a estratégia Key Account.</div></div>
         ${_rankHtml(r.empresaQtd, d=>d.qtd, d=>d.qtd+' compras', '#00B2C8')}
       </div>
       <div class="crm-panel">
-        <div class="crm-panel-title">⚡ Top empresas — kWp comprado</div>
+        <div class="crm-panel-title crm-tip">⚡ Top empresas — kWp comprado<div class="crm-tip-box">Integradores que mais adquiriram potência solar. Clientes de alto impacto.</div></div>
         ${_rankHtml(r.empresaKwp, d=>d.kwp, d=>_kwp(d.kwp), '#00C07A')}
       </div>
     </div>
