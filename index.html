@@ -3433,57 +3433,139 @@ function _cleanVal(v){
   return parseFloat(String(v).replace(/[^0-9.,]/g,'').replace(',','.').trim())||0;
 }
 
-// ── Upsert em lotes de 500 ──
-async function _crmUpsertBatch(rows){
-  const SZ=500;
+// ── Ordem de prioridade das etapas (para resolver duplicatas) ──
+const CRM_ETAPA_ORDEM = ['Não Tratado','Em Contato','Orçamento','Venda'];
+function _etapaScore(ref){ return CRM_ETAPA_ORDEM.indexOf(ref); }
+
+// ── Chave única de deal: nome+funil+campanha+responsavel ──
+function _dealKey(r){ return [r.nome,r.funil,r.campanha,r.responsavel].map(v=>(v||'').trim()).join('||'); }
+
+// ── Deduplica: se mesma chave, mantém a etapa mais avançada ──
+function _deduplicateDeals(rows){
+  const map={};
+  rows.forEach(r=>{
+    const k=_dealKey(r);
+    if(!map[k]){ map[k]=r; return; }
+    if(_etapaScore(r.etapa_ref) > _etapaScore(map[k].etapa_ref)) map[k]=r;
+  });
+  return Object.values(map);
+}
+
+// ── POST em lotes de 200 (Supabase tem limite de payload) ──
+async function _crmPostBatch(rows, headers={}){
+  const SZ=200;
   for(let i=0;i<rows.length;i+=SZ){
-    const batch=rows.slice(i,i+SZ);
-    await sbFetch('crm_deals','POST',batch);
+    await sbFetch('crm_deals','POST',rows.slice(i,i+SZ));
   }
 }
 
-// ── Carrega deals do Supabase e reconstrói snaps por (funil+data_importacao) ──
+// ── PATCH em lotes de 200 usando deal_key ──
+async function _crmPatchBatch(rows){
+  for(const r of rows){
+    await sbFetch(
+      `crm_deals?deal_key=eq.${encodeURIComponent(r.deal_key)}`,
+      'PATCH', r
+    );
+  }
+}
+
+// ── Insere histórico em lotes ──
+async function _crmHistBatch(rows){
+  const SZ=200;
+  for(let i=0;i<rows.length;i+=SZ){
+    await sbFetch('crm_historico','POST',rows.slice(i,i+SZ));
+  }
+}
+
+// ── UPSERT HÍBRIDO:
+//    1. Busca deals existentes pela chave
+//    2. Para cada deal do CSV: se existe e mudou etapa → atualiza + grava histórico
+//                              se não existe → insere
+// ──
+async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
+  // Busca estado atual de todos os deals
+  const existing = await sbFetch('crm_deals?select=deal_key,etapa,etapa_ref,estado,campanha,funil&limit=100000') || [];
+  const existMap={};
+  existing.forEach(r=>{ existMap[r.deal_key]=r; });
+
+  const toInsert=[], toUpdate=[], histRows=[];
+
+  newRows.forEach(r=>{
+    const key = _dealKey(r);
+    const ex  = existMap[key];
+
+    if(!ex){
+      // Deal novo → inserir
+      toInsert.push({...r, deal_key:key});
+    } else {
+      // Deal existente → sempre atualiza dados
+      const changed = ex.etapa_ref !== r.etapa_ref || ex.estado !== r.estado;
+      toUpdate.push({...r, deal_key:key});
+
+      if(changed){
+        // Grava histórico da mudança
+        histRows.push({
+          deal_key:        key,
+          nome:            r.nome,
+          empresa:         r.empresa,
+          funil:           r.funil,
+          campanha:        r.campanha,
+          responsavel:     r.responsavel,
+          etapa_anterior:  ex.etapa,
+          etapa_ref_anterior: ex.etapa_ref,
+          estado_anterior: ex.estado,
+          etapa_nova:      r.etapa,
+          etapa_ref_nova:  r.etapa_ref,
+          estado_novo:     r.estado,
+          data_mudanca:    importedAt,
+          funil_arquivo:   arquivoLabel,
+          importado_por:   currentUser?.nome||currentUser?.email||'sistema'
+        });
+      }
+    }
+  });
+
+  // Executa operações
+  if(toInsert.length) await _crmPostBatch(toInsert);
+  if(toUpdate.length) await _crmPatchBatch(toUpdate);
+  if(histRows.length) await _crmHistBatch(histRows);
+
+  return { inseridos:toInsert.length, atualizados:toUpdate.length, mudancas:histRows.length };
+}
+
+// ── Carrega estado atual do Supabase (crm_deals) ──
 async function _crmLoadFromSupabase(){
   showLoading();
   try {
-    // Busca todos registros ordenados por data_importacao desc
-    const rows = await sbFetch('crm_deals?select=*&order=data_importacao.desc&limit=50000');
+    const rows = await sbFetch('crm_deals?select=*&order=ultima_importacao.desc&limit=100000');
     if(!rows||!rows.length){ _crmSnaps=[]; return; }
 
-    // Agrupa por data_importacao (string ISO date prefix YYYY-MM-DD)
-    const bySnap={};
-    rows.forEach(r=>{
-      const key=(r.data_importacao||'').substring(0,10);
-      if(!bySnap[key]) bySnap[key]=[];
-      bySnap[key].push(r);
-    });
-
-    _crmSnaps = Object.entries(bySnap)
-      .sort((a,b)=>b[0].localeCompare(a[0]))
-      .map(([dateKey, dbRows])=>({
-        label: dbRows[0].funil_arquivo || 'Importação',
-        date: dateKey.split('-').reverse().join('/'),
-        rows: dbRows.map(r=>({
-          funil:  r.funil||'',
-          camp:   r.campanha||'',
-          etapa:  r.etapa||'',
-          estado: r.estado||'',
-          ref:    r.etapa_ref||'',
-          resp:   r.responsavel||'',
-          valor:  parseFloat(r.valor_unico)||0,
-          nome:   r.nome||'',
-          empresa:r.empresa||'',
-          motivo: r.motivo_perda||'',
-          fonte:  r.fonte||'',
-          dt_criacao:  r.data_criacao||'',
-          dt_fechamento: r.data_fechamento||''
-        }))
-      }));
+    // Um único "snap" representando o estado atual
+    _crmSnaps = [{
+      label: 'Estado atual',
+      date:  new Date().toLocaleDateString('pt-BR'),
+      rows:  rows.map(r=>({
+        funil:        r.funil||'',
+        camp:         r.campanha||'',
+        etapa:        r.etapa||'',
+        estado:       r.estado||'',
+        ref:          r.etapa_ref||'',
+        resp:         r.responsavel||'',
+        valor:        parseFloat(r.valor_unico)||0,
+        kwp:          r.potencia_kwp||'',
+        nome:         r.nome||'',
+        empresa:      r.empresa||'',
+        motivo:       r.motivo_perda||'',
+        fonte:        r.fonte||'',
+        dt_criacao:   r.data_criacao||'',
+        dt_fechamento:r.data_fechamento||''
+      }))
+    }];
 
     _crmSnapIdx=0; _crmFunil=null;
   } catch(e){
     console.error('Erro ao carregar CRM:',e);
-    showToast('Erro ao carregar CRM do Supabase: '+e.message,'error');
+    showToast('Erro ao carregar CRM: '+e.message,'error');
   } finally { hideLoading(); }
 }
 
@@ -3536,7 +3618,8 @@ function _parseCrmFile(text, name) {
   const iF=idx('Funil de vendas'), iC=idx('Campanha'), iE=idx('Etapa'),
         iS=idx('Estado'),  iR=idx('Responsável'), iV=idx('Valor Único'),
         iN=idx('Nome'),    iEM=idx('Empresa'),     iMo=idx('Motivo de Perda'),
-        iFo=idx('Fonte'),  iDc=idx('Data de criação'), iDf=idx('Data de fechamento');
+        iFo=idx('Fonte'),  iDc=idx('Data de criação'), iDf=idx('Data de fechamento'),
+        iKw=idx('Potência');
 
   const rows = [];
   for(let i=li+1;i<lines.length;i++){
@@ -3553,6 +3636,7 @@ function _parseCrmFile(text, name) {
       etapa, estado, ref,
       resp:        (cols[iR]||'').trim(),
       valor:       _cleanVal(cols[iV]),
+      kwp:         (cols[iKw]||'').trim(),
       nome:        (cols[iN]||'').trim(),
       empresa:     (cols[iEM]||'').trim(),
       motivo:      (cols[iMo]||'').trim(),
@@ -3592,12 +3676,176 @@ function _pctBadge(pct, type) {
   return `<span class="crm-pct ${cls}">${pct}%</span>`;
 }
 
+// ── Helpers de análise ──
+function _parseKwp(v){
+  if(!v) return 0;
+  const n = parseFloat(String(v).replace(/[^0-9.,]/g,'').replace(',','.'));
+  return isNaN(n)?0:n;
+}
+
+function _crmDiffDays(d1,d2){
+  if(!d1||!d2) return null;
+  const a=new Date(d1), b=new Date(d2);
+  if(isNaN(a)||isNaN(b)) return null;
+  return Math.round((b-a)/86400000);
+}
+
+function _brl(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
+function _kwp(v){ return v.toFixed(1)+' kWp'; }
+
+// ── KPIs calculados para um conjunto de rows ──
+function _crmCalcKpis(rows){
+  const total = rows.length;
+  const nt    = rows.filter(r=>r.ref==='Não Tratado').length;
+  const ec    = rows.filter(r=>r.ref==='Em Contato').length;
+  const orc   = rows.filter(r=>r.ref==='Orçamento').length;
+  const vnd   = rows.filter(r=>r.ref==='Venda').length;
+  const perdidos = rows.filter(r=>r.estado==='Perdida').length;
+
+  const vendasRows = rows.filter(r=>r.ref==='Venda');
+  const receita = vendasRows.reduce((s,r)=>s+(r.valor||0),0);
+  const ticket  = vnd?receita/vnd:0;
+
+  const kwpTotal = vendasRows.reduce((s,r)=>s+_parseKwp(r.kwp),0);
+  const kwpMedio = vnd?kwpTotal/vnd:0;
+  const kwpPipeline = rows.filter(r=>r.ref==='Orçamento').reduce((s,r)=>s+_parseKwp(r.kwp),0);
+  const pipeline = rows.filter(r=>r.ref==='Orçamento').reduce((s,r)=>s+(r.valor||0),0);
+
+  const ciclos = vendasRows.map(r=>_crmDiffDays(r.dt_criacao,r.dt_fechamento)).filter(d=>d!==null&&d>=0);
+  const cicloMedio = ciclos.length ? Math.round(ciclos.reduce((a,b)=>a+b,0)/ciclos.length) : null;
+
+  // Campanha top (por conversão)
+  const byCamp={};
+  rows.forEach(r=>{
+    if(!byCamp[r.camp]) byCamp[r.camp]={total:0,vnd:0};
+    byCamp[r.camp].total++;
+    if(r.ref==='Venda') byCamp[r.camp].vnd++;
+  });
+  let topCamp='—', topCampPct=0;
+  Object.entries(byCamp).forEach(([c,d])=>{
+    const p=_pct(d.vnd,d.total);
+    if(p>topCampPct&&d.total>=3){topCampPct=p;topCamp=c;}
+  });
+
+  return {total,nt,ec,orc,vnd,perdidos,receita,ticket,kwpTotal,kwpMedio,kwpPipeline,pipeline,cicloMedio,topCamp,topCampPct};
+}
+
+// ── Rankings ──
+function _crmRankings(rows){
+  const resp={}, empresa={};
+  rows.filter(r=>r.ref==='Venda').forEach(r=>{
+    const rs=r.resp||'Sem responsável';
+    if(!resp[rs]) resp[rs]={kwp:0,val:0,qtd:0};
+    resp[rs].kwp+=_parseKwp(r.kwp);
+    resp[rs].val+=(r.valor||0);
+    resp[rs].qtd++;
+
+    const em=r.empresa||'Sem empresa';
+    if(!empresa[em]) empresa[em]={kwp:0,qtd:0};
+    empresa[em].kwp+=_parseKwp(r.kwp);
+    empresa[em].qtd++;
+  });
+
+  const sortBy=(obj,key)=>Object.entries(obj).sort((a,b)=>b[1][key]-a[1][key]).slice(0,10);
+  return {
+    respKwp:   sortBy(resp,'kwp'),
+    respVal:   sortBy(resp,'val'),
+    empresaQtd:sortBy(empresa,'qtd'),
+    empresaKwp:sortBy(empresa,'kwp'),
+  };
+}
+
+// ── Render de ranking horizontal ──
+function _rankHtml(items, keyFn, labelFn, color){
+  if(!items.length) return '<div style="font-size:12px;color:var(--gray-400);padding:8px 0">Sem dados</div>';
+  const max = items[0][1][Object.keys(items[0][1])[0]]; // valor do 1º
+  return items.map(([name,d],i)=>{
+    const val = keyFn(d);
+    const w = max>0?Math.round(val/max*100):0;
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
+      <span style="font-size:10px;font-weight:700;color:var(--gray-400);width:14px;text-align:center">${i+1}</span>
+      <span style="font-size:11px;font-weight:600;color:var(--gray-800);width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0" title="${name}">${name}</span>
+      <div style="flex:1;background:var(--gray-100);border-radius:4px;height:14px;overflow:hidden">
+        <div style="width:${w}%;height:100%;background:${color};border-radius:4px;transition:width .4s"></div>
+      </div>
+      <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--gray-600);width:90px;text-align:right;flex-shrink:0">${labelFn(d)}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Funil em barras ──
+function _funilBarsHtml(k){
+  return [
+    {l:'Não Tratado',v:k.nt, c:'#E53935'},
+    {l:'Em Contato', v:k.ec, c:'#00B2C8'},
+    {l:'Orçamento',  v:k.orc,c:'#FAB515'},
+    {l:'Venda',      v:k.vnd,c:'#00C07A'},
+  ].map(b=>`<div class="crm-bar-row">
+    <div class="crm-bar-label">${b.l}</div>
+    <div class="crm-bar-track"><div class="crm-bar-fill" style="width:${_pct(b.v,k.total)}%;background:${b.c}"></div></div>
+    <div class="crm-bar-info">${b.v.toLocaleString('pt-BR')} <strong style="color:${b.c}">${_pct(b.v,k.total)}%</strong></div>
+  </div>`).join('');
+}
+
+// ── Tabela por campanha ──
+function _campTableHtml(rows){
+  const byCamp={};
+  rows.forEach(r=>{
+    if(!byCamp[r.camp]) byCamp[r.camp]={total:0,'Não Tratado':0,'Em Contato':0,'Orçamento':0,'Venda':0};
+    byCamp[r.camp].total++;
+    byCamp[r.camp][r.ref]=(byCamp[r.camp][r.ref]||0)+1;
+  });
+  const total={total:0,'Não Tratado':0,'Em Contato':0,'Orçamento':0,'Venda':0};
+  Object.values(byCamp).forEach(v=>{total.total+=v.total;total['Não Tratado']+=v['Não Tratado'];total['Em Contato']+=v['Em Contato'];total['Orçamento']+=v['Orçamento'];total['Venda']+=v['Venda'];});
+  const camps=Object.keys(byCamp).sort();
+  const row=(c,d,bold)=>`<tr${bold?' style="font-weight:700;background:var(--gray-50)"':''}>
+    <td>${c}</td>
+    <td style="font-family:'DM Mono',monospace">${d.total.toLocaleString('pt-BR')}</td>
+    <td>${d['Não Tratado']}${_pctBadge(_pct(d['Não Tratado'],d.total),'nt')}</td>
+    <td>${d['Em Contato']}${_pctBadge(_pct(d['Em Contato'],d.total),'ec')}</td>
+    <td>${d['Orçamento']}${_pctBadge(_pct(d['Orçamento'],d.total),'orc')}</td>
+    <td>${d['Venda']}${_pctBadge(_pct(d['Venda'],d.total),'vnd')}</td>
+  </tr>`;
+  return `<table class="crm-table"><thead><tr>
+    <th style="text-align:left">Campanha</th><th>Total</th><th>Não Tratado</th><th>Em Contato</th><th>Orçamento</th><th>Venda</th>
+  </tr></thead><tbody>
+    ${camps.map(c=>row(c,byCamp[c],false)).join('')}
+    ${row('Total Geral',total,true)}
+  </tbody></table>`;
+}
+
+// ── Bloco de KPI cards ──
+function _kpiCardsHtml(k){
+  const cards=[
+    {l:'Total base',    v:k.total.toLocaleString('pt-BR'),     s:'deals',                           c:'var(--gray-800)'},
+    {l:'Não Tratado',   v:k.nt.toLocaleString('pt-BR'),        s:_pct(k.nt,k.total)+'% da base',    c:'#E53935'},
+    {l:'Em Contato',    v:k.ec.toLocaleString('pt-BR'),        s:_pct(k.ec,k.total)+'% da base',    c:'var(--teal)'},
+    {l:'Orçamento',     v:k.orc.toLocaleString('pt-BR'),       s:_pct(k.orc,k.total)+'% da base',   c:'var(--orange)'},
+    {l:'Venda',         v:k.vnd.toLocaleString('pt-BR'),       s:_pct(k.vnd,k.total)+'% da base',   c:'var(--green)'},
+    {l:'Taxa conversão',v:_pct(k.vnd,k.total)+'%',            s:'do total da base',                 c:'var(--green)'},
+    {l:'Conv. ORC→VND', v:_pct(k.vnd,k.orc)+'%',             s:'orçamentos fechados',              c:'var(--purple)'},
+    {l:'Receita total', v:_brl(k.receita),                    s:k.vnd+' vendas fechadas',           c:'#0D518E'},
+    {l:'Ticket médio',  v:_brl(k.ticket),                     s:'por venda',                        c:'#0D518E'},
+    {l:'Pipeline $',    v:_brl(k.pipeline),                   s:'em orçamento',                     c:'var(--orange)'},
+    {l:'kWp vendido',   v:_kwp(k.kwpTotal),                   s:'potência total',                   c:'var(--orange)'},
+    {l:'kWp médio/venda',v:_kwp(k.kwpMedio),                  s:'por venda fechada',                c:'var(--gray-600)'},
+    {l:'Ciclo médio',   v:k.cicloMedio!==null?k.cicloMedio+'d':'—', s:'dias criação→fechamento',   c:'var(--gray-600)'},
+    {l:'Campanha top',  v:k.topCamp,                          s:k.topCampPct+'% conversão',         c:'var(--purple)'},
+  ];
+  return `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;">
+    ${cards.map(c=>`<div class="crm-kpi">
+      <div class="crm-kpi-label">${c.l}</div>
+      <div class="crm-kpi-val" style="color:${c.c};font-size:${c.v.length>10?'14px':'18px'}">${c.v}</div>
+      <div class="crm-kpi-sub">${c.s}</div>
+    </div>`).join('')}
+  </div>`;
+}
+
 // ── Render principal ──
 async function renderCrmView() {
   const el = document.getElementById('view-crm');
   if(!el) return;
 
-  // Primeira vez: carrega do Supabase
   if(!_crmLoaded) {
     _crmLoaded = true;
     await _crmLoadFromSupabase();
@@ -3607,122 +3855,141 @@ async function renderCrmView() {
     el.innerHTML = `<div class="crm-upload-empty">
       <div style="font-size:48px;margin-bottom:16px;">📊</div>
       <h2 style="font-size:22px;font-weight:700;margin-bottom:8px;">Dashboard CRM</h2>
-      <p style="font-size:13px;color:var(--gray-400);margin-bottom:32px;line-height:1.6;">Importe a exportação do seu CRM para gerar o relatório de funil por campanha.<br>Os dados ficam salvos no Supabase e disponíveis para toda a equipe.</p>
-      <label class="crm-upload-btn">📂 IMPORTAR CSV / XLSX<input type="file" accept=".csv,.xlsx" style="display:none" onchange="handleCrmFile(this)"></label>
-      <p style="font-size:11px;color:var(--gray-400);margin-top:14px;">Colunas necessárias: Funil de vendas · Campanha · Etapa · Estado</p>
+      <p style="font-size:13px;color:var(--gray-400);margin-bottom:32px;line-height:1.6;">Importe os CSVs do CRM (Funil SDR, BDR, Comercial) para gerar o relatório.<br>Os dados ficam salvos no Supabase e disponíveis para toda a equipe.</p>
+      <label class="crm-upload-btn">📂 IMPORTAR CSV<input type="file" accept=".csv" style="display:none" onchange="handleCrmFile(this)"></label>
+      <p style="font-size:11px;color:var(--gray-400);margin-top:14px;">Importe um funil por vez — pode importar vários.</p>
     </div>`;
     return;
   }
 
   const snap = _crmSnaps[_crmSnapIdx];
   const funils = [...new Set(snap.rows.map(r=>r.funil))].sort();
-  if(!_crmFunil || !funils.includes(_crmFunil)) _crmFunil = funils[0];
+  if(_crmFunil && _crmFunil!=='TODOS' && !funils.includes(_crmFunil)) _crmFunil=null;
+  if(!_crmFunil) _crmFunil='TODOS';
 
-  const {byCamp, total} = _crmPivot(snap, _crmFunil);
-  const camps = Object.keys(byCamp).sort();
+  // Linhas do funil selecionado
+  const activeRows = _crmFunil==='TODOS' ? snap.rows : snap.rows.filter(r=>r.funil===_crmFunil);
 
-  // ── Tabs de funil ──
-  const funilTabsHtml = funils.map(f=>
-    `<button type="button" class="crm-funil-tab${f===_crmFunil?' active':''}" onclick="_crmSetFunil('${f.replace(/'/g,"\\'")}')">${f}</button>`
-  ).join('');
+  const snapSelectorHtml = _crmSnaps.length>1 ? `<select onchange="_crmSetSnap(parseInt(this.value))" style="padding:7px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);background:white;outline:none;">${_crmSnaps.map((s,i)=>`<option value="${i}"${i===_crmSnapIdx?' selected':''}>${s.date} · ${s.label}</option>`).join('')}</select>` : '';
 
-  // ── Snapshot selector (se houver mais de 1) ──
-  const snapSelectorHtml = _crmSnaps.length > 1 ? `
-    <select onchange="_crmSetSnap(parseInt(this.value))" style="padding:7px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);background:white;outline:none;">
-      ${_crmSnaps.map((s,i)=>`<option value="${i}"${i===_crmSnapIdx?' selected':''}>${s.date} · ${s.label}</option>`).join('')}
-    </select>` : '';
+  const tabsHtml = [`<button type="button" class="crm-funil-tab${'TODOS'===_crmFunil?' active':''}" onclick="_crmSetFunil('TODOS')">🗂 Todos os Funis</button>`,
+    ...funils.map(f=>`<button type="button" class="crm-funil-tab${f===_crmFunil?' active':''}" onclick="_crmSetFunil('${f.replace(/'/g,"\\'")}')">${f}</button>`)
+  ].join('');
 
-  // ── KPIs ──
-  const kpisHtml = [
-    {l:'Total base',     v:total.total,                     s:'deals',                                      c:'var(--gray-800)'},
-    {l:'Não Tratado',    v:total['Não Tratado'],             s:_pct(total['Não Tratado'],total.total)+'% da base',  c:'var(--red)'},
-    {l:'Em Contato',     v:total['Em Contato'],              s:_pct(total['Em Contato'],total.total)+'% da base',   c:'var(--teal)'},
-    {l:'Orçamento',      v:total['Orçamento'],               s:_pct(total['Orçamento'],total.total)+'% da base',    c:'var(--orange)'},
-    {l:'Venda',          v:total['Venda'],                   s:_pct(total['Venda'],total.total)+'% da base',        c:'var(--green)'},
-  ].map(k=>`<div class="crm-kpi">
-    <div class="crm-kpi-label">${k.l}</div>
-    <div class="crm-kpi-val" style="color:${k.c}">${k.v.toLocaleString('pt-BR')}</div>
-    <div class="crm-kpi-sub">${k.s}</div>
-  </div>`).join('');
+  const header = `<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+    <div>
+      <h2 style="font-size:22px;font-weight:700;margin:0 0 4px;">Dashboard CRM</h2>
+      <div style="font-size:11px;color:var(--gray-400);"><strong>${snap.label}</strong> · importado em ${snap.date} · ${snap.rows.length.toLocaleString('pt-BR')} registros</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      ${snapSelectorHtml}
+      <button onclick="exportCrmXlsx()" class="btn-export">📊 Exportar XLSX</button>
+      <label class="btn-nova" style="display:flex;align-items:center;gap:6px;cursor:pointer;">📂 Nova importação
+        <input type="file" accept=".csv" style="display:none" onchange="handleCrmFile(this)">
+      </label>
+    </div>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px;">${tabsHtml}</div>`;
 
-  // ── Barras de funil ──
-  const barsHtml = [
-    {l:'Não Tratado', v:total['Não Tratado'], c:'#E53935'},
-    {l:'Em Contato',  v:total['Em Contato'],  c:'#00B2C8'},
-    {l:'Orçamento',   v:total['Orçamento'],   c:'#FAB515'},
-    {l:'Venda',       v:total['Venda'],        c:'#00C07A'},
-  ].map(b=>`<div class="crm-bar-row">
-    <div class="crm-bar-label">${b.l}</div>
-    <div class="crm-bar-track"><div class="crm-bar-fill" style="width:${_pct(b.v,total.total)}%;background:${b.c}"></div></div>
-    <div class="crm-bar-info">${b.v.toLocaleString('pt-BR')} <strong style="color:${b.c}">${_pct(b.v,total.total)}%</strong></div>
-  </div>`).join('');
+  // ── Visão TODOS OS FUNIS ──
+  if(_crmFunil==='TODOS'){
+    const kAll = _crmCalcKpis(snap.rows);
+    const rAll = _crmRankings(snap.rows);
 
-  // ── Tabela por campanha ──
-  const tRowsHtml = camps.map(c=>{
-    const d=byCamp[c];
-    return `<tr>
-      <td>${c}</td>
-      <td style="font-family:'DM Mono',monospace">${d.total.toLocaleString('pt-BR')}</td>
-      <td>${d['Não Tratado']}${_pctBadge(_pct(d['Não Tratado'],d.total),'nt')}</td>
-      <td>${d['Em Contato']}${_pctBadge(_pct(d['Em Contato'],d.total),'ec')}</td>
-      <td>${d['Orçamento']}${_pctBadge(_pct(d['Orçamento'],d.total),'orc')}</td>
-      <td>${d['Venda']}${_pctBadge(_pct(d['Venda'],d.total),'vnd')}</td>
-    </tr>`;
-  }).join('');
+    // Cards por funil
+    const funilCardsHtml = funils.map(f=>{
+      const rows=snap.rows.filter(r=>r.funil===f);
+      const k=_crmCalcKpis(rows);
+      return `<div class="crm-panel" style="cursor:pointer" onclick="_crmSetFunil('${f.replace(/'/g,"\\'")}')">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="crm-panel-title" style="margin:0">${f}</div>
+          <span style="font-size:10px;color:var(--purple);font-weight:700">Ver detalhe →</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+          ${[{l:'Base',v:k.total},{l:'Vendas',v:k.vnd,c:'var(--green)'},{l:'Conversão',v:_pct(k.vnd,k.total)+'%',c:'var(--green)'},
+             {l:'Receita',v:_brl(k.receita),c:'#0D518E'},{l:'kWp',v:_kwp(k.kwpTotal),c:'var(--orange)'},{l:'Não trat.',v:_pct(k.nt,k.total)+'%',c:'#E53935'}
+          ].map(x=>`<div style="background:var(--gray-50);border-radius:8px;padding:8px 10px;">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--gray-400);margin-bottom:3px">${x.l}</div>
+            <div style="font-size:13px;font-weight:700;color:${x.c||'var(--gray-800)'}">${x.v.toLocaleString?x.v.toLocaleString('pt-BR'):x.v}</div>
+          </div>`).join('')}
+        </div>
+        ${_funilBarsHtml(k)}
+      </div>`;
+    }).join('');
 
-  const tTotalHtml = `<tr>
-    <td>Total Geral</td>
-    <td style="font-family:'DM Mono',monospace">${total.total.toLocaleString('pt-BR')}</td>
-    <td>${total['Não Tratado']}${_pctBadge(_pct(total['Não Tratado'],total.total),'nt')}</td>
-    <td>${total['Em Contato']}${_pctBadge(_pct(total['Em Contato'],total.total),'ec')}</td>
-    <td>${total['Orçamento']}${_pctBadge(_pct(total['Orçamento'],total.total),'orc')}</td>
-    <td>${total['Venda']}${_pctBadge(_pct(total['Venda'],total.total),'vnd')}</td>
-  </tr>`;
+    el.innerHTML = `<div style="padding:24px 32px;">${header}
+      <!-- KPIs consolidados -->
+      <div class="crm-panel" style="margin-bottom:20px;">
+        <div class="crm-panel-title">Consolidado — todos os funis</div>
+        ${_kpiCardsHtml(kAll)}
+      </div>
 
-  el.innerHTML = `<div style="padding:24px 32px;">
-    <!-- Header -->
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
-      <div>
-        <h2 style="font-size:22px;font-weight:700;margin:0 0 4px;">Dashboard CRM</h2>
-        <div style="font-size:11px;color:var(--gray-400);">
-          <strong>${snap.label}</strong> · importado em ${snap.date} · ${snap.rows.length.toLocaleString('pt-BR')} registros
+      <!-- Cards por funil -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:24px;">${funilCardsHtml}</div>
+
+      <!-- Rankings -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+        <div class="crm-panel">
+          <div class="crm-panel-title">🏅 Top responsáveis — kWp vendido</div>
+          ${_rankHtml(rAll.respKwp, d=>d.kwp, d=>_kwp(d.kwp), '#FAB515')}
+        </div>
+        <div class="crm-panel">
+          <div class="crm-panel-title">💰 Top responsáveis — receita</div>
+          ${_rankHtml(rAll.respVal, d=>d.val, d=>_brl(d.val), '#0D518E')}
+        </div>
+        <div class="crm-panel">
+          <div class="crm-panel-title">🏢 Top empresas — qtd compras</div>
+          ${_rankHtml(rAll.empresaQtd, d=>d.qtd, d=>d.qtd+' compras', '#00B2C8')}
+        </div>
+        <div class="crm-panel">
+          <div class="crm-panel-title">⚡ Top empresas — kWp comprado</div>
+          ${_rankHtml(rAll.empresaKwp, d=>d.kwp, d=>_kwp(d.kwp), '#00C07A')}
         </div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        ${snapSelectorHtml}
-        <button onclick="exportCrmXlsx()" class="btn-export">📊 Exportar XLSX</button>
-        <label class="btn-nova" style="display:flex;align-items:center;gap:6px;cursor:pointer;">
-          📂 Nova importação
-          <input type="file" accept=".csv,.xlsx" style="display:none" onchange="handleCrmFile(this)">
-        </label>
-      </div>
+    </div>`;
+    return;
+  }
+
+  // ── Visão FUNIL INDIVIDUAL ──
+  const k = _crmCalcKpis(activeRows);
+  const r = _crmRankings(activeRows);
+
+  el.innerHTML = `<div style="padding:24px 32px;">${header}
+    <!-- KPIs -->
+    <div class="crm-panel" style="margin-bottom:20px;">
+      <div class="crm-panel-title">${_crmFunil} — KPIs</div>
+      ${_kpiCardsHtml(k)}
     </div>
 
-    <!-- Funil tabs -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;">${funilTabsHtml}</div>
-
-    <!-- KPIs -->
-    <div class="crm-kpi-grid">${kpisHtml}</div>
-
-    <!-- Gráfico + Tabela -->
-    <div class="crm-main-grid" style="display:grid;grid-template-columns:280px 1fr;gap:16px;">
+    <!-- Funil + Tabela campanha -->
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;margin-bottom:20px;">
       <div class="crm-panel">
-        <div class="crm-panel-title">Funil · ${_crmFunil}</div>
-        ${barsHtml}
+        <div class="crm-panel-title">Funil de conversão</div>
+        ${_funilBarsHtml(k)}
       </div>
       <div class="crm-panel" style="overflow-x:auto;">
         <div class="crm-panel-title">Por campanha</div>
-        <table class="crm-table">
-          <thead><tr>
-            <th style="text-align:left">Campanha</th>
-            <th>Total</th>
-            <th>Não Tratado</th>
-            <th>Em Contato</th>
-            <th>Orçamento</th>
-            <th>Venda</th>
-          </tr></thead>
-          <tbody>${tRowsHtml}${tTotalHtml}</tbody>
-        </table>
+        ${_campTableHtml(activeRows)}
+      </div>
+    </div>
+
+    <!-- Rankings do funil -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="crm-panel">
+        <div class="crm-panel-title">🏅 Top responsáveis — kWp vendido</div>
+        ${_rankHtml(r.respKwp, d=>d.kwp, d=>_kwp(d.kwp), '#FAB515')}
+      </div>
+      <div class="crm-panel">
+        <div class="crm-panel-title">💰 Top responsáveis — receita</div>
+        ${_rankHtml(r.respVal, d=>d.val, d=>_brl(d.val), '#0D518E')}
+      </div>
+      <div class="crm-panel">
+        <div class="crm-panel-title">🏢 Top empresas — qtd compras</div>
+        ${_rankHtml(r.empresaQtd, d=>d.qtd, d=>d.qtd+' compras', '#00B2C8')}
+      </div>
+      <div class="crm-panel">
+        <div class="crm-panel-title">⚡ Top empresas — kWp comprado</div>
+        ${_rankHtml(r.empresaKwp, d=>d.kwp, d=>_kwp(d.kwp), '#00C07A')}
       </div>
     </div>
   </div>`;
@@ -3731,32 +3998,18 @@ async function renderCrmView() {
 function _crmSetFunil(f){_crmFunil=f;renderCrmView();}
 function _crmSetSnap(i){_crmSnapIdx=i;_crmFunil=null;renderCrmView();}
 
-// ── Upload handler ──
+// ── Upload handler — CSV only ──
 function handleCrmFile(input) {
   const file = input.files && input.files[0];
   if(!file) return;
   showToast('⏳ Processando '+file.name+'...','success');
-
-  if(file.name.toLowerCase().endsWith('.xlsx')) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      try {
-        const wb = XLSX.read(e.target.result,{type:'array'});
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const csv = XLSX.utils.sheet_to_csv(ws);
-        _addCrmSnap(_parseCrmFile(csv, file.name));
-      } catch(err){showToast('Erro XLSX: '+err.message,'error');}
-    };
-    reader.readAsArrayBuffer(file);
-  } else {
-    const reader = new FileReader();
-    reader.onload = e => {
-      try { _addCrmSnap(_parseCrmFile(e.target.result, file.name)); }
-      catch(err){showToast('Erro CSV: '+err.message,'error');}
-    };
-    reader.readAsText(file,'utf-8');
-  }
-  input.value = '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try { _addCrmSnap(_parseCrmFile(e.target.result, file.name)); }
+    catch(err){ showToast('Erro ao ler CSV: '+err.message,'error'); }
+  };
+  reader.readAsText(file,'utf-8');
+  input.value='';
 }
 
 async function _addCrmSnap(snap) {
@@ -3768,8 +4021,9 @@ async function _addCrmSnap(snap) {
   showLoading();
   try {
     const importedAt = new Date().toISOString();
-    // Prepara payload para Supabase
-    const payload = snap.rows.map(r=>({
+
+    // Deduplica por chave (mantém etapa mais avançada em caso de empate)
+    const dedupRows = _deduplicateDeals(snap.rows.map(r=>({
       nome:            r.nome,
       empresa:         r.empresa,
       funil:           r.funil,
@@ -3778,27 +4032,31 @@ async function _addCrmSnap(snap) {
       estado:          r.estado,
       motivo_perda:    r.motivo,
       valor_unico:     r.valor||0,
+      potencia_kwp:    _parseKwp(r.kwp)||null,
       data_criacao:    r.dt_criacao||null,
       data_fechamento: r.dt_fechamento||null,
       fonte:           r.fonte,
       campanha:        r.camp,
       responsavel:     r.resp,
-      data_importacao: importedAt,
+      ultima_importacao: importedAt,
       funil_arquivo:   snap.label,
       importado_por:   currentUser?.nome||currentUser?.email||'sistema'
-    }));
+    })));
 
-    await _crmUpsertBatch(payload);
-    showToast('✅ '+snap.rows.length.toLocaleString('pt-BR')+' registros salvos no Supabase','success');
+    const res = await _crmUpsertHybrid(dedupRows, importedAt, snap.label);
 
-    // Recarrega do banco para ter dados consistentes
+    showToast(
+      `✅ ${res.inseridos} novos · ${res.atualizados} atualizados · ${res.mudancas} mudanças de etapa registradas`,
+      'success'
+    );
+
     await _crmLoadFromSupabase();
   } catch(e){
-    showToast('Erro ao salvar no Supabase: '+e.message,'error');
+    showToast('Erro ao salvar: '+e.message,'error');
     console.error(e);
-    // Fallback: mantém em memória mesmo sem salvar
+    // Fallback em memória
     _crmSnaps.unshift(snap);
-    if(_crmSnaps.length>10) _crmSnaps.pop();
+    if(_crmSnaps.length>3) _crmSnaps.pop();
     _crmSnapIdx=0; _crmFunil=null;
   } finally {
     hideLoading();
@@ -3811,19 +4069,48 @@ async function _addCrmSnap(snap) {
 function exportCrmXlsx() {
   const snap = _crmSnaps[_crmSnapIdx];
   if(!snap) return;
-  const funils = [...new Set(snap.rows.map(r=>r.funil))].sort();
   const wb = XLSX.utils.book_new();
+  const funils = [...new Set(snap.rows.map(r=>r.funil))].sort();
+
+  // Aba Resumo Geral
+  const kAll = _crmCalcKpis(snap.rows);
+  const summaryData=[
+    ['CONSOLIDADO — TODOS OS FUNIS',''],
+    ['Total base', kAll.total],
+    ['Não Tratado', kAll.nt], ['% Não Tratado', _pct(kAll.nt,kAll.total)+'%'],
+    ['Em Contato', kAll.ec], ['Orçamento', kAll.orc],
+    ['Venda', kAll.vnd], ['Taxa de conversão', _pct(kAll.vnd,kAll.total)+'%'],
+    ['Conv. ORC→VND', _pct(kAll.vnd,kAll.orc)+'%'],
+    ['Receita total', kAll.receita], ['Ticket médio', Math.round(kAll.ticket)],
+    ['Pipeline R$', kAll.pipeline],
+    ['kWp total vendido', kAll.kwpTotal.toFixed(1)],
+    ['kWp médio/venda', kAll.kwpMedio.toFixed(1)],
+    ['Ciclo médio (dias)', kAll.cicloMedio!==null?kAll.cicloMedio:'—'],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), 'Resumo Geral');
+
+  // Abas por funil
   funils.forEach(funil=>{
-    const {byCamp, total} = _crmPivot(snap, funil);
-    const camps = Object.keys(byCamp).sort();
-    const data = [['Campanha','Total','Não Tratado','% NT','Em Contato','% EC','Orçamento','% ORC','Venda','% VND']];
-    camps.forEach(c=>{
-      const d=byCamp[c];
-      data.push([c,d.total,d['Não Tratado'],_pct(d['Não Tratado'],d.total)+'%',d['Em Contato'],_pct(d['Em Contato'],d.total)+'%',d['Orçamento'],_pct(d['Orçamento'],d.total)+'%',d['Venda'],_pct(d['Venda'],d.total)+'%']);
-    });
-    data.push(['Total Geral',total.total,total['Não Tratado'],_pct(total['Não Tratado'],total.total)+'%',total['Em Contato'],_pct(total['Em Contato'],total.total)+'%',total['Orçamento'],_pct(total['Orçamento'],total.total)+'%',total['Venda'],_pct(total['Venda'],total.total)+'%']);
+    const rows=snap.rows.filter(r=>r.funil===funil);
+    const k=_crmCalcKpis(rows);
+    const r=_crmRankings(rows);
+    const data=[
+      ['FUNIL: '+funil,''],
+      ['Total', k.total],['Não Tratado',k.nt],['%',_pct(k.nt,k.total)+'%'],
+      ['Em Contato',k.ec],['Orçamento',k.orc],['Venda',k.vnd],
+      ['Taxa conversão',_pct(k.vnd,k.total)+'%'],
+      ['Receita',k.receita],['Ticket médio',Math.round(k.ticket)],
+      ['kWp total',k.kwpTotal.toFixed(1)],['Ciclo médio',k.cicloMedio!==null?k.cicloMedio:'—'],
+      [''],
+      ['TOP RESPONSÁVEIS — kWp','kWp','Receita','Qtd vendas'],
+      ...r.respKwp.map(([n,d])=>[n,d.kwp.toFixed(1),d.val,d.qtd]),
+      [''],
+      ['TOP EMPRESAS — compras','Qtd','kWp'],
+      ...r.empresaQtd.map(([n,d])=>[n,d.qtd,d.kwp.toFixed(1)]),
+    ];
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), funil.substring(0,31));
   });
+
   const d=new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
   XLSX.writeFile(wb,'CRM_Dashboard_'+d+'.xlsx');
 }
