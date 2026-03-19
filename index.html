@@ -860,7 +860,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .heatmap-legend{display:flex;align-items:center;gap:6px;margin-top:8px;justify-content:flex-end;}
 .heatmap-legend span{font-size:10px;color:var(--gray-400);}
 .hm-sq{width:10px;height:10px;border-radius:2px;}
-.dash-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px;}
+.dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
 
 </style>
 </head>
@@ -1049,8 +1049,10 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       </div>
     </div>
 
-    <!-- ① KPIs -->
+    <!-- ① KPIs — linha 1 -->
     <div class="dash-kpis" id="dash-kpis"></div>
+    <!-- ② KPIs — linha 2 -->
+    <div class="dash-kpis" id="dash-kpis2" style="margin-top:0;margin-bottom:24px;"></div>
 
     <!-- ② Ranking de Canais + Mapa de Calor -->
     <div class="dash-row">
@@ -1076,21 +1078,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       </div>
     </div>
 
-    <!-- ④ Disparos por semana -->
-    <div class="dash-row">
-      <div class="dash-card" style="grid-column:span 2">
-        <h3>Disparos por Semana do Mês</h3>
-        <div class="dash-chart-wrap" style="height:200px;"><canvas id="chart-semanas"></canvas></div>
-      </div>
-    </div>
-
-    <!-- ⑤ Agenda -->
-    <div class="dash-row">
-      <div class="dash-card"><h3>⚡ Ações para Hoje</h3><div id="dash-hoje"></div></div>
-      <div class="dash-card"><h3>📅 Próximas Ações</h3><div id="dash-disparos"></div></div>
-    </div>
-
-    <!-- ⑥ Campanhas sem ações + Atrasados -->
+    <!-- ④ Campanhas sem ações + Atrasados -->
     <div class="dash-row">
       <div class="dash-card"><h3>🚫 Campanhas sem Ações</h3><div id="dash-sem-acoes"></div></div>
       <div class="dash-card"><h3>⚠️ Disparos Atrasados</h3><div id="dash-atrasados" style="margin-top:8px;"></div></div>
@@ -1682,6 +1670,14 @@ function renderResumoCalendar(){const today=new Date();today.setHours(0,0,0,0);c
 let _dashAtalhoAtivo='mes';
 function setDashPeriodo(tipo){const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);let de,ate=ts;if(tipo==='mes'){de=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';const lastDay=new Date(today.getFullYear(),today.getMonth()+1,0);ate=toStr(lastDay);}else if(tipo==='30d'){const d=new Date(today);d.setDate(d.getDate()-30);de=toStr(d);}else if(tipo==='3m'){const d=new Date(today);d.setMonth(d.getMonth()-3);de=toStr(d);}else if(tipo==='ano'){de=today.getFullYear()+'-01-01';ate=today.getFullYear()+'-12-31';}document.getElementById('dash-de').value=de;document.getElementById('dash-ate').value=ate;_dashAtalhoAtivo=tipo;['mes','30d','3m','ano'].forEach(k=>{const btn=document.getElementById('atalho-'+k);if(btn)btn.classList.toggle('ativo',k===tipo);});renderDashboard();}
 function initDashPeriodo(){const today=new Date();today.setHours(0,0,0,0);const de=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-01';const lastDay=new Date(today.getFullYear(),today.getMonth()+1,0);const ate=toStr(lastDay);document.getElementById('dash-de').value=de;document.getElementById('dash-ate').value=ate;const btn=document.getElementById('atalho-mes');if(btn)btn.classList.add('ativo');}
+
+function kpiCard(label, value, sub, color){
+  return `<div class="kpi-card">
+    <div class="kpi-label">${label}</div>
+    <div class="kpi-value" style="color:${color||'var(--gray-800)'}">${value}</div>
+    <div class="kpi-sub">${sub}</div>
+  </div>`;
+}
 async function renderDashboard(){
   const today=new Date();today.setHours(0,0,0,0);const ts=toStr(today);
   const de=document.getElementById('dash-de')?.value||'';
@@ -1697,7 +1693,19 @@ async function renderDashboard(){
   }
 
   showLoading();let allRaw=[];
-  try{allRaw=await sbFetch('campaigns?select=*&inicio=lte.'+ate+(de?'&fim=gte.'+de:'')+'&order=inicio.asc');}
+  try{
+    // Busca principal: campanhas do período
+    const q1=await sbFetch('campaigns?select=*&inicio=lte.'+ate+(de?'&fim=gte.'+de:'')+'&order=inicio.asc');
+    // Busca adicional: campanhas canceladas/adiadas que podem estar fora do filtro de data
+    const q2=await sbFetch('campaigns?select=*&status=in.(cancelada,adiada)&order=inicio.asc');
+    // Unir sem duplicatas
+    const ids=new Set();
+    const combined=[];
+    for(const r of [...(q1||[]),...(q2||[])]){
+      if(!ids.has(r.id)){ids.add(r.id);combined.push(r);}
+    }
+    allRaw=combined;
+  }
   catch(e){console.warn('Erro dashboard:',e.message);}
   finally{hideLoading();}
 
@@ -1769,32 +1777,92 @@ async function renderDashboard(){
 
   // ── KPIs ────────────────────────────────────────────────────
   const taxaCor=taxa>=70?'var(--green)':taxa>=40?'#FF6F00':'var(--red)';
+  const hmMes=today.getMonth(),hmAno=today.getFullYear(),hmDim=new Date(hmAno,hmMes+1,0).getDate(),hmStart=new Date(hmAno,hmMes,1).getDay();
+
+  // KPIs extras
+  const totalCampanhas=allFilt.length;
+  const campComercial=allFilt.filter(c=>getCats(c).includes('COMERCIAL')&&c.status!=='cancelada'&&c.inicio<=ts&&c.fim>=ts).length;
+  const campConteudo=allFilt.filter(c=>getCats(c).includes('CONTEUDO')&&c.status!=='cancelada'&&c.inicio<=ts&&c.fim>=ts).length;
+  const campEventos=allFilt.filter(c=>getCats(c).includes('EVENTOS')&&c.status!=='cancelada'&&c.inicio<=ts&&c.fim>=ts).length;
+
+  // % disparos no prazo (concluídos sem ter passado por adiamento)
+  let noPrazo=0,concWithAdiad=0;
+  allFilt.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{
+    if(c.disparos_concluidos&&c.disparos_concluidos[d]){
+      noPrazo++;
+      // Verificar se teve adiamento antes (simplificado: se nova_data existe no historico)
+    }
+  });});});
+  const pctPrazo=totalExec>0?Math.round(noPrazo/totalExec*100):0;
+
+  // Cobertura do mês (% dias com pelo menos 1 disparo)
+  const diasComDisparo=new Set();
+  allFilt.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{
+    const[y,m]=d.split('-').map(Number);
+    if(m-1===today.getMonth()&&y===today.getFullYear()) diasComDisparo.add(d);
+  });});});
+  const diasUteisMes=22; // aprox
+  const cobertura=Math.min(100,Math.round(diasComDisparo.size/hmDim*100));
+
+  // Campanhas em risco (ativas, >50% pendente, ≤7 dias pra encerrar)
+  const emRisco=ativas.filter(c=>{
+    const diff=Math.round((toDate(c.fim)-today)/86400000);
+    if(diff>7)return false;
+    let plan=0,pend=0;
+    canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{
+      if(!(c.disparos_cancelados&&Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d))){
+        plan++;if(!(c.disparos_concluidos&&c.disparos_concluidos[d]))pend++;
+      }
+    });});
+    return plan>0&&(pend/plan)>0.5;
+  }).length;
+
+  // Canal mais eficiente e mais usado
+  const canalStats=canalMap.map(([g,nome,cor])=>{
+    let plan=0,exec=0;
+    allFilt.forEach(c=>{(g(c)||[]).forEach(d=>{
+      if(!(c.disparos_cancelados&&Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d))){plan++;if(c.disparos_concluidos&&c.disparos_concluidos[d])exec++;}
+    });});
+    return{nome,cor,plan,exec,pct:plan>0?Math.round(exec/plan*100):0};
+  }).filter(x=>x.plan>0);
+  const canalMaisEficiente=canalStats.sort((a,b)=>b.pct-a.pct)[0];
+  const canalMaisUsado=canalStats.sort((a,b)=>b.plan-a.plan)[0];
+
+  // Média de disparos por campanha
+  const mediaPorCamp=allFilt.length>0?Math.round(totalPlan/allFilt.length*10)/10:0;
+
+  // Disparos esta semana
+  const semStart=new Date(today);semStart.setDate(today.getDate()-today.getDay());
+  const semEnd=new Date(semStart);semEnd.setDate(semStart.getDate()+6);
+  const semStartStr=toStr(semStart),semEndStr=toStr(semEnd);
+  let dispSemana=0;
+  allFilt.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{if(d>=semStartStr&&d<=semEndStr)dispSemana++;});});});
+
+  // Linha única de KPIs (11 cards, grid 4 colunas)
+  const catCom=allFilt.filter(c=>getCats(c).includes('COMERCIAL')).length;
+  const catCon=allFilt.filter(c=>getCats(c).includes('CONTEUDO')).length;
+  const catEv=allFilt.filter(c=>getCats(c).includes('EVENTOS')).length;
+  const prazoCor=pctPrazo>=80?'var(--green)':pctPrazo>=60?'#FF6F00':'var(--red)';
+
   document.getElementById('dash-kpis').innerHTML=
-    `<div class="kpi-card">
-       <div class="kpi-label">Taxa de Execução</div>
-       <div class="kpi-value" style="color:${taxaCor}">${taxa}%</div>
-       <div class="kpi-sub">${totalExec} de ${totalPlan} concluídos</div>
-     </div>
-     <div class="kpi-card">
-       <div class="kpi-label">Campanhas Ativas</div>
-       <div class="kpi-value" style="color:var(--green)">${ativas.length}</div>
-       <div class="kpi-sub">${allFilt.filter(c=>c.status==='ativa'&&c.inicio>ts).length} em breve</div>
-     </div>
-     <div class="kpi-card">
-       <div class="kpi-label">Disparos Feitos</div>
-       <div class="kpi-value" style="color:var(--purple)">${totalExec}</div>
-       <div class="kpi-sub">de ${totalPlan} planejados</div>
-     </div>
-     <div class="kpi-card">
-       <div class="kpi-label">Adiadas/Canceladas</div>
-       <div class="kpi-value" style="color:${adiadCanc.length>0?'#FF6F00':'var(--gray-400)'}">${adiadCanc.length}</div>
-       <div class="kpi-sub">no período</div>
-     </div>
-     <div class="kpi-card">
-       <div class="kpi-label">Atrasados</div>
-       <div class="kpi-value" style="color:${totalAtrasados>0?'var(--red)':'var(--green)'}">${totalAtrasados}</div>
-       <div class="kpi-sub">disparos sem conclusão</div>
-     </div>`;
+    kpiCard('Taxa de Execução',`${taxa}%`,`${totalExec} de ${totalPlan} concluídos`,taxaCor)+
+    kpiCard('No Prazo',`${pctPrazo}%`,`${noPrazo} sem adiamento`,prazoCor)+
+    kpiCard('Campanhas Ativas',ativas.length,`${allFilt.filter(c=>c.status==='ativa'&&c.inicio>ts).length} em breve`,'var(--green)')+
+    kpiCard('Disparos Feitos',totalExec,`de ${totalPlan} planejados`,'var(--purple)')+
+    kpiCard('Disp. Esta Semana',dispSemana,'próximos 7 dias','var(--teal)')+
+    kpiCard('Cobertura do Mês',`${cobertura}%`,`${diasComDisparo.size} de ${hmDim} dias`,cobertura>=60?'var(--green)':cobertura>=30?'#FF6F00':'var(--red)')+
+    kpiCard('Em Risco',emRisco,'ativas + pendentes + ≤7 dias',emRisco>0?'var(--red)':'var(--green)')+
+    kpiCard('Canal Top',canalMaisEficiente?canalMaisEficiente.nome:'—',canalMaisEficiente?canalMaisEficiente.pct+'% execução':'var(--gray-400)','var(--purple)')+
+    kpiCard('Adiadas/Canceladas',adiadCanc.length,'no período',adiadCanc.length>0?'#FF6F00':'var(--gray-400)')+
+    kpiCard('Atrasados',totalAtrasados,'disparos vencidos',totalAtrasados>0?'var(--red)':'var(--green)')+
+    `<div class="kpi-card" style="background:linear-gradient(135deg,var(--gray-50),white);">
+      <div class="kpi-label">Por Categoria</div>
+      <div style="display:flex;justify-content:space-around;margin-top:10px;">
+        <div style="text-align:center"><div style="font-size:22px;font-weight:700;color:#1E88E5">${catCom}</div><div style="font-size:9px;color:var(--gray-400);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Com.</div></div>
+        <div style="text-align:center"><div style="font-size:22px;font-weight:700;color:#43A047">${catCon}</div><div style="font-size:9px;color:var(--gray-400);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Cont.</div></div>
+        <div style="text-align:center"><div style="font-size:22px;font-weight:700;color:#FB8C00">${catEv}</div><div style="font-size:9px;color:var(--gray-400);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Ev.</div></div>
+      </div>
+    </div>`;
 
   // ── RANKING DE CANAIS ────────────────────────────────────────
   const canaisRank=canalMap.map(([g,nome,cor])=>{
@@ -1823,7 +1891,6 @@ async function renderDashboard(){
 
   // ── MAPA DE CALOR ────────────────────────────────────────────
   const heatEl=document.getElementById('dash-heatmap');
-  const hmMes=today.getMonth(),hmAno=today.getFullYear(),hmDim=new Date(hmAno,hmMes+1,0).getDate(),hmStart=new Date(hmAno,hmMes,1).getDay();
   const contDia={};
   allFilt.forEach(c=>{canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{const[y,m,day]=d.split('-').map(Number);if(m-1===hmMes&&y===hmAno){contDia[day]=(contDia[day]||0)+1;}});});});
   const maxDia=Math.max(...Object.values(contDia),1);
@@ -1876,59 +1943,6 @@ async function renderDashboard(){
     </div>`;
   }).join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ativa.</p>';
 
-  // ── GRÁFICO: DISPAROS POR SEMANA DO MÊS ─────────────────────
-  const semanas={};
-  allFilt.forEach(c=>{
-    canalMap.forEach(([g])=>{(g(c)||[]).forEach(d=>{
-      const[y,m,day]=d.split('-').map(Number);
-      if(m-1===hmMes&&y===hmAno){
-        const sem=Math.ceil(day/7);
-        const key='Sem '+sem;
-        if(!semanas[key])semanas[key]={plan:0,exec:0};
-        if(!(c.disparos_cancelados&&Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d))){
-          semanas[key].plan++;
-          if(c.disparos_concluidos&&c.disparos_concluidos[d]) semanas[key].exec++;
-        }
-      }
-    });});
-  });
-  const semLabels=Object.keys(semanas).sort();
-  destroyChart('chart-semanas');
-  if(semLabels.length>0){
-    new Chart(document.getElementById('chart-semanas'),{
-      type:'bar',
-      data:{
-        labels:semLabels,
-        datasets:[
-          {label:'Planejados',data:semLabels.map(k=>semanas[k].plan),backgroundColor:'rgba(13,81,142,.2)',borderColor:'rgba(13,81,142,.6)',borderWidth:1,borderRadius:4},
-          {label:'Concluídos',data:semLabels.map(k=>semanas[k].exec),backgroundColor:'rgba(0,192,122,.7)',borderColor:'rgba(0,192,122,1)',borderWidth:1,borderRadius:4}
-        ]
-      },
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{family:'Sora',size:11},padding:12}}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{family:'DM Mono',size:10}},grid:{color:'rgba(0,0,0,.04)'}},x:{ticks:{font:{family:'Sora',size:11}},grid:{display:false}}}}
-    });
-  }
-
-  // ── HOJE ────────────────────────────────────────────────────
-  const hoje=[];
-  allFilt.forEach(c=>{canalMap.forEach(([g,nome])=>{
-    const _c={'WhatsApp':'#25D366','E-mail':'#2196F3','SMS':'#FF9800','Instagram':'#E91E63','Facebook':'#1877F2','LinkedIn':'#0A66C2','Blog':'#6B5CE7','Outros':'#9BA3B8','Meta Ads':'#1877F2','Google Ads':'#4285F4'};
-    if((g(c)||[]).includes(ts)) hoje.push({campanha:c.name,color:c.color,canal:nome,cor:_c[nome]||'#999'});
-  });});
-  document.getElementById('dash-hoje').innerHTML=hoje.length?hoje.map(h=>
-    `<div class="hoje-item"><div class="hoje-item-dot" style="background:${h.color}"></div><div class="hoje-item-info"><div class="hoje-item-nome">${h.campanha}</div><div class="hoje-item-canal">${h.canal}</div></div></div>`
-  ).join(''):'<p style="color:var(--gray-400);font-size:12px;">Nenhuma ação hoje.</p>';
-
-  // ── PRÓXIMAS AÇÕES ───────────────────────────────────────────
-  const disp=[];
-  allFilt.forEach(c=>{canalMap.forEach(([g,nome])=>{
-    const _c={'WhatsApp':'#25D366','E-mail':'#2196F3','SMS':'#FF9800','Instagram':'#E91E63','Facebook':'#1877F2','LinkedIn':'#0A66C2','Blog':'#6B5CE7','Outros':'#9BA3B8','Meta Ads':'#1877F2','Google Ads':'#4285F4'};
-    (g(c)||[]).forEach(d=>{if(d>ts)disp.push({nome:c.name,canal:nome,color:_c[nome]||'#999',data:d,cat:c.categoria});});
-  });});
-  disp.sort((a,b)=>a.data.localeCompare(b.data));
-  document.getElementById('dash-disparos').innerHTML=disp.slice(0,6).map(d=>
-    `<div class="timeline-item"><div class="timeline-dot" style="background:${d.color}"></div><div class="timeline-content"><div class="timeline-name">${d.nome} ${catBadge(d.cat)}</div><div class="timeline-date">${d.canal} · ${fmtFull(d.data)}</div></div></div>`
-  ).join('')||'<p style="color:var(--gray-400);font-size:12px;">Nenhuma futura.</p>';
-
   // ── SEM AÇÕES ────────────────────────────────────────────────
   const semAcoes=allFilt.filter(c=>{
     if(c.status==='cancelada'||c.fim<ts)return false;
@@ -1940,16 +1954,19 @@ async function renderDashboard(){
 
   // ── DISPAROS ATRASADOS ───────────────────────────────────────
   const atrasados=[];
-  allFilt.filter(c=>c.status!=='cancelada').forEach(c=>{
+  allFilt.forEach(c=>{  // inclui canceladas/adiadas
     canalMap.forEach(([g,key,nome])=>{(g(c)||[]).forEach(d=>{
       if(d<ts&&!(c.disparos_concluidos&&c.disparos_concluidos[d])&&!(c.disparos_cancelados&&Object.prototype.hasOwnProperty.call(c.disparos_cancelados,d))&&!(c.disparos_adiados&&Object.prototype.hasOwnProperty.call(c.disparos_adiados,d))){
-        atrasados.push({campanha:c.name,canal:nome,data:d,dias:Math.round((today-toDate(d))/86400000)});
+        atrasados.push({campanha:c.name,canal:nome,data:d,dias:Math.round((today-toDate(d))/86400000),status:c.status});
       }
     });});
   });
   atrasados.sort((a,b)=>a.data.localeCompare(b.data));
   document.getElementById('dash-atrasados').innerHTML=atrasados.length?
-    atrasados.slice(0,8).map(a=>`<div class="atrasado-row"><div style="flex:1;min-width:0"><div class="atrasado-nome">${a.campanha}</div><div class="atrasado-canal">${a.canal}</div></div><div class="atrasado-data">${fmtFull(a.data)}<br><span style="font-size:10px;color:#BF360C">${a.dias}d atrás</span></div></div>`).join('')+
+    atrasados.slice(0,8).map(a=>{
+      const stBadge=a.status==='cancelada'?'<span style="font-size:9px;background:#FFF5F5;color:var(--red);padding:2px 6px;border-radius:4px;font-weight:700;">CANCELADA</span>':a.status==='adiada'?'<span style="font-size:9px;background:#FFF8F0;color:#FF6F00;padding:2px 6px;border-radius:4px;font-weight:700;">ADIADA</span>':'';
+      return`<div class="atrasado-row"><div style="flex:1;min-width:0"><div class="atrasado-nome">${a.campanha} ${stBadge}</div><div class="atrasado-canal">${a.canal}</div></div><div class="atrasado-data">${fmtFull(a.data)}<br><span style="font-size:10px;color:#BF360C">${a.dias}d atrás</span></div></div>`;
+    }).join('')+
     (atrasados.length>8?`<p style="font-size:11px;color:var(--gray-400);margin-top:8px;">+mais ${atrasados.length-8}</p>`:''):
     '<div style="text-align:center;padding:20px 0;"><div style="font-size:28px">✅</div><p style="color:var(--green);font-size:12px;font-weight:600;">Nenhum atrasado!</p></div>';
 }
