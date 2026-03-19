@@ -3445,8 +3445,8 @@ function _deduplicateDeals(rows){
   const map={};
   rows.forEach(r=>{
     const k=_dealKey(r);
-    if(!map[k]){ map[k]=r; return; }
-    if(_etapaScore(r.etapa_ref) > _etapaScore(map[k].etapa_ref)) map[k]=r;
+    if(!map[k]){ map[k]={...r, deal_key:k}; return; }
+    if(_etapaScore(r.etapa_ref) > _etapaScore(map[k].etapa_ref)) map[k]={...r, deal_key:k};
   });
   return Object.values(map);
 }
