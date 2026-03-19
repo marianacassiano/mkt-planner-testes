@@ -1434,6 +1434,14 @@ function toggleSection(sectionId){
 const SUPA_URL='https://ldtebkdzmgxzuroflvci.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkdGVia2R6bWd4enVyb2ZsdmNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTk5OTcsImV4cCI6MjA4ODI5NTk5N30.Ra9JCOJAlVlg6uQCKOwoF7M5hTHbnJPWBSH48jctM6g';
 async function sbFetch(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=representation'}};if(body)opts.body=JSON.stringify(body);const res=await fetch(SUPA_URL+'/rest/v1/'+path,opts);if(!res.ok){const t=await res.text();throw new Error(t);}const txt=await res.text();return txt?JSON.parse(txt):null;}
+
+// Busca com Range header para paginar (Supabase limita 1000 rows por default)
+async function sbFetchRange(path, from, to){
+  const opts={method:'GET',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Range':from+'-'+to,'Prefer':'count=none'}};
+  const res=await fetch(SUPA_URL+'/rest/v1/'+path,opts);
+  if(!res.ok){const t=await res.text();throw new Error(t);}
+  const txt=await res.text();return txt?JSON.parse(txt):null;
+}
 function rowToLocal(r){
   return {
     id:r.id, name:r.name, color:r.color,
@@ -3497,7 +3505,15 @@ async function _crmHistBatch(rows){
 // ── UPSERT HÍBRIDO ──
 async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
   console.log('_crmUpsertHybrid: buscando existentes...');
-  const existing = await sbFetch('crm_deals?select=deal_key,etapa,etapa_ref,estado&limit=100000') || [];
+  // Busca todos os deals existentes com paginação
+  let existing = [], _off = 0, _ps = 1000;
+  while(true){
+    const _p = await sbFetchRange('crm_deals?select=deal_key,etapa,etapa_ref,estado', _off, _off+_ps-1);
+    if(!_p||!_p.length) break;
+    existing = existing.concat(_p);
+    if(_p.length < _ps) break;
+    _off += _ps;
+  }
   console.log('_crmUpsertHybrid: existentes no banco =', existing.length);
   const existMap={};
   existing.forEach(r=>{ existMap[r.deal_key]=r; });
@@ -3543,7 +3559,15 @@ async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
 async function _crmLoadFromSupabase(){
   showLoading();
   try {
-    const rows = await sbFetch('crm_deals?select=*&order=ultima_importacao.desc&limit=100000');
+    // Supabase limita 1000 rows por request — pagina até buscar tudo
+    let rows = [], offset = 0, pageSize = 1000;
+    while(true){
+      const page = await sbFetchRange('crm_deals?select=*&order=ultima_importacao.desc', offset, offset+pageSize-1);
+      if(!page||!page.length) break;
+      rows = rows.concat(page);
+      if(page.length < pageSize) break;
+      offset += pageSize;
+    }
     if(!rows||!rows.length){ _crmSnaps=[]; return; }
 
     // Um único "snap" representando o estado atual
