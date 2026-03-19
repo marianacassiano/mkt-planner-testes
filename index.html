@@ -3710,12 +3710,33 @@ function _pctBadge(pct, type) {
 // ── Helpers de análise ──
 function _parseKwp(v){
   if(!v) return 0;
-  // Pega apenas o primeiro número do campo (ignora texto livre, números de pedido etc.)
-  const m = String(v).replace(',','.').match(/(\d{1,4}(\.\d+)?)/);
+  const s = String(v).trim();
+
+  // Ignora números de pedido (formato XXXXXXX-XX com 5+ dígitos antes do hífen)
+  if(/^\d{5,}-\d+/.test(s)) return 0;
+
+  // Para expressões "112kwp x 4 = ..." extrai só o primeiro valor antes do x/=
+  let clean = s;
+  if(/[x=]/i.test(s)){
+    const beforeOp = s.split(/[x=]/i)[0];
+    clean = beforeOp;
+  }
+
+  // Normaliza separadores brasileiros: "1.400,58" → "1400.58"
+  let num = clean;
+  if(/\d\.\d{3}[,\s]/.test(num)) {
+    num = num.replace(/\./g,'').replace(',','.');
+  } else {
+    num = num.replace(',','.');
+  }
+
+  // Extrai primeiro número
+  const m = num.match(/(\d{1,7}(\.\d+)?)/);
   if(!m) return 0;
   const n = parseFloat(m[1]);
-  // Sanitiza: valores absurdos (>9999 kWp) são lixo de texto, ignora
-  return (!isNaN(n) && n <= 9999) ? n : 0;
+
+  // Sanitiza: acima de 9999 kWp é lixo
+  return (!isNaN(n) && n > 0 && n <= 9999) ? n : 0;
 }
 
 function _crmDiffDays(d1,d2){
@@ -3728,7 +3749,7 @@ function _crmDiffDays(d1,d2){
 function _brl(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
 function _kwp(v){
   if(!v || isNaN(v)) return '0 kWp';
-  return v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWp';
+  return v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' kWp';
 }
 
 // ── KPIs calculados para um conjunto de rows ──
