@@ -327,7 +327,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .modal-overlay.open{display:flex;animation:fadeIn .2s ease;}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-.modal{background:white;border-radius:20px;padding:36px;width:560px;box-shadow:0 20px 60px rgba(0,0,0,.18);position:relative;margin:auto;animation:fadeUp .2s ease;}
+.modal{background:white;border-radius:20px;padding:36px;width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.18);position:relative;margin:auto;animation:fadeUp .2s ease;}
 .modal-close{position:absolute;top:16px;right:18px;background:var(--gray-100);border:none;cursor:pointer;width:30px;height:30px;border-radius:50%;font-size:16px;color:var(--gray-600);display:flex;align-items:center;justify-content:center;transition:background .15s;}
 .modal-close:hover{background:var(--gray-200);}
 .modal h2{font-size:22px;font-weight:700;margin-bottom:6px;}
@@ -884,7 +884,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <!-- CALENDÁRIO -->
   <div class="view active" id="view-calendario">
     <div class="view-toprow">
-      <input type="text" class="search-input" id="search-cal" autocomplete="off" placeholder="🔍 Buscar campanha..." oninput="renderAll()">
+      <input type="search" class="search-input" id="search-cal" autocomplete="off" placeholder="🔍 Buscar campanha..." oninput="renderAll()">
       <div class="cal-cat-tabs">
         <button type="button" class="cal-cat-tab ativo" id="tab-cat-TODOS" onclick="setCatTab('TODOS')">Todos</button>
         <button type="button" class="cal-cat-tab tab-com" id="tab-cat-COMERCIAL" onclick="setCatTab('COMERCIAL')">Comercial</button>
@@ -933,7 +933,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   <!-- RESUMO -->
   <div class="view" id="view-resumo">
     <div class="view-toprow" id="resumo-toprow">
-      <input type="text" class="search-input" id="search-res" autocomplete="off" placeholder="🔍 Buscar campanha..." oninput="renderResumo()" style="margin-left:0;">
+      <input type="search" class="search-input" id="search-res" autocomplete="off" placeholder="🔍 Buscar campanha..." oninput="renderResumo()" style="margin-left:0;">
     </div>
     <h3 style="font-size:16px;font-weight:700;margin-top:32px;margin-bottom:16px;">Calendário de Campanhas Comerciais</h3>
     <div id="resumo-calendar" style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);"></div>
@@ -1197,9 +1197,9 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="collapsible-section" id="section-social">
       <div class="collapsible-header" onclick="toggleSection('section-social')">
         <span class="collapsible-title">Rede Social</span>
-        <span class="collapsible-arrow">▼</span>
+        <span class="collapsible-arrow open">▼</span>
       </div>
-      <div class="collapsible-body"><div class="collapsible-body-inner">
+      <div class="collapsible-body open"><div class="collapsible-body-inner">
     <div class="canal-block">
       <div class="canal-header"><span class="canal-title">Instagram</span><button type="button" class="btn-add-canal" onclick="addCanalDate('rede_social_instagram')">+</button></div>
       <div class="canal-dates" id="canal-rede_social_instagram"></div>
@@ -1230,9 +1230,9 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <div class="collapsible-section" id="section-perf">
       <div class="collapsible-header" onclick="toggleSection('section-perf')">
         <span class="collapsible-title">Performance</span>
-        <span class="collapsible-arrow">▼</span>
+        <span class="collapsible-arrow open">▼</span>
       </div>
-      <div class="collapsible-body"><div class="collapsible-body-inner">
+      <div class="collapsible-body open"><div class="collapsible-body-inner">
     <div class="canal-block">
       <div class="canal-header"><span class="canal-title">Meta Ads</span><button type="button" class="btn-add-canal" onclick="addPerfDate('performance_meta_ads')">+</button></div>
       <div class="canal-dates" id="canal-performance_meta_ads"></div>
