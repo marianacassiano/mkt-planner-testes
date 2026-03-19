@@ -864,6 +864,30 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 
 
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── NAV DROPDOWN ─────────────────────────────── */
+.nav-dropdown{position:relative;}
+.nav-dropdown-menu{
+  position:absolute;top:calc(100% + 6px);left:0;
+  background:white;border-radius:12px;
+  box-shadow:0 8px 32px rgba(0,0,0,.14);
+  border:1px solid var(--gray-200);
+  min-width:180px;padding:6px 0;
+  z-index:300;opacity:0;pointer-events:none;
+  transform:translateY(-6px);transition:opacity .15s,transform .15s;
+}
+.nav-dropdown-menu.open{opacity:1;pointer-events:auto;transform:translateY(0);}
+.nav-dropdown-item{
+  display:block;width:100%;padding:10px 16px;
+  font-family:'Sora',sans-serif;font-size:13px;font-weight:500;
+  color:var(--gray-600);background:transparent;border:none;
+  cursor:pointer;text-align:left;transition:background .12s,color .12s;
+}
+.nav-dropdown-item:hover{background:var(--gray-100);color:var(--gray-800);}
+.nav-dropdown-item.active{color:var(--purple);font-weight:600;background:var(--purple-pale);}
+.nav-dropdown-arrow{font-size:9px;margin-left:3px;display:inline-block;transition:transform .15s;}
+.nav-dropdown-arrow.open{transform:rotate(180deg);}
+
 /* ── CRM TOOLTIPS ─────────────────────────────────── */
 .crm-tip{position:relative;cursor:help;}
 .crm-tip:hover .crm-tip-box{opacity:1;pointer-events:auto;transform:translateY(0);}
@@ -961,9 +985,16 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
     <nav class="topbar-nav">
       <button type="button" class="nav-btn active" id="nav-cal" onclick="showView('calendario')">Calendário</button>
       <button type="button" class="nav-btn" id="nav-res" onclick="showView('resumo')">Campanhas Comerciais</button>
-      <button type="button" class="nav-btn" id="nav-dash" onclick="showView('dashboard')">Dashboard Campanhas</button>
+      <div class="nav-dropdown" id="nav-dash-wrap">
+        <button type="button" class="nav-btn" id="nav-dash" onclick="toggleNavDashDropdown(event)">
+          Dashboard <span class="nav-dropdown-arrow" id="nav-dash-arrow">▾</span>
+        </button>
+        <div class="nav-dropdown-menu" id="nav-dash-menu">
+          <button type="button" class="nav-dropdown-item" id="nav-dash-camp" onclick="selectNavDash('dashboard',event)">📊 Campanhas</button>
+          <button type="button" class="nav-dropdown-item" id="nav-dash-crm"  onclick="selectNavDash('crm',event)">📈 CRM</button>
+        </div>
+      </div>
       <button type="button" class="nav-btn" id="nav-intel" onclick="showView('intel')">Inteligência</button>
-      <button type="button" class="nav-btn" id="nav-crm" onclick="showView('crm')">Dashboard CRM</button>
       <button type="button" class="nav-btn" id="nav-usuarios" onclick="showView('usuarios')">Usuários</button>
     </nav>
     <div class="topbar-actions">
@@ -1715,17 +1746,44 @@ async function loadGroqConfig() {
   }
 }
 function applyRoleRestrictions(){const isUser=currentUser.role==='user';const _niR=document.getElementById('nav-intel');if(_niR)_niR.style.display=isUser?'none':'';
-  document.getElementById('nav-cal').style.display=isUser?'none':'';document.getElementById('nav-dash').style.display=isUser?'none':'';document.getElementById('nav-usuarios').style.display=isUser?'none':'';document.getElementById('btn-nova-camp').style.display=isUser?'none':'';
-  const _ncR=document.getElementById('nav-crm');if(_ncR)_ncR.style.display='';
+  document.getElementById('nav-cal').style.display=isUser?'none':'';
+  const _ndW=document.getElementById('nav-dash-wrap');if(_ndW)_ndW.style.display=isUser?'none':'';
+  document.getElementById('nav-usuarios').style.display=isUser?'none':'';
+  document.getElementById('btn-nova-camp').style.display=isUser?'none':'';
   if(isUser)showView('resumo');}
-function doLogout(){stopPolling();currentUser=null;campaigns=[];clearSession();document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('inp-email').value='';document.getElementById('inp-senha').value='';['nav-cal','nav-dash','nav-usuarios','nav-intel','btn-nova-camp'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});}
+function doLogout(){stopPolling();currentUser=null;campaigns=[];clearSession();document.getElementById('app').style.display='none';document.getElementById('login-screen').style.display='flex';document.getElementById('inp-email').value='';document.getElementById('inp-senha').value='';['nav-cal','nav-dash-wrap','nav-usuarios','nav-intel','btn-nova-camp'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});}
 document.getElementById('inp-senha').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-function showView(v){['calendario','resumo','dashboard','intel','crm','usuarios'].forEach(n=>document.getElementById('view-'+n).classList.toggle('active',v===n));document.getElementById('nav-cal').classList.toggle('active',v==='calendario');document.getElementById('nav-res').classList.toggle('active',v==='resumo');document.getElementById('nav-dash').classList.toggle('active',v==='dashboard');document.getElementById('nav-usuarios').classList.toggle('active',v==='usuarios');
+function showView(v){['calendario','resumo','dashboard','intel','crm','usuarios'].forEach(n=>document.getElementById('view-'+n).classList.toggle('active',v===n));document.getElementById('nav-cal').classList.toggle('active',v==='calendario');document.getElementById('nav-res').classList.toggle('active',v==='resumo');document.getElementById('nav-usuarios').classList.toggle('active',v==='usuarios');
   const _ni=document.getElementById('nav-intel');if(_ni)_ni.classList.toggle('active',v==='intel');
-  const _nc=document.getElementById('nav-crm');if(_nc)_nc.classList.toggle('active',v==='crm');
+  // Dashboard dropdown — botão pai fica ativo se dashboard ou crm
+  const _nd=document.getElementById('nav-dash');if(_nd)_nd.classList.toggle('active',v==='dashboard'||v==='crm');
+  const _dc=document.getElementById('nav-dash-camp');if(_dc)_dc.classList.toggle('active',v==='dashboard');
+  const _dcrm=document.getElementById('nav-dash-crm');if(_dcrm)_dcrm.classList.toggle('active',v==='crm');
   if(v==='resumo')renderResumo();if(v==='dashboard'){initDashPeriodo();renderDashboard();}if(v==='usuarios')renderUsuarios();
   if(v==='intel'){renderIntelView();}
   if(v==='crm'){renderCrmView();}}
+
+function toggleNavDashDropdown(e){
+  e.stopPropagation();
+  const menu=document.getElementById('nav-dash-menu');
+  const arrow=document.getElementById('nav-dash-arrow');
+  const isOpen=menu.classList.contains('open');
+  menu.classList.toggle('open',!isOpen);
+  arrow.classList.toggle('open',!isOpen);
+}
+function selectNavDash(view, e){
+  e.stopPropagation();
+  document.getElementById('nav-dash-menu').classList.remove('open');
+  document.getElementById('nav-dash-arrow').classList.remove('open');
+  showView(view);
+}
+document.addEventListener('click', e=>{
+  const wrap=document.getElementById('nav-dash-wrap');
+  if(wrap&&!wrap.contains(e.target)){
+    document.getElementById('nav-dash-menu')?.classList.remove('open');
+    document.getElementById('nav-dash-arrow')?.classList.remove('open');
+  }
+});
 function renderAll(){renderDispatch();renderGantt();renderSidebar();renderResumo();if(document.getElementById('view-dashboard').classList.contains('active')){initDashPeriodo();renderDashboard();}}
 function fmt(d){const[y,m,dd]=d.split('-');return dd+'/'+m;}
 function fmtFull(d){const[y,m,dd]=d.split('-');return dd+'/'+m+'/'+y;}
