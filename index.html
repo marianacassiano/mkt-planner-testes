@@ -4047,7 +4047,6 @@ async function renderCrmView() {
             <div style="font-size:13px;font-weight:700;color:${x.c||'var(--gray-800)'}">${x.v.toLocaleString?x.v.toLocaleString('pt-BR'):x.v}</div>
           </div>`).join('')}
         </div>
-        ${_funilBarsHtml(k)}
         ${_funilChartHtml('crm-chart-'+f.replace(/[^a-z0-9]/gi,'_'))}
       </div>`;
     }).join('');
@@ -4108,7 +4107,6 @@ async function renderCrmView() {
     <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;margin-bottom:20px;">
       <div class="crm-panel">
         <div class="crm-panel-title">Funil de conversão</div>
-        ${_funilBarsHtml(k)}
         ${_funilChartHtml('crm-chart-individual')}
       </div>
       <div class="crm-panel" style="overflow-x:auto;">
