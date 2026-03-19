@@ -3623,6 +3623,7 @@ const CRM_MAP = {
 
 let _crmSnaps = [];
 let _crmFunil = null;
+let _crmCamp  = '';   // '' = todas as campanhas
 let _crmSnapIdx = 0;
 let _crmLoaded = false;
 
@@ -3982,7 +3983,12 @@ async function renderCrmView() {
   if(!_crmFunil) _crmFunil='TODOS';
 
   // Linhas do funil selecionado
-  const activeRows = _crmFunil==='TODOS' ? snap.rows : snap.rows.filter(r=>r.funil===_crmFunil);
+  // Filtra por funil e por campanha
+  const _byFunil = _crmFunil==='TODOS' ? snap.rows : snap.rows.filter(r=>r.funil===_crmFunil);
+  const activeRows = _crmCamp ? _byFunil.filter(r=>r.camp===_crmCamp) : _byFunil;
+
+  // Campanhas disponíveis no funil ativo
+  const allCamps = [...new Set(_byFunil.map(r=>r.camp))].filter(Boolean).sort();
 
   const snapSelectorHtml = _crmSnaps.length>1 ? `<select onchange="_crmSetSnap(parseInt(this.value))" style="padding:7px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);background:white;outline:none;">${_crmSnaps.map((s,i)=>`<option value="${i}"${i===_crmSnapIdx?' selected':''}>${s.date} · ${s.label}</option>`).join('')}</select>` : '';
 
@@ -4003,7 +4009,21 @@ async function renderCrmView() {
       </label>
     </div>
   </div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:24px;">${tabsHtml}</div>`;
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">${tabsHtml}</div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+      <input type="search" id="crm-camp-search" value="${_crmCamp}"
+        placeholder="🔍 Filtrar por campanha..."
+        list="crm-camp-list" oninput="_crmSetCamp(this.value)"
+        style="padding:7px 12px;border:1.5px solid var(--gray-200);border-radius:20px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);background:white;outline:none;width:220px;transition:border-color .2s;"
+        onfocus="this.style.borderColor='var(--purple-light)'" onblur="this.style.borderColor='var(--gray-200)'">
+      ${_crmCamp ? `<button onclick="_crmSetCamp('')" style="font-size:11px;padding:5px 10px;border-radius:20px;border:1.5px solid var(--gray-200);background:white;cursor:pointer;color:var(--gray-600);">✕ Limpar</button>` : ''}
+      ${_crmCamp ? `<span style="font-size:11px;color:var(--purple);font-weight:600;padding:4px 10px;background:var(--purple-pale);border-radius:20px;">${activeRows.length.toLocaleString('pt-BR')} deals</span>` : ''}
+      <div style="position:relative;" id="crm-camp-dropdown-wrap">
+        ${allCamps.length ? `<datalist id="crm-camp-list">${allCamps.map(c=>`<option value="${c}">`).join('')}</datalist>` : ''}
+      </div>
+    </div>
+  </div>`
 
   // ── Visão TODOS OS FUNIS ──
   if(_crmFunil==='TODOS'){
@@ -4035,7 +4055,7 @@ async function renderCrmView() {
     el.innerHTML = `<div style="padding:24px 32px;">${header}
       <!-- KPIs consolidados -->
       <div class="crm-panel" style="margin-bottom:20px;">
-        <div class="crm-panel-title">Consolidado — todos os funis</div>
+        <div class="crm-panel-title">Consolidado${_crmCamp ? " · " + _crmCamp : " — todos os funis"}</div>
         ${_kpiCardsHtml(kAll)}
       </div>
 
@@ -4080,7 +4100,7 @@ async function renderCrmView() {
   el.innerHTML = `<div style="padding:24px 32px;">${header}
     <!-- KPIs -->
     <div class="crm-panel" style="margin-bottom:20px;">
-      <div class="crm-panel-title">${_crmFunil} — KPIs</div>
+      <div class="crm-panel-title">${_crmFunil}${_crmCamp ? " · " + _crmCamp : ""} — KPIs</div>
       ${_kpiCardsHtml(k)}
     </div>
 
@@ -4120,7 +4140,12 @@ async function renderCrmView() {
   setTimeout(()=>{ _renderFunilChart('crm-chart-individual', k); }, 50);
 }
 
-function _crmSetFunil(f){_crmFunil=f;renderCrmView();}
+function _crmSetFunil(f){_crmFunil=f;_crmCamp='';renderCrmView();}
+function _crmSetCamp(v){
+  _crmCamp=v.trim();
+  // Sem re-render completo — só re-filtra e atualiza o painel
+  renderCrmView();
+}
 function _crmSetSnap(i){_crmSnapIdx=i;_crmFunil=null;renderCrmView();}
 
 // ── Upload handler — CSV only ──
