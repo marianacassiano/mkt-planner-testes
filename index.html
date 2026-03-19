@@ -3571,9 +3571,15 @@ async function _crmLoadFromSupabase(){
     if(!rows||!rows.length){ _crmSnaps=[]; return; }
 
     // Um único "snap" representando o estado atual
+    // Pega timestamp real da última importação
+    const lastImport = rows[0]?.ultima_importacao;
+    const lastDate = lastImport
+      ? new Date(lastImport).toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})
+      : new Date().toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
     _crmSnaps = [{
       label: 'Estado atual',
-      date:  new Date().toLocaleDateString('pt-BR'),
+      date:  lastDate,
       rows:  rows.map(r=>({
         funil:        r.funil||'',
         camp:         r.campanha||'',
@@ -3623,7 +3629,7 @@ const CRM_MAP = {
 
 let _crmSnaps = [];
 let _crmFunil = null;
-let _crmCamp  = '';   // '' = todas as campanhas
+let _crmCamp  = [];   // [] = todas as campanhas
 let _crmSnapIdx = 0;
 let _crmLoaded = false;
 
@@ -4016,7 +4022,7 @@ async function renderCrmView() {
   // Linhas do funil selecionado
   // Filtra por funil e por campanha
   const _byFunil = _crmFunil==='TODOS' ? snap.rows : snap.rows.filter(r=>r.funil===_crmFunil);
-  const activeRows = _crmCamp ? _byFunil.filter(r=>r.camp===_crmCamp) : _byFunil;
+  const activeRows = _crmCamp.length ? _byFunil.filter(r=>_crmCamp.includes(r.camp)) : _byFunil;
 
   // Campanhas disponíveis em TODOS os funis
   const allCamps = [...new Set(snap.rows.map(r=>r.camp))].filter(Boolean).sort();
@@ -4030,7 +4036,7 @@ async function renderCrmView() {
   const header = `<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
     <div>
       <h2 style="font-size:22px;font-weight:700;margin:0 0 4px;">Dashboard CRM</h2>
-      <div style="font-size:11px;color:var(--gray-400);"><strong>${snap.label}</strong> · importado em ${snap.date} · ${snap.rows.length.toLocaleString('pt-BR')} registros</div>
+      <div style="font-size:11px;color:var(--gray-400);">🕐 Última atualização: <strong style="color:var(--gray-600)">${snap.date}</strong> &nbsp;·&nbsp; ${snap.rows.length.toLocaleString('pt-BR')} registros</div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       ${snapSelectorHtml}
@@ -4042,16 +4048,27 @@ async function renderCrmView() {
   </div>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
     <div style="display:flex;gap:6px;flex-wrap:wrap;">${tabsHtml}</div>
-    <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
-      <input type="search" id="crm-camp-search" value="${_crmCamp}"
-        placeholder="🔍 Filtrar por campanha..."
-        list="crm-camp-list" oninput="_crmSetCamp(this.value)"
-        style="padding:7px 12px;border:1.5px solid var(--gray-200);border-radius:20px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);background:white;outline:none;width:220px;transition:border-color .2s;"
-        onfocus="this.style.borderColor='var(--purple-light)'" onblur="this.style.borderColor='var(--gray-200)'">
-      ${_crmCamp ? `<button onclick="_crmSetCamp('')" style="font-size:11px;padding:5px 10px;border-radius:20px;border:1.5px solid var(--gray-200);background:white;cursor:pointer;color:var(--gray-600);">✕ Limpar</button>` : ''}
-      ${_crmCamp ? `<span style="font-size:11px;color:var(--purple);font-weight:600;padding:4px 10px;background:var(--purple-pale);border-radius:20px;">${activeRows.length.toLocaleString('pt-BR')} deals</span>` : ''}
-      <div style="position:relative;" id="crm-camp-dropdown-wrap">
-        ${allCamps.length ? `<datalist id="crm-camp-list">${allCamps.map(c=>`<option value="${c}">`).join('')}</datalist>` : ''}
+    <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+      ${_crmCamp.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:400px;">
+        ${_crmCamp.map(c=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--purple-pale);border:1.5px solid var(--purple-light);color:var(--purple);">${c}<span onclick="_crmToggleCamp('${c.replace(/'/g,"\\'")}')" style="cursor:pointer;margin-left:2px;opacity:.6;font-size:14px;line-height:1">×</span></span>`).join('')}
+        <button onclick="_crmClearCamps()" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1.5px solid var(--gray-200);background:white;cursor:pointer;color:var(--red);font-weight:600;font-family:'Sora',sans-serif;">Limpar</button>
+      </div>` : ''}
+      <div style="position:relative;">
+        <input type="search" id="crm-camp-search" placeholder="🔍 Adicionar campanha..."
+          oninput="_crmFilterOpts(this.value)"
+          onfocus="_crmFilterOpts(this.value)"
+          autocomplete="off"
+          style="padding:7px 14px;border:1.5px solid var(--gray-200);border-radius:20px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);background:white;outline:none;width:230px;">
+        <div id="crm-camp-opts" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:white;border:1.5px solid var(--gray-200);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:9999;max-height:240px;overflow-y:auto;min-width:220px;width:max-content;">
+          ${allCamps.map(c=>{
+            const sel=_crmCamp.includes(c);
+            return `<div class="_crm-camp-opt" data-camp="${c}" onclick="_crmToggleCamp('${c.replace(/'/g,"\'")}');document.getElementById('crm-camp-search').value='';_crmFilterOpts('');"
+              style="padding:9px 14px;font-size:12px;font-family:'Sora',sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px;${sel?'background:var(--purple-pale);color:var(--purple);':'color:var(--gray-800);'}">
+              <span style="width:16px;height:16px;border-radius:4px;border:1.5px solid ${sel?'var(--purple)':'var(--gray-200)'};background:${sel?'var(--purple)':'white'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:white">${sel?'✓':''}</span>
+              ${c}
+            </div>`;
+          }).join('')}
+        </div>
       </div>
     </div>
   </div>`
@@ -4063,7 +4080,7 @@ async function renderCrmView() {
 
     // Cards por funil
     const funilCardsHtml = funils.map(f=>{
-      const rows=snap.rows.filter(r=>r.funil===f&&(!_crmCamp||r.camp===_crmCamp));
+      const rows=snap.rows.filter(r=>r.funil===f&&(!_crmCamp.length||_crmCamp.includes(r.camp)));
       const k=_crmCalcKpis(rows);
       const cid='crm-chart-'+f.replace(/[^a-z0-9]/gi,'_');
       return `<div class="crm-panel" style="cursor:pointer" onclick="_crmSetFunil('${f.replace(/'/g,"\\'")}')">
@@ -4084,7 +4101,7 @@ async function renderCrmView() {
     el.innerHTML = `<div style="padding:24px 32px;">${header}
       <!-- KPIs consolidados -->
       <div class="crm-panel" style="margin-bottom:20px;">
-        <div class="crm-panel-title">Consolidado${_crmCamp ? " · " + _crmCamp : " — todos os funis"}</div>
+        <div class="crm-panel-title">Consolidado${_crmCamp.length ? " · " + _crmCamp.join(", ") : " — todos os funis"}</div>
         ${_kpiCardsHtml(kAll)}
       </div>
 
@@ -4114,7 +4131,7 @@ async function renderCrmView() {
     // Renderiza gráficos APÓS innerHTML estar no DOM
     setTimeout(()=>{
       funils.forEach(f=>{
-        const rows2=snap.rows.filter(r=>r.funil===f&&(!_crmCamp||r.camp===_crmCamp));
+        const rows2=snap.rows.filter(r=>r.funil===f&&(!_crmCamp.length||_crmCamp.includes(r.camp)));
         const k2=_crmCalcKpis(rows2);
         _renderFunilChart('crm-chart-'+f.replace(/[^a-z0-9]/gi,'_'), k2);
       });
@@ -4135,7 +4152,7 @@ async function renderCrmView() {
     ${header}
     <!-- KPIs -->
     <div class="crm-panel" style="margin-bottom:20px;">
-      <div class="crm-panel-title">${_crmFunil}${_crmCamp ? " · " + _crmCamp : ""} — KPIs</div>
+      <div class="crm-panel-title">${_crmFunil}${_crmCamp.length ? " · " + _crmCamp.join(", ") : ""} — KPIs</div>
       ${_kpiCardsHtml(k)}
     </div>
 
@@ -4175,11 +4192,33 @@ async function renderCrmView() {
 }
 
 function _crmSetFunil(f){_crmFunil=f;renderCrmView();}
-function _crmSetCamp(v){
-  _crmCamp=v.trim();
-  // Sem re-render completo — só re-filtra e atualiza o painel
+function _crmToggleCamp(camp){
+  const idx = _crmCamp.indexOf(camp);
+  if(idx === -1) _crmCamp.push(camp);
+  else _crmCamp.splice(idx, 1);
   renderCrmView();
 }
+function _crmClearCamps(){
+  _crmCamp = [];
+  renderCrmView();
+}
+function _crmFilterOpts(q){
+  const opts = document.getElementById('crm-camp-opts');
+  if(!opts) return;
+  opts.style.display = 'block';
+  const items = opts.querySelectorAll('._crm-camp-opt');
+  items.forEach(el=>{
+    const camp = el.getAttribute('data-camp')||'';
+    el.style.display = camp.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+document.addEventListener('click', e=>{
+  const wrap = document.getElementById('crm-camp-opts');
+  const inp  = document.getElementById('crm-camp-search');
+  if(wrap && inp && !wrap.contains(e.target) && e.target !== inp){
+    wrap.style.display = 'none';
+  }
+});
 function _crmSetSnap(i){_crmSnapIdx=i;_crmFunil=null;renderCrmView();}
 
 // ── Upload handler — CSV only ──
