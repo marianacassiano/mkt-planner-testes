@@ -3875,6 +3875,86 @@ function _kpiCardsHtml(k){
   </div>`;
 }
 
+
+// ── Gráfico de barras do funil (Chart.js) ──
+let _crmCharts = {};
+function _funilChartHtml(canvasId){
+  return `<div style="position:relative;width:100%;height:200px;margin-top:12px">
+    <canvas id="${canvasId}"></canvas>
+  </div>`;
+}
+function _renderFunilChart(canvasId, k){
+  // Destrói chart anterior se existir
+  if(_crmCharts[canvasId]){ _crmCharts[canvasId].destroy(); delete _crmCharts[canvasId]; }
+  const el = document.getElementById(canvasId);
+  if(!el) return;
+  const labels = ['Não Tratado','Em Contato','Orçamento','Venda'];
+  const values = [k.nt, k.ec, k.orc, k.vnd];
+  const colors = ['#E53935','#00B2C8','#FAB515','#00C07A'];
+  const pcts   = values.map(v=>_pct(v,k.total));
+  _crmCharts[canvasId] = new Chart(el, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets:[{
+        data: values,
+        backgroundColor: colors,
+        borderRadius: 6,
+        barThickness: 52,
+      }]
+    },
+    options:{
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          callbacks:{
+            label: ctx => ` ${ctx.parsed.y.toLocaleString('pt-BR')} deals (${pcts[ctx.dataIndex]}%)`
+          }
+        },
+        // Plugin inline para mostrar valor+% acima das barras
+        datalabels: false
+      },
+      scales:{
+        x:{ grid:{ display:false }, ticks:{ font:{ family:'Sora', size:11 }, color:'#5A6375' } },
+        y:{ grid:{ color:'#F0F2F7' }, ticks:{ font:{ family: "DM Mono", size:10 }, color:'#9BA3B8' }, beginAtZero:true }
+      },
+      animation:{ duration:600 }
+    },
+    plugins:[{
+      id:'topLabels',
+      afterDatasetsDraw(chart){
+        const {ctx} = chart;
+        chart.data.datasets.forEach((ds, di)=>{
+          chart.getDatasetMeta(di).data.forEach((bar, i)=>{
+            const v = ds.data[i];
+            const p = pcts[i];
+            const x = bar.x, y = bar.y;
+            ctx.save();
+            // Badge arredondado
+            ctx.fillStyle = colors[i];
+            ctx.beginPath();
+            ctx.roundRect(x-26, y-30, 52, 22, 5);
+            ctx.fill();
+            // Texto % em branco
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 11px Sora, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(p+'%', x, y-19);
+            // Número abaixo do badge
+            ctx.fillStyle = '#454444';
+            ctx.font = '600 11px DM Mono, monospace';
+            ctx.fillText(v.toLocaleString('pt-BR'), x, y-3);
+            ctx.restore();
+          });
+        });
+      }
+    }]
+  });
+}
+
 // ── Render principal ──
 async function renderCrmView() {
   const el = document.getElementById('view-crm');
@@ -3948,6 +4028,7 @@ async function renderCrmView() {
           </div>`).join('')}
         </div>
         ${_funilBarsHtml(k)}
+        ${_funilChartHtml('crm-chart-'+f.replace(/[^a-z0-9]/gi,'_'))}
       </div>`;
     }).join('');
 
@@ -3983,6 +4064,14 @@ async function renderCrmView() {
     </div>`;
     return;
   }
+  // Renderiza gráficos dos cards de funil (após innerHTML)
+  setTimeout(()=>{
+    funils.forEach(f=>{
+      const rows2=snap.rows.filter(r=>r.funil===f);
+      const k2=_crmCalcKpis(rows2);
+      _renderFunilChart('crm-chart-'+f.replace(/[^a-z0-9]/gi,'_'), k2);
+    });
+  }, 50);
 
   // ── Visão FUNIL INDIVIDUAL ──
   const k = _crmCalcKpis(activeRows);
@@ -4000,6 +4089,7 @@ async function renderCrmView() {
       <div class="crm-panel">
         <div class="crm-panel-title">Funil de conversão</div>
         ${_funilBarsHtml(k)}
+        ${_funilChartHtml('crm-chart-individual')}
       </div>
       <div class="crm-panel" style="overflow-x:auto;">
         <div class="crm-panel-title">Por campanha</div>
@@ -4027,6 +4117,7 @@ async function renderCrmView() {
       </div>
     </div>
   </div>`;
+  setTimeout(()=>{ _renderFunilChart('crm-chart-individual', k); }, 50);
 }
 
 function _crmSetFunil(f){_crmFunil=f;renderCrmView();}
