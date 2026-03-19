@@ -3456,9 +3456,9 @@ async function _crmPostBatch(rows){
   const SZ=200;
   for(let i=0;i<rows.length;i+=SZ){
     const batch=rows.slice(i,i+SZ);
-    const opts={method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'resolution=merge-duplicates,return=representation'}};
+    const opts={method:'POST',headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'resolution=merge-duplicates,return=minimal'}};
     opts.body=JSON.stringify(batch);
-    const res=await fetch(SUPA_URL+'/rest/v1/crm_deals',opts);
+    const res=await fetch(SUPA_URL+'/rest/v1/crm_deals?on_conflict=deal_key',opts);
     if(!res.ok){const t=await res.text();throw new Error(t);}
   }
 }
