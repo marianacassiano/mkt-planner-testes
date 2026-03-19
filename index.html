@@ -3726,7 +3726,10 @@ function _crmDiffDays(d1,d2){
 }
 
 function _brl(v){ return 'R$ '+Math.round(v).toLocaleString('pt-BR'); }
-function _kwp(v){ return v.toFixed(1)+' kWp'; }
+function _kwp(v){
+  if(!v || isNaN(v)) return '0 kWp';
+  return v.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' kWp';
+}
 
 // ── KPIs calculados para um conjunto de rows ──
 function _crmCalcKpis(rows){
