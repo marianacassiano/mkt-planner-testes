@@ -4082,28 +4082,46 @@ async function renderCrmView() {
       </label>
     </div>
   </div>
-  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:24px;">
-    <div style="display:flex;gap:6px;flex-wrap:wrap;">${tabsHtml}</div>
-    <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-      ${_crmCamp.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:400px;">
-        ${_crmCamp.map(c=>`<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--purple-pale);border:1.5px solid var(--purple-light);color:var(--purple);">${c}<span onclick="_crmToggleCamp('${c.replace(/'/g,"\\'")}')" style="cursor:pointer;margin-left:2px;opacity:.6;font-size:14px;line-height:1">×</span></span>`).join('')}
-        <button onclick="_crmClearCamps()" style="font-size:11px;padding:3px 10px;border-radius:20px;border:1.5px solid var(--gray-200);background:white;cursor:pointer;color:var(--red);font-weight:600;font-family:'Sora',sans-serif;">Limpar</button>
-      </div>` : ''}
-      <div style="position:relative;">
-        <input type="search" id="crm-camp-search" placeholder="🔍 Adicionar campanha..."
-          oninput="_crmFilterOpts(this.value)"
-          onfocus="_crmFilterOpts(this.value)"
-          autocomplete="off"
-          style="padding:7px 14px;border:1.5px solid var(--gray-200);border-radius:20px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);background:white;outline:none;width:230px;">
-        <div id="crm-camp-opts" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:white;border:1.5px solid var(--gray-200);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:9999;max-height:240px;overflow-y:auto;min-width:220px;width:max-content;">
-          ${allCamps.map(c=>{
-            const sel=_crmCamp.includes(c);
-            return `<div class="_crm-camp-opt" data-camp="${c}" onclick="_crmToggleCamp('${c.replace(/'/g,"\'")}');document.getElementById('crm-camp-search').value='';_crmFilterOpts('');"
-              style="padding:9px 14px;font-size:12px;font-family:'Sora',sans-serif;cursor:pointer;display:flex;align-items:center;gap:8px;${sel?'background:var(--purple-pale);color:var(--purple);':'color:var(--gray-800);'}">
-              <span style="width:16px;height:16px;border-radius:4px;border:1.5px solid ${sel?'var(--purple)':'var(--gray-200)'};background:${sel?'var(--purple)':'white'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;color:white">${sel?'✓':''}</span>
-              ${c}
-            </div>`;
-          }).join('')}
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:24px;">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1">${tabsHtml}</div>
+
+    <!-- Filtro de campanhas -->
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+
+      <!-- Tags selecionadas -->
+      ${_crmCamp.map(c=>`<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:5px 10px;border-radius:10px;background:var(--purple-pale);border:1.5px solid var(--purple-light);color:var(--purple);white-space:nowrap;">
+        ${c}
+        <span onclick="_crmToggleCamp('${c.replace(/'/g,"\\'")}');event.stopPropagation();" style="cursor:pointer;display:flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:4px;background:var(--purple-light);color:var(--purple);font-size:11px;line-height:1;opacity:.8">×</span>
+      </span>`).join('')}
+      ${_crmCamp.length > 1 ? `<button onclick="_crmClearCamps()" class="btn-filtro" style="padding:6px 12px;font-size:11px;color:var(--red);border-color:#FFCDD2;">✕ Limpar</button>` : ''}
+
+      <!-- Input + dropdown -->
+      <div class="filter-wrap">
+        <button type="button" class="btn-filtro${_crmCamp.length?' has-filter':''}" id="crm-camp-btn"
+          onclick="document.getElementById('crm-camp-panel').classList.toggle('fp-open');document.getElementById('crm-camp-search').focus()">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0"><path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          Campanhas
+          ${_crmCamp.length ? `<span class="filtro-count">${_crmCamp.length}</span>` : ''}
+          <span class="f-arrow">▾</span>
+        </button>
+        <div class="filtro-panel" id="crm-camp-panel" style="left:auto;right:0;width:260px;">
+          <input type="search" id="crm-camp-search" placeholder="Buscar campanha..."
+            oninput="_crmFilterOpts(this.value)" autocomplete="off"
+            style="width:100%;padding:8px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);background:var(--gray-50);outline:none;margin-bottom:8px;box-sizing:border-box;">
+          <div id="crm-camp-opts" style="max-height:200px;overflow-y:auto;">
+            ${allCamps.map(c=>{
+              const sel=_crmCamp.includes(c);
+              return `<div class="fp-chip _crm-camp-opt${sel?' fpa':''}" data-camp="${c}"
+                onclick="_crmToggleCamp('${c.replace(/'/g,"\\'")}');_crmFilterOpts(document.getElementById('crm-camp-search').value);"
+                style="display:flex;align-items:center;gap:8px;width:100%;text-align:left;border-radius:8px;margin-bottom:2px;padding:7px 10px;cursor:pointer;font-size:12px;font-family:'Sora',sans-serif;background:${sel?'var(--purple-pale)':'transparent'};color:${sel?'var(--purple)':'var(--gray-600)'};border:1px solid ${sel?'var(--purple-light)':'transparent'};">
+                <span style="width:14px;height:14px;border-radius:3px;border:1.5px solid ${sel?'var(--purple)':'var(--gray-200)'};background:${sel?'var(--purple)':'white'};display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:white;font-weight:700">${sel?'✓':''}</span>
+                ${c}
+              </div>`;
+            }).join('')}
+          </div>
+          ${_crmCamp.length ? `<div style="border-top:1px solid var(--gray-100);margin-top:8px;padding-top:8px;">
+            <button onclick="_crmClearCamps()" class="btn-limpar" style="width:100%;text-align:center;">Limpar seleção</button>
+          </div>` : ''}
         </div>
       </div>
     </div>
@@ -4241,18 +4259,17 @@ function _crmClearCamps(){
 function _crmFilterOpts(q){
   const opts = document.getElementById('crm-camp-opts');
   if(!opts) return;
-  opts.style.display = 'block';
   const items = opts.querySelectorAll('._crm-camp-opt');
   items.forEach(el=>{
     const camp = el.getAttribute('data-camp')||'';
-    el.style.display = camp.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+    el.style.display = camp.toLowerCase().includes((q||'').toLowerCase()) ? '' : 'none';
   });
 }
 document.addEventListener('click', e=>{
-  const wrap = document.getElementById('crm-camp-opts');
-  const inp  = document.getElementById('crm-camp-search');
-  if(wrap && inp && !wrap.contains(e.target) && e.target !== inp){
-    wrap.style.display = 'none';
+  const panel = document.getElementById('crm-camp-panel');
+  const btn   = document.getElementById('crm-camp-btn');
+  if(panel && btn && !panel.contains(e.target) && e.target !== btn && !btn.contains(e.target)){
+    panel.classList.remove('fp-open');
   }
 });
 function _crmSetSnap(i){_crmSnapIdx=i;_crmFunil=null;renderCrmView();}
