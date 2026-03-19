@@ -1332,7 +1332,22 @@ function toggleSection(sectionId){
 const SUPA_URL='https://ldtebkdzmgxzuroflvci.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxkdGVia2R6bWd4enVyb2ZsdmNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTk5OTcsImV4cCI6MjA4ODI5NTk5N30.Ra9JCOJAlVlg6uQCKOwoF7M5hTHbnJPWBSH48jctM6g';
 async function sbFetch(path,method='GET',body=null){const opts={method,headers:{'Content-Type':'application/json','apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY,'Prefer':'return=representation'}};if(body)opts.body=JSON.stringify(body);const res=await fetch(SUPA_URL+'/rest/v1/'+path,opts);if(!res.ok){const t=await res.text();throw new Error(t);}const txt=await res.text();return txt?JSON.parse(txt):null;}
-function rowToLocal(r){return{id:r.id,name:r.name,color:r.color,categoria:Array.isArray(r.categoria)?r.categoria:(r.categoria?[r.categoria]:[]),inicio:r.inicio,fim:r.fim,briefing:r.briefing||'',defesa:r.defesa||'',tags:r.tags||'',inbound:{wa:r.inbound_wa||[],sms:r.inbound_sms||[],email:r.inbound_email||[],lp:r.inbound_lp||[]},rede_social:{instagram:r.rede_social_instagram||[],facebook:r.rede_social_facebook||[],linkedin:r.rede_social_linkedin||[],blog:r.rede_social_blog||[],outros:r.rede_social_outros||[],youtube:r.rede_social_youtube||[]},performance:{meta_ads:(()=>{const d=r.performance_meta_ads||[...(r.performance_instagram_ads||[]),...(r.performance_facebook_ads||[])];if(d.length>0&&typeof d[0]==='string')return[{inicio:d[0]||'',fim:r.performance_meta_ads_fim||''}];return d;})(),meta_ads_inicio:r.performance_meta_ads_inicio||'',meta_ads_fim:r.performance_meta_ads_fim||'',google_ads:(()=>{const d=r.performance_google_ads||[];if(d.length>0&&typeof d[0]==='string')return[{inicio:d[0]||'',fim:r.performance_google_ads_fim||''}];return d;})(),google_ads_inicio:r.performance_google_ads_inicio||'',google_ads_fim:r.performance_google_ads_fim||''},mes_ref:r.mes_ref,status:r.status||'ativa',motivo_adiamento:r.motivo_adiamento||'',data_adiamento:r.data_adiamento||'',disparos_deslocados:{},disparos_cancelados:{},disparos_concluidos:{},disparos_adiados:{},historico_alteracoes:[]};}
+function rowToLocal(r){
+  return {
+    id:r.id, name:r.name, color:r.color,
+    categoria:Array.isArray(r.categoria)?r.categoria:(r.categoria?[r.categoria]:[]),
+    inicio:r.inicio, fim:r.fim,
+    briefing:r.briefing||'', defesa:r.defesa||'', tags:r.tags||'',
+    mes_ref:r.mes_ref, status:r.status||'ativa',
+    motivo_adiamento:r.motivo_adiamento||'', data_adiamento:r.data_adiamento||'',
+    // Canais — populados por loadAllDisparos
+    inbound:{wa:[],sms:[],email:[],lp:[]},
+    rede_social:{instagram:[],facebook:[],linkedin:[],blog:[],outros:[],youtube:[]},
+    performance:{meta_ads:[],meta_ads_inicio:'',meta_ads_fim:'',google_ads:[],google_ads_inicio:'',google_ads_fim:''},
+    disparos_cancelados:{}, disparos_concluidos:{}, disparos_adiados:{},
+    historico_alteracoes:[], disparos_deslocados:{}
+  };
+}
 function renderTags(tagsStr){if(!tagsStr||!tagsStr.trim())return'';return tagsStr.split(',').map(t=>t.trim()).filter(Boolean).map(t=>'<span class="camp-tag">'+t+'</span>').join('');}
 function getMesRef(inicio){return inicio.slice(0,7);}
 let USERS=[];
@@ -1364,71 +1379,87 @@ function getFiltered(ctx){const searchEl=document.getElementById(ctx==='cal'?'se
 async function loadCampaigns(){showLoading();try{const mesStr=currentYear+'-'+String(currentMonth+1).padStart(2,'0');const monthStart=mesStr+'-01';const dim=new Date(currentYear,currentMonth+1,0).getDate();const monthEnd=mesStr+'-'+String(dim).padStart(2,'0');const rows=await sbFetch('campaigns?select=*&inicio=lte.'+monthEnd+'&fim=gte.'+monthStart+'&order=inicio.asc');campaigns=(rows||[]).map(rowToLocal);await loadAllDisparos();renderAll();}catch(e){showToast('Erro ao carregar campanhas: '+e.message,'error');}finally{hideLoading();}}
 
 // ── DISPAROS: carregar da tabela campaign_disparos ────────────
-async function loadCampDisparos(campId) {
-  try {
-    const rows = await sbFetch('campaign_disparos?campaign_id=eq.' + campId + '&order=data_disparo.asc');
-    const cp = campaigns.find(c => c.id === campId);
-    if (!cp || !rows) return;
-    // Resetar
-    cp.disparos_concluidos = {};
-    cp.disparos_cancelados = {};
-    cp.disparos_adiados    = {};
-    cp.historico_alteracoes = [];
-    rows.forEach(r => {
-      const d = r.data_disparo;
-      if (r.status === 'concluido')  cp.disparos_concluidos[d] = true;
-      if (r.status === 'cancelado')  cp.disparos_cancelados[d] = { motivo: r.motivo||'', observacao: r.observacao||'', alterado_por: r.alterado_por||'', data_alteracao: r.data_alteracao||'' };
-      if (r.status === 'adiado')     cp.disparos_adiados[d]    = { motivo: r.motivo||'', observacao: r.observacao||'', nova_data: r.nova_data||'', alterado_por: r.alterado_por||'', data_alteracao: r.data_alteracao||'' };
-      // Montar histórico a partir de status não-programado
-      if (r.status !== 'programado') {
+const _canalToKey = {
+  'WhatsApp':'wa','E-mail':'email','SMS':'sms','Landing Page':'lp'
+};
+const _canalToRS = {
+  'Instagram':'instagram','Facebook':'facebook','LinkedIn':'linkedin',
+  'Blog':'blog','Outros':'outros','YouTube':'youtube'
+};
+const _canalToPerf = {
+  'Meta Ads':'meta_ads','Google Ads':'google_ads'
+};
+
+function _addDataToCanal(cp, canal, data){
+  if(_canalToKey[canal])       cp.inbound[_canalToKey[canal]].push(data);
+  else if(_canalToRS[canal])   cp.rede_social[_canalToRS[canal]].push(data);
+  else if(_canalToPerf[canal]) cp.performance[_canalToPerf[canal]].push(data);
+}
+
+async function loadCampDisparos(campId){
+  try{
+    const rows=await sbFetch('campaign_disparos?campaign_id=eq.'+campId+'&order=data_disparo.asc');
+    const cp=campaigns.find(c=>c.id===campId);
+    if(!cp||!rows)return;
+    // Resetar canais e status
+    cp.inbound={wa:[],sms:[],email:[],lp:[]};
+    cp.rede_social={instagram:[],facebook:[],linkedin:[],blog:[],outros:[],youtube:[]};
+    cp.performance={meta_ads:[],meta_ads_inicio:'',meta_ads_fim:'',google_ads:[],google_ads_inicio:'',google_ads_fim:''};
+    cp.disparos_concluidos={};cp.disparos_cancelados={};cp.disparos_adiados={};cp.historico_alteracoes=[];
+    rows.forEach(r=>{
+      const d=r.data_disparo;
+      // Adicionar data no canal (todos os disparos aparecem no calendário)
+      _addDataToCanal(cp, r.canal, d);
+      // Status
+      if(r.status==='concluido') cp.disparos_concluidos[d]=true;
+      if(r.status==='cancelado') cp.disparos_cancelados[d]={motivo:r.motivo||'',observacao:r.observacao||'',alterado_por:r.alterado_por||'',data_alteracao:r.data_alteracao||''};
+      if(r.status==='adiado')    cp.disparos_adiados[d]={motivo:r.motivo||'',observacao:r.observacao||'',nova_data:r.nova_data||'',alterado_por:r.alterado_por||'',data_alteracao:r.data_alteracao||''};
+      if(r.status!=='programado'){
         cp.historico_alteracoes.push({
-          data_disparo: d,
-          canal: r.canal,
-          acao: r.status,
-          nova_data: r.nova_data || '',
-          motivo: r.motivo || '',
-          observacao: r.observacao || '',
-          alterado_por: r.alterado_por || '',
-          data_alteracao_fmt: r.data_alteracao ? new Date(r.data_alteracao).toLocaleDateString('pt-BR') : '',
-          data_alteracao: r.data_alteracao || ''
+          data_disparo:d, canal:r.canal, acao:r.status,
+          nova_data:r.nova_data||'', motivo:r.motivo||'', observacao:r.observacao||'',
+          alterado_por:r.alterado_por||'',
+          data_alteracao_fmt:r.data_alteracao?new Date(r.data_alteracao).toLocaleDateString('pt-BR'):'',
+          data_alteracao:r.data_alteracao||''
         });
       }
     });
-  } catch(e) { console.error('Erro loadCampDisparos:', e); }
+  }catch(e){console.error('Erro loadCampDisparos:',e);}
 }
 
-async function loadAllDisparos() {
-  if (!campaigns.length) return;
-  const ids = campaigns.map(c => c.id).join(',');
-  try {
-    const rows = await sbFetch('campaign_disparos?campaign_id=in.(' + ids + ')&order=data_disparo.asc');
-    if (!rows) return;
-    // Agrupar por campaign_id
-    const bycamp = {};
-    rows.forEach(r => { if (!bycamp[r.campaign_id]) bycamp[r.campaign_id] = []; bycamp[r.campaign_id].push(r); });
-    campaigns.forEach(cp => {
-      cp.disparos_concluidos = {};
-      cp.disparos_cancelados = {};
-      cp.disparos_adiados    = {};
-      cp.historico_alteracoes = [];
-      (bycamp[cp.id] || []).forEach(r => {
-        const d = r.data_disparo;
-        if (r.status === 'concluido') cp.disparos_concluidos[d] = true;
-        if (r.status === 'cancelado') cp.disparos_cancelados[d] = { motivo: r.motivo||'', observacao: r.observacao||'', alterado_por: r.alterado_por||'', data_alteracao: r.data_alteracao||'' };
-        if (r.status === 'adiado')    cp.disparos_adiados[d]    = { motivo: r.motivo||'', observacao: r.observacao||'', nova_data: r.nova_data||'', alterado_por: r.alterado_por||'', data_alteracao: r.data_alteracao||'' };
-        if (r.status !== 'programado') {
+async function loadAllDisparos(){
+  if(!campaigns.length)return;
+  const ids=campaigns.map(c=>c.id).join(',');
+  try{
+    const rows=await sbFetch('campaign_disparos?campaign_id=in.('+ids+')&order=data_disparo.asc');
+    if(!rows)return;
+    const bycamp={};
+    rows.forEach(r=>{if(!bycamp[r.campaign_id])bycamp[r.campaign_id]=[];bycamp[r.campaign_id].push(r);});
+    campaigns.forEach(cp=>{
+      cp.inbound={wa:[],sms:[],email:[],lp:[]};
+      cp.rede_social={instagram:[],facebook:[],linkedin:[],blog:[],outros:[],youtube:[]};
+      cp.performance={meta_ads:[],meta_ads_inicio:'',meta_ads_fim:'',google_ads:[],google_ads_inicio:'',google_ads_fim:''};
+      cp.disparos_concluidos={};cp.disparos_cancelados={};cp.disparos_adiados={};cp.historico_alteracoes=[];
+      (bycamp[cp.id]||[]).forEach(r=>{
+        const d=r.data_disparo;
+        _addDataToCanal(cp,r.canal,d);
+        if(r.status==='concluido') cp.disparos_concluidos[d]=true;
+        if(r.status==='cancelado') cp.disparos_cancelados[d]={motivo:r.motivo||'',observacao:r.observacao||'',alterado_por:r.alterado_por||'',data_alteracao:r.data_alteracao||''};
+        if(r.status==='adiado')    cp.disparos_adiados[d]={motivo:r.motivo||'',observacao:r.observacao||'',nova_data:r.nova_data||'',alterado_por:r.alterado_por||'',data_alteracao:r.data_alteracao||''};
+        if(r.status!=='programado'){
           cp.historico_alteracoes.push({
-            data_disparo: d, canal: r.canal, acao: r.status,
-            nova_data: r.nova_data||'', motivo: r.motivo||'', observacao: r.observacao||'',
-            alterado_por: r.alterado_por||'',
-            data_alteracao_fmt: r.data_alteracao ? new Date(r.data_alteracao).toLocaleDateString('pt-BR') : '',
-            data_alteracao: r.data_alteracao||''
+            data_disparo:d,canal:r.canal,acao:r.status,
+            nova_data:r.nova_data||'',motivo:r.motivo||'',observacao:r.observacao||'',
+            alterado_por:r.alterado_por||'',
+            data_alteracao_fmt:r.data_alteracao?new Date(r.data_alteracao).toLocaleDateString('pt-BR'):'',
+            data_alteracao:r.data_alteracao||''
           });
         }
       });
     });
-  } catch(e) { console.error('Erro loadAllDisparos:', e); }
+  }catch(e){console.error('Erro loadAllDisparos:',e);}
 }
+
 
 // ── SALVAR disparo na nova tabela ─────────────────────────────
 async function saveDisparoStatus(campId, dataDisparo, canal, status, motivo, observacao, novaData) {
@@ -1452,8 +1483,31 @@ async function saveDisparoStatus(campId, dataDisparo, canal, status, motivo, obs
   }
 }
 
-async function dbInsert(data){const payload={name:data.name,color:data.color,categoria:Array.isArray(data.categoria)?[...data.categoria]:(data.categoria?[data.categoria]:[]),inicio:data.inicio,fim:data.fim,briefing:data.briefing||'',defesa:data.defesa||'',tags:data.tags||'',inbound_wa:data.inbound_wa||[],inbound_email:data.inbound_email||[],inbound_sms:data.inbound_sms||[],inbound_lp:data.inbound_lp||[],rede_social_instagram:data.rede_social_instagram||[],rede_social_facebook:data.rede_social_facebook||[],rede_social_linkedin:data.rede_social_linkedin||[],rede_social_blog:data.rede_social_blog||[],rede_social_outros:data.rede_social_outros||[],rede_social_youtube:data.rede_social_youtube||[],performance_meta_ads:data.performance_meta_ads||[],performance_meta_ads_inicio:data.performance_meta_ads_inicio||'',performance_meta_ads_fim:data.performance_meta_ads_fim||'',performance_google_ads:data.performance_google_ads||[],performance_google_ads_inicio:data.performance_google_ads_inicio||'',performance_google_ads_fim:data.performance_google_ads_fim||'',mes_ref:getMesRef(data.inicio),status:data.status||'ativa',motivo_adiamento:data.motivo_adiamento||'',data_adiamento:data.data_adiamento||''};const rows=await sbFetch('campaigns','POST',payload);return rows&&rows[0]?rowToLocal(rows[0]):null;}
-async function dbUpdate(id,data){const payload={name:data.name,color:data.color,categoria:Array.isArray(data.categoria)?[...data.categoria]:(data.categoria?[data.categoria]:[]),inicio:data.inicio,fim:data.fim,briefing:data.briefing||'',defesa:data.defesa||'',tags:data.tags||'',inbound_wa:data.inbound_wa||[],inbound_email:data.inbound_email||[],inbound_sms:data.inbound_sms||[],inbound_lp:data.inbound_lp||[],rede_social_instagram:data.rede_social_instagram||[],rede_social_facebook:data.rede_social_facebook||[],rede_social_linkedin:data.rede_social_linkedin||[],rede_social_blog:data.rede_social_blog||[],rede_social_outros:data.rede_social_outros||[],rede_social_youtube:data.rede_social_youtube||[],performance_meta_ads:data.performance_meta_ads||[],performance_meta_ads_inicio:data.performance_meta_ads_inicio||'',performance_meta_ads_fim:data.performance_meta_ads_fim||'',performance_google_ads:data.performance_google_ads||[],performance_google_ads_inicio:data.performance_google_ads_inicio||'',performance_google_ads_fim:data.performance_google_ads_fim||'',mes_ref:getMesRef(data.inicio),status:data.status||'ativa',motivo_adiamento:data.motivo_adiamento||'',data_adiamento:data.data_adiamento||''};await sbFetch('campaigns?id=eq.'+id,'PATCH',payload);}
+async function dbInsert(data){
+  const payload={
+    name:data.name, color:data.color,
+    categoria:Array.isArray(data.categoria)?[...data.categoria]:(data.categoria?[data.categoria]:[]),
+    inicio:data.inicio, fim:data.fim,
+    briefing:data.briefing||'', defesa:data.defesa||'', tags:data.tags||'',
+    mes_ref:getMesRef(data.inicio), status:data.status||'ativa',
+    motivo_adiamento:data.motivo_adiamento||'', data_adiamento:data.data_adiamento||''
+  };
+  const rows=await sbFetch('campaigns','POST',payload);
+  return rows&&rows[0]?rowToLocal(rows[0]):null;
+}
+
+async function dbUpdate(id,data){
+  const payload={
+    name:data.name, color:data.color,
+    categoria:Array.isArray(data.categoria)?[...data.categoria]:(data.categoria?[data.categoria]:[]),
+    inicio:data.inicio, fim:data.fim,
+    briefing:data.briefing||'', defesa:data.defesa||'', tags:data.tags||'',
+    mes_ref:getMesRef(data.inicio), status:data.status||'ativa',
+    motivo_adiamento:data.motivo_adiamento||'', data_adiamento:data.data_adiamento||''
+  };
+  await sbFetch('campaigns?id=eq.'+id,'PATCH',payload);
+}
+
 async function dbDelete(id){await sbFetch('campaigns?id=eq.'+id,'DELETE');}
 function showForgotPassword(){document.getElementById('login-screen').style.display='none';document.getElementById('forgot-password-screen').classList.add('active');}
 function backToLogin(){document.getElementById('forgot-password-screen').classList.remove('active');document.getElementById('login-screen').style.display='flex';document.getElementById('inp-forgot-email').value='';document.getElementById('forgot-error').style.display='none';document.getElementById('forgot-success').style.display='none';}
@@ -1634,33 +1688,148 @@ function getCanalDates(canal){return[...document.getElementById('canal-'+canal).
 function getCanalCancelados(canal){const result={};[...document.getElementById('canal-'+canal).querySelectorAll('.canal-date-row')].forEach(row=>{const inp=row.querySelector('.inp-data');const justRow=row.parentElement.querySelector('.disparo-cancelado-row');const isCancelado=justRow&&justRow.classList.contains('visible');if(isCancelado&&inp&&inp.value){const motivo=justRow.querySelector('input[type=text]')?.value||'';result[inp.value]=motivo;}});return result;}
 function clearCanals(){['inbound_wa','inbound_email','inbound_sms','inbound_lp','rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros','rede_social_youtube','performance_meta_ads','performance_google_ads'].forEach(c=>document.getElementById('canal-'+c).innerHTML='');}
 function openNewModal(){if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem criar campanhas','error');return;}editingId=null;document.getElementById('form-title').textContent='Detalhes da Campanha';document.getElementById('btn-form-save').textContent='GRAVAR CAMPANHA';document.getElementById('btn-form-save').className='btn-save';document.getElementById('btn-delete-camp').style.display='none';['f-nome','f-inicio','f-fim','f-tags'].forEach(id=>document.getElementById(id).value='');['f-briefing','f-defesa'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML='';});document.getElementById('status-section').style.display='none';clearCanals();buildColorPicker(getUniqueColor());selectedCat=['COMERCIAL'];['COMERCIAL','CONTEUDO','EVENTOS'].forEach(c=>{document.getElementById('cat-'+c).className='cat-opt'+(c==='COMERCIAL'?' sel-COMERCIAL':'');});document.getElementById('modal-form').classList.add('open');}
-function openEditModal(id){if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem editar campanhas','error');return;}const c=campaigns.find(x=>x.id===id);if(!c)return;editingId=id;document.getElementById('form-title').textContent='Atualizar Campanha';document.getElementById('btn-form-save').textContent='SALVAR ALTERAÇÕES';document.getElementById('btn-form-save').className='btn-save update';document.getElementById('btn-delete-camp').style.display='block';document.getElementById('f-nome').value=c.name;document.getElementById('f-inicio').value=c.inicio;document.getElementById('f-fim').value=c.fim;const bEl=document.getElementById('f-briefing');if(bEl)bEl.innerHTML=c.briefing||'';const dEl=document.getElementById('f-defesa');if(dEl)dEl.innerHTML=c.defesa||'';document.getElementById('f-tags').value=c.tags||'';clearCanals();(c.inbound.wa||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_wa',d,!!dc[d],dc[d]||'');});(c.inbound.email||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_email',d,!!dc[d],dc[d]||'');});(c.inbound.sms||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_sms',d,!!dc[d],dc[d]||'');});(c.inbound.lp||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('inbound_lp',d,!!dc[d],dc[d]||'');});(c.rede_social.instagram||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_instagram',d,!!dc[d],dc[d]||'');});(c.rede_social.facebook||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_facebook',d,!!dc[d],dc[d]||'');});(c.rede_social.linkedin||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_linkedin',d,!!dc[d],dc[d]||'');});(c.rede_social.blog||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_blog',d,!!dc[d],dc[d]||'');});(c.rede_social.outros||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_outros',d,!!dc[d],dc[d]||'');});(c.rede_social.youtube||[]).forEach(d=>{const dc=c.disparos_cancelados||{};addCanalDate('rede_social_youtube',d,!!dc[d],dc[d]||'');});const metaDates=c.performance.meta_ads||[];if(Array.isArray(metaDates)&&metaDates.length>0&&typeof metaDates[0]==='object'){metaDates.forEach(p=>addPerfDate('performance_meta_ads',p.inicio||'',p.fim||''));}else if(metaDates.length>0){addPerfDate('performance_meta_ads',metaDates[0]||'',c.performance.meta_ads_fim||'');}const googleDates=c.performance.google_ads||[];if(Array.isArray(googleDates)&&googleDates.length>0&&typeof googleDates[0]==='object'){googleDates.forEach(p=>addPerfDate('performance_google_ads',p.inicio||'',p.fim||''));}else if(googleDates.length>0){addPerfDate('performance_google_ads',googleDates[0]||'',c.performance.google_ads_fim||'');}document.getElementById('status-section').style.display='block';selectedStatus=c.status||'ativa';['ativa','adiada','cancelada'].forEach(v=>{const el=document.getElementById('status-'+v);if(el)el.className='status-opt'+(v===selectedStatus?' sel-'+v:'');});document.getElementById('adiamento-block').classList.toggle('visible',selectedStatus==='adiada');document.getElementById('f-motivo-adiamento').value=c.motivo_adiamento||'';document.getElementById('f-data-adiamento').value=c.data_adiamento||'';document.getElementById('f-deslocar-disparos').value='';buildColorPicker(c.color);selectedCat=Array.isArray(c.categoria)?[...c.categoria]:(c.categoria?[c.categoria]:['COMERCIAL']);['COMERCIAL','CONTEUDO','EVENTOS'].forEach(ct=>{document.getElementById('cat-'+ct).className='cat-opt'+(selectedCat.includes(ct)?' sel-'+ct:'');});document.getElementById('modal-form').classList.add('open');}
-function closeFormModal(){document.getElementById('modal-form').classList.remove('open');}
-async function saveCampaign(){const name=document.getElementById('f-nome').value.trim();const inicio=document.getElementById('f-inicio').value;const fim=document.getElementById('f-fim').value;if(!name||!inicio||!fim){showToast('Preencha nome e datas','error');return;}if(inicio>fim){showToast('Data início deve ser anterior ao fim','error');return;}const existente=editingId?campaigns.find(c=>c.id===editingId):null;
-const data={name:toUpper(name),color:selectedColor,categoria:[...selectedCat],status:selectedStatus,inicio,fim,briefing:document.getElementById('f-briefing').innerHTML.trim(),defesa:document.getElementById('f-defesa').innerHTML.trim(),tags:document.getElementById('f-tags').value.trim(),inbound_wa:getCanalDates('inbound_wa'),inbound_email:getCanalDates('inbound_email'),inbound_sms:getCanalDates('inbound_sms'),inbound_lp:getCanalDates('inbound_lp'),rede_social_instagram:getCanalDates('rede_social_instagram'),rede_social_facebook:getCanalDates('rede_social_facebook'),rede_social_linkedin:getCanalDates('rede_social_linkedin'),rede_social_blog:getCanalDates('rede_social_blog'),rede_social_outros:getCanalDates('rede_social_outros'),rede_social_youtube:getCanalDates('rede_social_youtube'),disparos_concluidos:existente?existente.disparos_concluidos||{}:{},disparos_adiados:existente?existente.disparos_adiados||{}:{},historico_alteracoes:existente?existente.historico_alteracoes||[]:[],disparos_cancelados:{...getCanalCancelados('inbound_wa'),...getCanalCancelados('inbound_email'),...getCanalCancelados('inbound_sms'),...getCanalCancelados('rede_social_instagram'),...getCanalCancelados('rede_social_facebook'),...getCanalCancelados('rede_social_linkedin'),...getCanalCancelados('rede_social_blog'),...getCanalCancelados('rede_social_outros'),...getCanalCancelados('performance_meta_ads'),...getCanalCancelados('performance_google_ads')},motivo_adiamento:selectedStatus==='adiada'?document.getElementById('f-motivo-adiamento').value:'',data_adiamento:selectedStatus==='adiada'?document.getElementById('f-data-adiamento').value:'',disparos_deslocados:{},performance_meta_ads:getPerfDates('performance_meta_ads'),performance_meta_ads_inicio:'',performance_meta_ads_fim:'',performance_google_ads:getPerfDates('performance_google_ads'),performance_google_ads_inicio:'',performance_google_ads_fim:''};const novaDataDisparos=document.getElementById('f-deslocar-disparos')?.value;if(selectedStatus==='adiada'&&novaDataDisparos){['inbound_wa','inbound_email','inbound_sms','rede_social_instagram','rede_social_facebook','rede_social_linkedin','rede_social_blog','rede_social_outros','performance_meta_ads','performance_google_ads'].forEach(k=>{if(data[k]&&data[k].length>0)data[k]=data[k].map(()=>novaDataDisparos);});data.disparos_deslocados={data_original:data.inicio,deslocado_para:novaDataDisparos};}const btn=document.getElementById('btn-form-save');btn.disabled=true;btn.textContent='Salvando...';showLoading();try{if(editingId){await dbUpdate(editingId,data);
-// Sincronizar disparos: apagar os programados e reinserir
-await sbFetch('campaign_disparos?campaign_id=eq.'+editingId+'&status=eq.programado','DELETE');
-const canalDisparosUpd=[['WhatsApp',data.inbound_wa||[]],['E-mail',data.inbound_email||[]],['SMS',data.inbound_sms||[]],['Landing Page',data.inbound_lp||[]],['Instagram',data.rede_social_instagram||[]],['Facebook',data.rede_social_facebook||[]],['LinkedIn',data.rede_social_linkedin||[]],['Blog',data.rede_social_blog||[]],['Outros',data.rede_social_outros||[]],['YouTube',data.rede_social_youtube||[]]];
-for(const [canal,datas] of canalDisparosUpd){
-  for(const dt of datas){
-    if(dt){
-      // Só insere se não existe já com outro status
-      const ex=await sbFetch('campaign_disparos?campaign_id=eq.'+editingId+'&data_disparo=eq.'+dt+'&canal=eq.'+encodeURIComponent(canal));
-      if(!ex||ex.length===0){const cpUpd=campaigns.find(x=>x.id===editingId);await sbFetch('campaign_disparos','POST',{campaign_id:editingId,campaign_name:cpUpd?cpUpd.name:data.name,canal,data_disparo:dt,status:'programado',alterado_por:currentUser.nome,data_alteracao:new Date().toISOString()});}
-    }
-  }
-}const idx=campaigns.findIndex(c=>c.id===editingId);if(idx>=0){const updated={...campaigns[idx]};Object.assign(updated,{name:data.name,color:data.color,categoria:data.categoria,inicio:data.inicio,fim:data.fim,briefing:data.briefing,defesa:data.defesa,tags:data.tags,disparos_concluidos:data.disparos_concluidos,disparos_cancelados:data.disparos_cancelados,disparos_adiados:data.disparos_adiados,historico_alteracoes:data.historico_alteracoes});updated.inbound={wa:data.inbound_wa,sms:data.inbound_sms,email:data.inbound_email,lp:data.inbound_lp};updated.rede_social={instagram:data.rede_social_instagram,facebook:data.rede_social_facebook,linkedin:data.rede_social_linkedin,blog:data.rede_social_blog,outros:data.rede_social_outros,youtube:data.rede_social_youtube};updated.performance={meta_ads:data.performance_meta_ads,meta_ads_inicio:data.performance_meta_ads_inicio,meta_ads_fim:data.performance_meta_ads_fim,google_ads:data.performance_google_ads,google_ads_inicio:data.performance_google_ads_inicio,google_ads_fim:data.performance_google_ads_fim};updated.mes_ref=getMesRef(data.inicio);campaigns[idx]=updated;}showToast('Campanha atualizada com sucesso!');}else{const novo=await dbInsert(data);
-if(novo){
-  campaigns.push(novo);
-  // Inserir todos os disparos na tabela campaign_disparos
-  const canalDisparos=[['WhatsApp',data.inbound_wa||[]],['E-mail',data.inbound_email||[]],['SMS',data.inbound_sms||[]],['Landing Page',data.inbound_lp||[]],['Instagram',data.rede_social_instagram||[]],['Facebook',data.rede_social_facebook||[]],['LinkedIn',data.rede_social_linkedin||[]],['Blog',data.rede_social_blog||[]],['Outros',data.rede_social_outros||[]],['YouTube',data.rede_social_youtube||[]]];
-  for(const [canal,datas] of canalDisparos){
-    for(const dt of datas){
-      if(dt) await sbFetch('campaign_disparos','POST',{campaign_id:novo.id,campaign_name:novo.name,canal,data_disparo:dt,status:'programado',alterado_por:currentUser.nome,data_alteracao:new Date().toISOString()});
-    }
-  }
+function openEditModal(id){
+  if(currentUser&&currentUser.role!=='admin'){showToast('Apenas administradores podem editar campanhas','error');return;}
+  const camp=campaigns.find(x=>x.id===id);if(!camp)return;
+  editingId=id;
+  document.getElementById('template-section').style.display='none';
+  document.getElementById('form-title').textContent='Atualizar Campanha';
+  document.getElementById('btn-form-save').textContent='SALVAR ALTERAÇÕES';
+  document.getElementById('btn-form-save').className='btn-save update';
+  document.getElementById('btn-delete-camp').style.display='block';
+  document.getElementById('f-nome').value=camp.name;
+  document.getElementById('f-inicio').value=camp.inicio;
+  document.getElementById('f-fim').value=camp.fim;
+  const bEl=document.getElementById('f-briefing');if(bEl)bEl.innerHTML=camp.briefing||'';
+  const dEl=document.getElementById('f-defesa');if(dEl)dEl.innerHTML=camp.defesa||'';
+  document.getElementById('f-tags').value=camp.tags||'';
+  clearCanals();
+  // Preencher datas dos canais a partir dos arrays em memória (populados por loadAllDisparos)
+  const dc=camp.disparos_cancelados||{};
+  const dco=camp.disparos_concluidos||{};
+  const dao=camp.disparos_adiados||{};
+  const _fill=(canal,datas)=>datas.forEach(d=>{
+    addCanalDate(canal,d,
+      !!dc[d], typeof dc[d]==='object'?dc[d]?.motivo:(dc[d]||''),
+      !!dco[d],
+      Object.prototype.hasOwnProperty.call(dao,d)&&dao[d]!==null&&dao[d]!==undefined,
+      dao[d]||null
+    );
+  });
+  _fill('inbound_wa',       camp.inbound.wa||[]);
+  _fill('inbound_email',    camp.inbound.email||[]);
+  _fill('inbound_sms',      camp.inbound.sms||[]);
+  _fill('inbound_lp',       camp.inbound.lp||[]);
+  _fill('rede_social_instagram', camp.rede_social.instagram||[]);
+  _fill('rede_social_facebook',  camp.rede_social.facebook||[]);
+  _fill('rede_social_linkedin',  camp.rede_social.linkedin||[]);
+  _fill('rede_social_blog',      camp.rede_social.blog||[]);
+  _fill('rede_social_outros',    camp.rede_social.outros||[]);
+  _fill('rede_social_youtube',   camp.rede_social.youtube||[]);
+  (camp.performance.meta_ads||[]).forEach(p=>{
+    if(typeof p==='object') addPerfDate('performance_meta_ads',p.inicio||'',p.fim||'');
+    else addPerfDate('performance_meta_ads',p,'');
+  });
+  (camp.performance.google_ads||[]).forEach(p=>{
+    if(typeof p==='object') addPerfDate('performance_google_ads',p.inicio||'',p.fim||'');
+    else addPerfDate('performance_google_ads',p,'');
+  });
+  document.getElementById('status-section').style.display='block';
+  selectedStatus=camp.status||'ativa';
+  ['ativa','adiada','cancelada'].forEach(v=>{
+    const el=document.getElementById('status-'+v);
+    if(el)el.className='status-opt'+(v===selectedStatus?' sel-'+v:'');
+  });
+  document.getElementById('adiamento-block').classList.toggle('visible',selectedStatus==='adiada');
+  document.getElementById('f-motivo-adiamento').value=camp.motivo_adiamento||'';
+  document.getElementById('f-data-adiamento').value=camp.data_adiamento||'';
+  document.getElementById('f-deslocar-disparos').value='';
+  buildColorPicker(camp.color);
+  selectedCat=Array.isArray(camp.categoria)?[...camp.categoria]:(camp.categoria?[camp.categoria]:['COMERCIAL']);
+  ['COMERCIAL','CONTEUDO','EVENTOS'].forEach(ct=>{
+    document.getElementById('cat-'+ct).className='cat-opt'+(selectedCat.includes(ct)?' sel-'+ct:'');
+  });
+  document.getElementById('modal-form').classList.add('open');
 }
-showToast('Campanha gravada com sucesso!');}closeFormModal();renderAll();}catch(e){showToast('Erro ao salvar: '+e.message,'error');}finally{hideLoading();btn.disabled=false;btn.textContent=editingId?'SALVAR ALTERAÇÕES':'GRAVAR CAMPANHA';}}
+
+function closeFormModal(){document.getElementById('modal-form').classList.remove('open');}
+async function saveCampaign(){
+  const name=document.getElementById('f-nome').value.trim();
+  const inicio=document.getElementById('f-inicio').value;
+  const fim=document.getElementById('f-fim').value;
+  if(!name||!inicio||!fim){showToast('Preencha nome e datas','error');return;}
+  if(inicio>fim){showToast('Data início deve ser anterior ao fim','error');return;}
+
+  // Aplicar template antes de coletar datas
+  const templateVal=document.getElementById('f-template')?.value;
+  if(templateVal==='fotus_semanal'&&!editingId&&inicio&&fim) applyFotusTemplate(inicio,fim);
+
+  const data={
+    name:toUpper(name), color:selectedColor,
+    categoria:[...selectedCat], status:selectedStatus, inicio, fim,
+    briefing:document.getElementById('f-briefing').innerHTML.trim(),
+    defesa:document.getElementById('f-defesa').innerHTML.trim(),
+    tags:document.getElementById('f-tags').value.trim(),
+    motivo_adiamento:selectedStatus==='adiada'?document.getElementById('f-motivo-adiamento').value:'',
+    data_adiamento:selectedStatus==='adiada'?document.getElementById('f-data-adiamento').value:''
+  };
+
+  // Coletar datas dos canais da UI
+  const canalDatas=[
+    ['WhatsApp',     getCanalDates('inbound_wa')],
+    ['E-mail',       getCanalDates('inbound_email')],
+    ['SMS',          getCanalDates('inbound_sms')],
+    ['Landing Page', getCanalDates('inbound_lp')],
+    ['Instagram',    getCanalDates('rede_social_instagram')],
+    ['Facebook',     getCanalDates('rede_social_facebook')],
+    ['LinkedIn',     getCanalDates('rede_social_linkedin')],
+    ['Blog',         getCanalDates('rede_social_blog')],
+    ['Outros',       getCanalDates('rede_social_outros')],
+    ['YouTube',      getCanalDates('rede_social_youtube')],
+    ['Meta Ads',     getPerfDates('performance_meta_ads').map(p=>p.inicio||p).filter(Boolean)],
+    ['Google Ads',   getPerfDates('performance_google_ads').map(p=>p.inicio||p).filter(Boolean)]
+  ];
+
+  const btn=document.getElementById('btn-form-save');
+  btn.disabled=true;btn.textContent='Salvando...';showLoading();
+
+  try{
+    if(editingId){
+      await dbUpdate(editingId,data);
+      // Sincronizar disparos: apagar programados e reinserir
+      await sbFetch('campaign_disparos?campaign_id=eq.'+editingId+'&status=eq.programado','DELETE');
+      for(const [canal,datas] of canalDatas){
+        for(const dt of datas){
+          if(!dt)continue;
+          // Só inserir se não existe com outro status
+          const ex=await sbFetch('campaign_disparos?campaign_id=eq.'+editingId+'&data_disparo=eq.'+dt+'&canal=eq.'+encodeURIComponent(canal));
+          if(!ex||ex.length===0){
+            await sbFetch('campaign_disparos','POST',{campaign_id:editingId,campaign_name:data.name,canal,data_disparo:dt,status:'programado',alterado_por:currentUser.nome,data_alteracao:new Date().toISOString()});
+          }
+        }
+      }
+      await loadCampDisparos(editingId);
+      const idx=campaigns.findIndex(c=>c.id===editingId);
+      if(idx>=0) Object.assign(campaigns[idx],{name:data.name,color:data.color,categoria:data.categoria,inicio:data.inicio,fim:data.fim,briefing:data.briefing,defesa:data.defesa,tags:data.tags,status:data.status,motivo_adiamento:data.motivo_adiamento,data_adiamento:data.data_adiamento});
+      showToast('Campanha atualizada com sucesso!');
+    }else{
+      const novo=await dbInsert(data);
+      if(novo){
+        campaigns.push(novo);
+        for(const [canal,datas] of canalDatas){
+          for(const dt of datas){
+            if(dt) await sbFetch('campaign_disparos','POST',{campaign_id:novo.id,campaign_name:novo.name,canal,data_disparo:dt,status:'programado',alterado_por:currentUser.nome,data_alteracao:new Date().toISOString()});
+          }
+        }
+        await loadCampDisparos(novo.id);
+      }
+      showToast('Campanha gravada com sucesso!');
+    }
+    closeFormModal();renderAll();
+  }catch(e){showToast('Erro ao salvar: '+e.message,'error');}
+  finally{hideLoading();btn.disabled=false;btn.textContent=editingId?'SALVAR ALTERAÇÕES':'GRAVAR CAMPANHA';}
+}
+
 async function deleteCampaign(){if(!confirm('Excluir esta campanha?'))return;showLoading();try{await dbDelete(editingId);campaigns=campaigns.filter(c=>c.id!==editingId);closeFormModal();renderAll();showToast('Campanha excluída.');}catch(e){showToast('Erro ao excluir: '+e.message,'error');}finally{hideLoading();}}
 function openDetailModal(id){
   const c=campaigns.find(x=>x.id===id);if(!c)return;detailId=id;
@@ -2719,45 +2888,62 @@ async function confirmAdiarDisparo(){
   const motivo=motivoSel==='Outro'?motivoOutro:motivoSel;
   const{campId,data,canal}=_disparoCtx;
   const cp=campaigns.find(c=>c.id===campId);if(!cp)return;
-  if(!cp.disparos_adiados)cp.disparos_adiados={};if(!cp.disparos_concluidos)cp.disparos_concluidos={};if(!cp.disparos_cancelados)cp.disparos_cancelados={};
+  if(!cp.disparos_adiados)cp.disparos_adiados={};
+  if(!cp.disparos_concluidos)cp.disparos_concluidos={};
+  if(!cp.disparos_cancelados)cp.disparos_cancelados={};
   delete cp.disparos_concluidos[data];delete cp.disparos_cancelados[data];
   cp.disparos_adiados[data]={nova_data:novaData,motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao:new Date().toISOString()};
   if(!cp.historico_alteracoes)cp.historico_alteracoes=[];
   cp.historico_alteracoes.push({data_disparo:data,canal:canalLabel(canal),acao:'adiado',nova_data:novaData,motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao_fmt:new Date().toLocaleDateString('pt-BR'),data_alteracao:new Date().toISOString()});
+
+  // Mapa canal key → array da campanha
+  const canalArrayMap={
+    'inbound_wa':cp.inbound.wa,'inbound_email':cp.inbound.email,
+    'inbound_sms':cp.inbound.sms,'inbound_lp':cp.inbound.lp,
+    'rede_social_instagram':cp.rede_social.instagram,'rede_social_facebook':cp.rede_social.facebook,
+    'rede_social_linkedin':cp.rede_social.linkedin,'rede_social_blog':cp.rede_social.blog,
+    'rede_social_outros':cp.rede_social.outros,'rede_social_youtube':cp.rede_social.youtube,
+    'performance_meta_ads':cp.performance.meta_ads,'performance_google_ads':cp.performance.google_ads
+  };
+  // Mapa canal key → nome da coluna no banco
+  const canalColMap={
+    'inbound_wa':'inbound_wa','inbound_email':'inbound_email','inbound_sms':'inbound_sms','inbound_lp':'inbound_lp',
+    'rede_social_instagram':'rede_social_instagram','rede_social_facebook':'rede_social_facebook',
+    'rede_social_linkedin':'rede_social_linkedin','rede_social_blog':'rede_social_blog',
+    'rede_social_outros':'rede_social_outros','rede_social_youtube':'rede_social_youtube',
+    'performance_meta_ads':'performance_meta_ads','performance_google_ads':'performance_google_ads'
+  };
+
+  const arr = canalArrayMap[canal];
+  const colName = canalColMap[canal];
+
+  // Adicionar nova data no array em memória
+  if(arr && !arr.includes(novaData)) arr.push(novaData);
+
   try{
-    // 1. Marcar disparo original como adiado
+    // 1. Marcar original como adiado
     await saveDisparoStatus(campId, data, canalLabel(canal), 'adiado', motivo, obs, novaData);
-    // 2. Criar novo disparo na nova data como programado
-    const canalKey = canal; // canal é a key do canal (inbound_wa etc)
-    const canalNome = canalLabel(canal);
-    const cpAtual = campaigns.find(c=>c.id===campId);
-    // Adicionar nova data no array do canal correspondente
-    if(cpAtual){
-      const canalArrayMap = {
-        'inbound_wa': cpAtual.inbound?.wa, 'inbound_email': cpAtual.inbound?.email,
-        'inbound_sms': cpAtual.inbound?.sms, 'inbound_lp': cpAtual.inbound?.lp,
-        'rede_social_instagram': cpAtual.rede_social?.instagram,
-        'rede_social_facebook': cpAtual.rede_social?.facebook,
-        'rede_social_linkedin': cpAtual.rede_social?.linkedin,
-        'rede_social_blog': cpAtual.rede_social?.blog,
-        'rede_social_outros': cpAtual.rede_social?.outros,
-        'rede_social_youtube': cpAtual.rede_social?.youtube,
-        'performance_meta_ads': cpAtual.performance?.meta_ads,
-        'performance_google_ads': cpAtual.performance?.google_ads
-      };
-      const arr = canalArrayMap[canalKey];
-      if(arr && !arr.includes(novaData)){arr.push(novaData);}
+
+    // 2. Salvar nova data no array do canal no banco (campaigns)
+    if(colName && arr){
+      const patchPayload = {};
+      patchPayload[colName] = arr;
+      patchPayload['disparos_adiados'] = cp.disparos_adiados;
+      patchPayload['historico_alteracoes'] = cp.historico_alteracoes;
+      await sbFetch('campaigns?id=eq.'+campId, 'PATCH', patchPayload);
     }
-    // Inserir novo disparo na tabela campaign_disparos
+
+    // 3. Criar novo disparo na tabela campaign_disparos
     await sbFetch('campaign_disparos','POST',{
       campaign_id: campId,
-      campaign_name: cpAtual?.name||'',
-      canal: canalNome,
+      campaign_name: cp.name,
+      canal: canalLabel(canal),
       data_disparo: novaData,
       status: 'programado',
       alterado_por: currentUser.nome,
       data_alteracao: new Date().toISOString()
     });
+
     await loadCampDisparos(campId);
     document.getElementById('modal-adiar-disparo').remove();
     showToast('⏳ Adiado · Novo disparo criado em '+fmtFull(novaData),'success');
