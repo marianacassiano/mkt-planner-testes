@@ -3521,11 +3521,11 @@ function _cleanVal(v){
 const CRM_ETAPA_ORDEM = ['Não Tratado','Em Contato','Orçamento','Venda'];
 function _etapaScore(ref){ return CRM_ETAPA_ORDEM.indexOf(ref); }
 
-// ── Chave única de deal: nome+funil+campanha+responsavel ──
-function _dealKey(r){ return [r.nome,r.empresa,r.campanha].map(v=>(v||'').trim()).join('||'); }
+// ── Chave única de negociação: nome+funil+campanha+responsavel ──
+function _negociaçãoKey(r){ return [r.nome,r.empresa,r.campanha].map(v=>(v||'').trim()).join('||'); }
 
 // ── Deduplica: se mesma chave, mantém a etapa mais avançada ──
-function _deduplicateDeals(rows){
+function _deduplicateNegociações(rows){
   const map={};
   rows.forEach(r=>{
     const k=r.deal_key;
@@ -3538,7 +3538,7 @@ function _deduplicateDeals(rows){
 // ── Testa conexão com Supabase ──
 async function _crmTestarConexao(){
   try {
-    const r = await sbFetch('crm_deals?select=id&limit=1');
+    const r = await sbFetch('crm_negociações?select=id&limit=1');
     return true;
   } catch(e) {
     console.error('Conexão Supabase falhou:', e);
@@ -3561,7 +3561,7 @@ async function _crmPostBatch(rows, onProgress){
       }
     };
     opts.body=JSON.stringify(batch);
-    const res=await fetch(SUPA_URL+'/rest/v1/crm_deals?on_conflict=deal_key',opts);
+    const res=await fetch(SUPA_URL+'/rest/v1/crm_negociações?on_conflict=deal_key',opts);
     if(!res.ok){
       const t=await res.text();
       throw new Error(t);
@@ -3581,10 +3581,10 @@ async function _crmHistBatch(rows){
 // ── UPSERT HÍBRIDO ──
 async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
   console.log('_crmUpsertHybrid: buscando existentes...');
-  // Busca todos os deals existentes com paginação
+  // Busca todos os negociações existentes com paginação
   let existing = [], _off = 0, _ps = 1000;
   while(true){
-    const _p = await sbFetchRange('crm_deals?select=deal_key,etapa,etapa_ref,estado', _off, _off+_ps-1);
+    const _p = await sbFetchRange('crm_negociações?select=deal_key,etapa,etapa_ref,estado', _off, _off+_ps-1);
     if(!_p||!_p.length) break;
     existing = existing.concat(_p);
     if(_p.length < _ps) break;
@@ -3631,14 +3631,14 @@ async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
   return { inseridos, atualizados, mudancas: histRows.length };
 }
 
-// ── Carrega estado atual do Supabase (crm_deals) ──
+// ── Carrega estado atual do Supabase (crm_negociações) ──
 async function _crmLoadFromSupabase(){
   showLoading();
   try {
     // Supabase limita 1000 rows por request — pagina até buscar tudo
     let rows = [], offset = 0, pageSize = 1000;
     while(true){
-      const page = await sbFetchRange('crm_deals?select=*&order=ultima_importacao.desc', offset, offset+pageSize-1);
+      const page = await sbFetchRange('crm_negociações?select=*&order=ultima_importacao.desc', offset, offset+pageSize-1);
       if(!page||!page.length) break;
       rows = rows.concat(page);
       if(page.length < pageSize) break;
@@ -3957,26 +3957,26 @@ function _campTableHtml(rows){
 
 // ── Definições de tooltip por KPI ──
 const CRM_KPI_TIPS = {
-  'Total base':      'Total de deals neste funil/campanha no momento da última importação.',
-  'Não Tratado':     'Deals que ainda não foram abordados pelo time comercial.',
-  'Em Contato':      'Deals em que o responsável já realizou algum contato com o cliente.',
-  'Orçamento':       'Deals que avançaram para proposta, reunião agendada ou qualificação SQL.',
-  'Venda':           'Deals fechados: pedidos, aguardando entrega, ganhos ou HandOFF.',
+  'Total base':      'Total de negociações neste funil/campanha no momento da última importação.',
+  'Não Tratado':     'Negociações que ainda não foram abordados pelo time comercial.',
+  'Em Contato':      'Negociações em que o responsável já realizou algum contato com o cliente.',
+  'Orçamento':       'Negociações que avançaram para proposta, reunião agendada ou qualificação SQL.',
+  'Venda':           'Negociações fechados: pedidos, aguardando entrega, ganhos ou HandOFF.',
   'Taxa conversão':  'Percentual do total da base que virou venda. Principal indicador de eficiência da campanha.',
-  'Conv. ORC→VND':   'Dos deals que chegaram a orçamento, quantos % foram fechados como venda.',
-  'Receita total':   'Soma do Valor Único de todos os deals com estado "Vendida".',
+  'Conv. ORC→VND':   'Das negociações que chegaram a orçamento, quantos % foram fechados como venda.',
+  'Receita total':   'Soma do Valor Único de todas as negociações com estado "Vendida".',
   'Ticket médio':    'Valor médio por venda fechada. Indica o perfil financeiro dos integradores compradores.',
-  'Pipeline $':      'Valor potencial em orçamento — quanto pode se tornar receita se os deals forem fechados.',
+  'Pipeline $':      'Valor potencial em orçamento — quanto pode se tornar receita se as negociações forem fechadas.',
   'kWp vendido':     'Potência total (kWp) dos sistemas solares vendidos no período.',
   'kWp médio/venda': 'Tamanho médio dos sistemas vendidos em kWp. Indica o perfil do projeto.',
-  'Ciclo médio':     'Média de dias entre a criação do deal e o fechamento da venda.',
-  'Campanha top':    'Campanha com maior taxa de conversão no funil atual (mínimo 3 deals).',
+  'Ciclo médio':     'Média de dias entre a criação da negociação e o fechamento da venda.',
+  'Campanha top':    'Campanha com maior taxa de conversão no funil atual (mínimo 3 negociações).',
 };
 
 // ── Bloco de KPI cards ──
 function _kpiCardsHtml(k){
   const cards=[
-    {l:'Total base',    v:k.total.toLocaleString('pt-BR'),     s:'deals',                           c:'var(--gray-800)'},
+    {l:'Total base',    v:k.total.toLocaleString('pt-BR'),     s:'negociações',                           c:'var(--gray-800)'},
     {l:'Não Tratado',   v:k.nt.toLocaleString('pt-BR'),        s:_pct(k.nt,k.total)+'% da base',    c:'#E53935'},
     {l:'Em Contato',    v:k.ec.toLocaleString('pt-BR'),        s:_pct(k.ec,k.total)+'% da base',    c:'var(--teal)'},
     {l:'Orçamento',     v:k.orc.toLocaleString('pt-BR'),       s:_pct(k.orc,k.total)+'% da base',   c:'var(--orange)'},
@@ -4037,7 +4037,7 @@ function _renderFunilChart(canvasId, k){
         legend:{ display:false },
         tooltip:{
           callbacks:{
-            label: ctx => ` ${ctx.parsed.y.toLocaleString('pt-BR')} deals (${pcts[ctx.dataIndex]}%)`
+            label: ctx => ` ${ctx.parsed.y.toLocaleString('pt-BR')} negociações (${pcts[ctx.dataIndex]}%)`
           }
         }
       },
@@ -4224,7 +4224,7 @@ async function renderCrmView() {
           <span style="font-size:10px;color:var(--purple);font-weight:700">Ver detalhe →</span>
         </div>
         <div style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">
-          ${k.total.toLocaleString('pt-BR')} deals &nbsp;·&nbsp;
+          ${k.total.toLocaleString('pt-BR')} negociações &nbsp;·&nbsp;
           <span style="color:var(--green);font-weight:700">${k.vnd} vendas (${_pct(k.vnd,k.total)}%)</span> &nbsp;·&nbsp;
           <span style="color:#0D518E;font-weight:700">${_brl(k.receita)}</span> &nbsp;·&nbsp;
           <span style="color:var(--orange);font-weight:700">${_kwp(k.kwpTotal)}</span>
@@ -4254,7 +4254,7 @@ async function renderCrmView() {
           ${_rankHtml(rAll.respVal, d=>d.val, d=>_brl(d.val), '#0D518E')}
         </div>
         <div class="crm-panel">
-          <div class="crm-panel-title crm-tip">🏢 Top empresas — qtd compras<div class="crm-tip-box">Integradores com mais deals fechados. Candidatos a estratégia Key Account.</div></div>
+          <div class="crm-panel-title crm-tip">🏢 Top empresas — qtd compras<div class="crm-tip-box">Integradores com mais negociações fechadas. Candidatos a estratégia Key Account.</div></div>
           ${_rankHtml(rAll.empresaQtd, d=>d.qtd, d=>d.qtd+' compras', '#00B2C8')}
         </div>
         <div class="crm-panel">
@@ -4314,7 +4314,7 @@ async function renderCrmView() {
         ${_rankHtml(r.respVal, d=>d.val, d=>_brl(d.val), '#0D518E')}
       </div>
       <div class="crm-panel">
-        <div class="crm-panel-title crm-tip">🏢 Top empresas — qtd compras<div class="crm-tip-box">Integradores com mais deals fechados. Candidatos a estratégia Key Account.</div></div>
+        <div class="crm-panel-title crm-tip">🏢 Top empresas — qtd compras<div class="crm-tip-box">Integradores com mais negociações fechadas. Candidatos a estratégia Key Account.</div></div>
         ${_rankHtml(r.empresaQtd, d=>d.qtd, d=>d.qtd+' compras', '#00B2C8')}
       </div>
       <div class="crm-panel">
@@ -4416,7 +4416,7 @@ async function _addCrmSnap(snap) {
 
     const validos = mapped.filter(r=>r.deal_key && r.etapa_ref);
     console.log('CRM import: ' + snap.rows.length + ' raw / ' + validos.length + ' validos');
-    const dedupRows = _deduplicateDeals(validos);
+    const dedupRows = _deduplicateNegociações(validos);
     console.log('CRM import: ' + dedupRows.length + ' apos dedup');
 
     const res = await _crmUpsertHybrid(dedupRows, importedAt, snap.label);
