@@ -3793,10 +3793,10 @@ function _crmRankings(rows){
 // ── Render de ranking horizontal ──
 function _rankHtml(items, keyFn, labelFn, color){
   if(!items.length) return '<div style="font-size:12px;color:var(--gray-400);padding:8px 0">Sem dados</div>';
-  const max = items[0][1][Object.keys(items[0][1])[0]]; // valor do 1º
+  const max = keyFn(items[0][1]);
   return items.map(([name,d],i)=>{
     const val = keyFn(d);
-    const w = max>0?Math.round(val/max*100):0;
+    const w = max>0 ? Math.round(val/max*100) : 0;
     return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
       <span style="font-size:10px;font-weight:700;color:var(--gray-400);width:14px;text-align:center">${i+1}</span>
       <span style="font-size:11px;font-weight:600;color:var(--gray-800);width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0" title="${name}">${name}</span>
