@@ -3880,12 +3880,11 @@ function _kpiCardsHtml(k){
 // ── Gráfico de barras do funil (Chart.js) ──
 let _crmCharts = {};
 function _funilChartHtml(canvasId){
-  return `<div style="position:relative;width:100%;height:240px;margin-top:8px">
+  return `<div style="position:relative;width:100%;height:280px;margin-top:8px">
     <canvas id="${canvasId}"></canvas>
   </div>`;
 }
 function _renderFunilChart(canvasId, k){
-  // Destrói chart anterior se existir
   if(_crmCharts[canvasId]){ _crmCharts[canvasId].destroy(); delete _crmCharts[canvasId]; }
   const el = document.getElementById(canvasId);
   if(!el) return;
@@ -3901,27 +3900,34 @@ function _renderFunilChart(canvasId, k){
         data: values,
         backgroundColor: colors,
         borderRadius: 6,
-        barThickness: 52,
+        barPercentage: 0.55,
+        categoryPercentage: 0.7,
       }]
     },
     options:{
       responsive: true,
       maintainAspectRatio: false,
+      layout:{ padding:{ top: 36 } },
       plugins:{
         legend:{ display:false },
         tooltip:{
           callbacks:{
             label: ctx => ` ${ctx.parsed.y.toLocaleString('pt-BR')} deals (${pcts[ctx.dataIndex]}%)`
           }
-        },
-        // Plugin inline para mostrar valor+% acima das barras
-        datalabels: false
+        }
       },
       scales:{
-        x:{ grid:{ display:false }, ticks:{ font:{ family:'Sora', size:11 }, color:'#5A6375' } },
-        y:{ grid:{ color:'#F0F2F7' }, ticks:{ font:{ family: "DM Mono", size:10 }, color:'#9BA3B8' }, beginAtZero:true }
+        x:{
+          grid:{ display:false },
+          ticks:{ font:{ family:'Sora', size:11 }, color:'#5A6375' }
+        },
+        y:{
+          grid:{ color:'#F0F2F7' },
+          ticks:{ font:{ family:'DM Mono', size:10 }, color:'#9BA3B8' },
+          beginAtZero:true
+        }
       },
-      animation:{ duration:600 }
+      animation:{ duration:500 }
     },
     plugins:[{
       id:'topLabels',
@@ -3932,22 +3938,23 @@ function _renderFunilChart(canvasId, k){
             const v = ds.data[i];
             const p = pcts[i];
             const x = bar.x, y = bar.y;
+            const bw = 48, bh = 20, br = 5;
             ctx.save();
-            // Badge arredondado
+            // Badge
             ctx.fillStyle = colors[i];
             ctx.beginPath();
-            ctx.roundRect(x-26, y-30, 52, 22, 5);
+            ctx.roundRect(x - bw/2, y - bh - 8, bw, bh, br);
             ctx.fill();
-            // Texto % em branco
+            // % texto
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 11px Sora, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(p+'%', x, y-19);
+            ctx.fillText(p+'%', x, y - bh/2 - 8);
             // Número abaixo do badge
             ctx.fillStyle = '#454444';
-            ctx.font = '600 11px DM Mono, monospace';
-            ctx.fillText(v.toLocaleString('pt-BR'), x, y-3);
+            ctx.font = '600 10px DM Mono, monospace';
+            ctx.fillText(v.toLocaleString('pt-BR'), x, y - 2);
             ctx.restore();
           });
         });
