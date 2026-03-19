@@ -2724,7 +2724,45 @@ async function confirmAdiarDisparo(){
   cp.disparos_adiados[data]={nova_data:novaData,motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao:new Date().toISOString()};
   if(!cp.historico_alteracoes)cp.historico_alteracoes=[];
   cp.historico_alteracoes.push({data_disparo:data,canal:canalLabel(canal),acao:'adiado',nova_data:novaData,motivo,observacao:obs,alterado_por:currentUser.nome,data_alteracao_fmt:new Date().toLocaleDateString('pt-BR'),data_alteracao:new Date().toISOString()});
-  try{await saveDisparoStatus(campId, data, canalLabel(canal), 'adiado', motivo, obs, novaData);await loadCampDisparos(campId);document.getElementById('modal-adiar-disparo').remove();showToast('⏳ Adiado para '+fmtFull(novaData),'success');renderAll();}
+  try{
+    // 1. Marcar disparo original como adiado
+    await saveDisparoStatus(campId, data, canalLabel(canal), 'adiado', motivo, obs, novaData);
+    // 2. Criar novo disparo na nova data como programado
+    const canalKey = canal; // canal é a key do canal (inbound_wa etc)
+    const canalNome = canalLabel(canal);
+    const cpAtual = campaigns.find(c=>c.id===campId);
+    // Adicionar nova data no array do canal correspondente
+    if(cpAtual){
+      const canalArrayMap = {
+        'inbound_wa': cpAtual.inbound?.wa, 'inbound_email': cpAtual.inbound?.email,
+        'inbound_sms': cpAtual.inbound?.sms, 'inbound_lp': cpAtual.inbound?.lp,
+        'rede_social_instagram': cpAtual.rede_social?.instagram,
+        'rede_social_facebook': cpAtual.rede_social?.facebook,
+        'rede_social_linkedin': cpAtual.rede_social?.linkedin,
+        'rede_social_blog': cpAtual.rede_social?.blog,
+        'rede_social_outros': cpAtual.rede_social?.outros,
+        'rede_social_youtube': cpAtual.rede_social?.youtube,
+        'performance_meta_ads': cpAtual.performance?.meta_ads,
+        'performance_google_ads': cpAtual.performance?.google_ads
+      };
+      const arr = canalArrayMap[canalKey];
+      if(arr && !arr.includes(novaData)){arr.push(novaData);}
+    }
+    // Inserir novo disparo na tabela campaign_disparos
+    await sbFetch('campaign_disparos','POST',{
+      campaign_id: campId,
+      campaign_name: cpAtual?.name||'',
+      canal: canalNome,
+      data_disparo: novaData,
+      status: 'programado',
+      alterado_por: currentUser.nome,
+      data_alteracao: new Date().toISOString()
+    });
+    await loadCampDisparos(campId);
+    document.getElementById('modal-adiar-disparo').remove();
+    showToast('⏳ Adiado · Novo disparo criado em '+fmtFull(novaData),'success');
+    renderAll();
+  }
   catch(e){document.getElementById('adiar-error').textContent='Erro: '+e.message;document.getElementById('adiar-error').style.display='block';}
 }
 
