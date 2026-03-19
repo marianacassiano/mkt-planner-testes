@@ -3438,7 +3438,7 @@ const CRM_ETAPA_ORDEM = ['Não Tratado','Em Contato','Orçamento','Venda'];
 function _etapaScore(ref){ return CRM_ETAPA_ORDEM.indexOf(ref); }
 
 // ── Chave única de deal: nome+funil+campanha+responsavel ──
-function _dealKey(r){ return [r.nome,r.funil,r.campanha,r.responsavel].map(v=>(v||'').trim()).join('||'); }
+function _dealKey(r){ return [r.nome,r.empresa,r.campanha].map(v=>(v||'').trim()).join('||'); }
 
 // ── Deduplica: se mesma chave, mantém a etapa mais avançada ──
 function _deduplicateDeals(rows){
@@ -4045,7 +4045,8 @@ async function _addCrmSnap(snap) {
       const responsavel = (r.resp||'').trim();
       const nome        = (r.nome||'').trim();
       const funil       = (r.funil||'').trim();
-      const deal_key    = [nome, funil, campanha, responsavel].join('||');
+      const empresa2    = (r.empresa||'').trim();
+      const deal_key    = [nome, empresa2, campanha].join('||');
       return {
         deal_key, nome,
         empresa:          (r.empresa||'').trim(),
