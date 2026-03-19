@@ -4080,17 +4080,16 @@ async function renderCrmView() {
         </div>
       </div>
     </div>`;
+    // Renderiza gráficos APÓS innerHTML estar no DOM
+    setTimeout(()=>{
+      funils.forEach(f=>{
+        const rows2=snap.rows.filter(r=>r.funil===f&&(!_crmCamp||r.camp===_crmCamp));
+        const k2=_crmCalcKpis(rows2);
+        _renderFunilChart('crm-chart-'+f.replace(/[^a-z0-9]/gi,'_'), k2);
+      });
+    }, 80);
     return;
   }
-  // Renderiza gráficos dos cards de funil (após innerHTML)
-  setTimeout(()=>{
-    funils.forEach(f=>{
-      const rows2=snap.rows.filter(r=>r.funil===f&&(!_crmCamp||r.camp===_crmCamp));
-      const k2=_crmCalcKpis(rows2);
-      _renderFunilChart('crm-chart-'+f.replace(/[^a-z0-9]/gi,'_'), k2);
-    });
-  }, 50);
-
   // ── Visão FUNIL INDIVIDUAL ──
   const k = _crmCalcKpis(activeRows);
   const r = _crmRankings(activeRows);
