@@ -3496,8 +3496,9 @@ async function _crmHistBatch(rows){
 
 // ── UPSERT HÍBRIDO ──
 async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
-  // Busca estado atual para detectar mudanças de etapa
+  console.log('_crmUpsertHybrid: buscando existentes...');
   const existing = await sbFetch('crm_deals?select=deal_key,etapa,etapa_ref,estado&limit=100000') || [];
+  console.log('_crmUpsertHybrid: existentes no banco =', existing.length);
   const existMap={};
   existing.forEach(r=>{ existMap[r.deal_key]=r; });
 
@@ -3525,10 +3526,12 @@ async function _crmUpsertHybrid(newRows, importedAt, arquivoLabel){
     }
   });
 
-  // Upsert tudo de uma vez (insert + update automático pelo deal_key único)
+  console.log('_crmUpsertHybrid: enviando', newRows.length, 'rows para upsert...');
   await _crmPostBatch(newRows, (done, total)=>{
-    showToast(`⏳ Salvando… ${done}/${total} registros`, 'success');
+    console.log('_crmPostBatch progresso:', done, '/', total);
+    showToast('Salvando ' + done + '/' + total + '...', 'success');
   });
+  console.log('_crmUpsertHybrid: upsert concluido. historico:', histRows.length);
   if(histRows.length) await _crmHistBatch(histRows);
 
   const inseridos = newRows.filter(r=>!existMap[r.deal_key]).length;
