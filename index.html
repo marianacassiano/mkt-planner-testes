@@ -3987,8 +3987,8 @@ async function renderCrmView() {
   const _byFunil = _crmFunil==='TODOS' ? snap.rows : snap.rows.filter(r=>r.funil===_crmFunil);
   const activeRows = _crmCamp ? _byFunil.filter(r=>r.camp===_crmCamp) : _byFunil;
 
-  // Campanhas disponíveis no funil ativo
-  const allCamps = [...new Set(_byFunil.map(r=>r.camp))].filter(Boolean).sort();
+  // Campanhas disponíveis em TODOS os funis
+  const allCamps = [...new Set(snap.rows.map(r=>r.camp))].filter(Boolean).sort();
 
   const snapSelectorHtml = _crmSnaps.length>1 ? `<select onchange="_crmSetSnap(parseInt(this.value))" style="padding:7px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;color:var(--gray-800);background:white;outline:none;">${_crmSnaps.map((s,i)=>`<option value="${i}"${i===_crmSnapIdx?' selected':''}>${s.date} · ${s.label}</option>`).join('')}</select>` : '';
 
@@ -4027,12 +4027,12 @@ async function renderCrmView() {
 
   // ── Visão TODOS OS FUNIS ──
   if(_crmFunil==='TODOS'){
-    const kAll = _crmCalcKpis(snap.rows);
-    const rAll = _crmRankings(snap.rows);
+    const kAll = _crmCalcKpis(activeRows);
+    const rAll = _crmRankings(activeRows);
 
     // Cards por funil
     const funilCardsHtml = funils.map(f=>{
-      const rows=snap.rows.filter(r=>r.funil===f);
+      const rows=snap.rows.filter(r=>r.funil===f&&(!_crmCamp||r.camp===_crmCamp));
       const k=_crmCalcKpis(rows);
       return `<div class="crm-panel" style="cursor:pointer" onclick="_crmSetFunil('${f.replace(/'/g,"\\'")}')">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -4087,7 +4087,7 @@ async function renderCrmView() {
   // Renderiza gráficos dos cards de funil (após innerHTML)
   setTimeout(()=>{
     funils.forEach(f=>{
-      const rows2=snap.rows.filter(r=>r.funil===f);
+      const rows2=snap.rows.filter(r=>r.funil===f&&(!_crmCamp||r.camp===_crmCamp));
       const k2=_crmCalcKpis(rows2);
       _renderFunilChart('crm-chart-'+f.replace(/[^a-z0-9]/gi,'_'), k2);
     });
@@ -4140,7 +4140,7 @@ async function renderCrmView() {
   setTimeout(()=>{ _renderFunilChart('crm-chart-individual', k); }, 50);
 }
 
-function _crmSetFunil(f){_crmFunil=f;_crmCamp='';renderCrmView();}
+function _crmSetFunil(f){_crmFunil=f;renderCrmView();}
 function _crmSetCamp(v){
   _crmCamp=v.trim();
   // Sem re-render completo — só re-filtra e atualiza o painel
