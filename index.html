@@ -677,6 +677,67 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
   .intel-section-row{flex-direction:column;}
 }
 
+/* ── RESPONSIVO: iPad (≤768px) e Celular (≤480px) ─────────── */
+@media (max-width:768px) {
+  /* Topbar */
+  .topbar{padding:0 16px;height:auto;flex-wrap:wrap;gap:0;}
+  .topbar-logo{margin-right:auto;padding:10px 0;}
+  .topbar-logo .app-name{display:none;}
+  .topbar-logo .user-email{display:none;}
+  .topbar-actions{order:1;padding:4px 0 8px;}
+  .topbar-nav{order:2;width:100%;overflow-x:auto;padding:0 0 8px;gap:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .topbar-nav::-webkit-scrollbar{display:none;}
+  .nav-btn{padding:7px 12px;font-size:12px;white-space:nowrap;flex-shrink:0;}
+  .btn-nova{padding:7px 14px;font-size:12px;}
+  .role-badge{font-size:9px;padding:3px 8px;}
+
+  /* Views */
+  .view{padding:16px;}
+
+  /* Resumo - 1 coluna */
+  .resumo-cols{grid-template-columns:1fr;gap:0;}
+  .resumo-col-title{margin-top:20px;margin-bottom:10px;}
+  .resumo-card{margin-bottom:10px;}
+
+  /* Calendário resumo */
+  #resumo-calendar{overflow-x:auto;}
+
+  /* Modal */
+  .modal{width:95vw !important;padding:20px 16px;margin:10px auto;}
+  .modal-overlay{padding:10px 0;align-items:flex-start;}
+  .form-row2{grid-template-columns:1fr !important;}
+
+  /* Dash KPIs */
+  .dash-kpis{grid-template-columns:repeat(2,1fr) !important;}
+  .dash-row{grid-template-columns:1fr !important;}
+  .dash-card[style*="span 2"]{grid-column:span 1 !important;}
+}
+
+@media (max-width:480px) {
+  /* Topbar ainda mais compacta */
+  .topbar{padding:0 12px;}
+  .nav-btn{padding:6px 10px;font-size:11px;}
+  .topbar-actions{gap:6px;}
+  .user-avatar{width:30px;height:30px;font-size:12px;}
+  .btn-nova{padding:6px 10px;font-size:11px;}
+
+  /* Resumo */
+  .resumo-card{padding:14px;}
+  .resumo-card-name{font-size:12px;}
+
+  /* Dash KPIs 1 coluna */
+  .dash-kpis{grid-template-columns:1fr !important;}
+
+  /* Cal layout */
+  .cal-layout{flex-direction:column;}
+  .cal-sidebar{display:none;}
+
+  /* Modais mais compactos */
+  .modal{padding:16px 12px;}
+  .color-swatches{flex-wrap:wrap;}
+  .cat-selector{flex-wrap:wrap;}
+}
+
 
     .config-panel {
       position: fixed;
@@ -1948,6 +2009,7 @@ function openDetailModal(id){
   }
   const isUserRole=currentUser&&currentUser.role==='user';
   document.getElementById('btn-edit-from-detail').style.display=isUserRole?'none':'';
+  if(histSec) histSec.style.display=isUserRole?'none':(historico.length>0?'':'none');
   const detailAcoesSection=document.getElementById('detail-acoes-section');
   if(detailAcoesSection)detailAcoesSection.style.display='';
   document.getElementById('modal-detail').classList.add('open');
