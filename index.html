@@ -863,6 +863,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
 .dash-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
 
 
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 /* ── CRM TOOLTIPS ─────────────────────────────────── */
 .crm-tip{position:relative;cursor:help;}
 .crm-tip:hover .crm-tip-box{opacity:1;pointer-events:auto;transform:translateY(0);}
@@ -4035,6 +4036,28 @@ async function renderCrmView() {
   if(!el) return;
 
   if(!_crmLoaded) {
+    // Mostra skeleton enquanto carrega do Supabase
+    el.innerHTML = `<div style="padding:24px 32px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
+        <div style="height:28px;width:180px;background:var(--gray-100);border-radius:8px;animation:pulse 1.2s ease-in-out infinite;"></div>
+        <div style="height:20px;width:120px;background:var(--gray-100);border-radius:8px;animation:pulse 1.2s ease-in-out infinite .1s;"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;">
+        ${[0,1,2,3,4,5,6,7,8,9].map(i=>`
+        <div style="background:white;border-radius:14px;padding:16px 18px;box-shadow:0 1px 6px rgba(0,0,0,.06);">
+          <div style="height:10px;width:60%;background:var(--gray-100);border-radius:4px;margin-bottom:10px;animation:pulse 1.2s ease-in-out infinite ${i*.07}s;"></div>
+          <div style="height:24px;width:80%;background:var(--gray-100);border-radius:6px;margin-bottom:8px;animation:pulse 1.2s ease-in-out infinite ${i*.07+.05}s;"></div>
+          <div style="height:10px;width:50%;background:var(--gray-100);border-radius:4px;animation:pulse 1.2s ease-in-out infinite ${i*.07+.1}s;"></div>
+        </div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+        ${[0,1,2].map(i=>`
+        <div style="background:white;border-radius:14px;padding:20px;box-shadow:0 1px 6px rgba(0,0,0,.06);">
+          <div style="height:12px;width:40%;background:var(--gray-100);border-radius:4px;margin-bottom:16px;animation:pulse 1.2s ease-in-out infinite ${i*.15}s;"></div>
+          <div style="height:220px;background:var(--gray-100);border-radius:8px;animation:pulse 1.2s ease-in-out infinite ${i*.15+.1}s;"></div>
+        </div>`).join('')}
+      </div>
+    </div>`;
     _crmLoaded = true;
     await _crmLoadFromSupabase();
   }
