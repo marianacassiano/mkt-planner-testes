@@ -2534,62 +2534,7 @@ function renderTabConcorrentes(cont) {
     </div>
   </div>
 
-  <!-- MODAL ADD -->
-  <div class="intel-modal-overlay" id="intel-modal-add" style="display:none;" onclick="if(event.target===this)closeAddConcorrente()">
-    <div class="intel-modal">
-      <div class="intel-modal-header">
-        <span style="font-size:16px;font-weight:700;">Adicionar Perfil</span>
-        <button type="button" onclick="closeAddConcorrente()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray-400);">✕</button>
-      </div>
-      <div style="margin-bottom:14px;">
-        <label class="form-label">@ do Instagram (sem @)</label>
-        <input class="form-input" id="add-intel-username" placeholder="ex: fotussolar" style="margin-top:4px;">
-      </div>
-      <div style="margin-bottom:14px;">
-        <label class="form-label">Nome da empresa</label>
-        <input class="form-input" id="add-intel-nome" placeholder="ex: Fotus Distribuidora Solar" style="margin-top:4px;">
-      </div>
-      <div style="margin-bottom:20px;">
-        <label class="form-label">Categoria</label>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;" id="add-intel-cats">
-          ${CATEGORIAS_INTEL.map((c,i) => `<button type="button" class="intel-cat-opt${i===0?' sel':''}" data-val="${c.id}" onclick="selectIntelCatOpt(this)" style="border-color:${c.color};${i===0?'background:'+c.color+';color:white;':''}">${c.icon} ${c.label}</button>`).join('')}
-        </div>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button type="button" class="btn-cancel" onclick="closeAddConcorrente()">Cancelar</button>
-        <button type="button" class="btn-save" onclick="addIntelConcorrente()">ADICIONAR</button>
-      </div>
-    </div>
-  </div>
-  
-  <!-- MODAL GROQ CONFIG -->
-  <div class="intel-modal-overlay" id="intel-modal-groq" style="display:none;" onclick="if(event.target===this)closeGroqConfigModal()">
-    <div class="intel-modal">
-      <div class="intel-modal-header">
-        <span style="font-size:16px;font-weight:700;">⚙️ Configurar API Groq</span>
-        <button type="button" onclick="closeGroqConfigModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray-400);">✕</button>
-      </div>
-      <div style="margin-bottom:14px;">
-        <label class="form-label">Chave da API Groq</label>
-        <input class="form-input" id="groq-api-key-input" type="password" placeholder="gsk_..." style="margin-top:4px;font-family:'DM Mono',monospace;font-size:12px;">
-      </div>
-      <div class="form-section">
-        <label class="form-label">Chave API Anthropic (PDF mLabs)</label>
-        <p style="font-size:11px;color:var(--gray-400);margin-bottom:6px;">Necessária para extrair dados dos PDFs do mLabs. Obtenha em <a href="https://console.anthropic.com" target="_blank" style="color:var(--purple)">console.anthropic.com</a></p>
-        <input class="form-input" id="anthropic-api-key-input" type="password" placeholder="sk-ant-..." style="margin-top:4px;font-family:'DM Mono',monospace;font-size:12px;">
-        <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">Obtenha em: <a href="https://console.groq.com" target="_blank" style="color:var(--purple);text-decoration:none;">console.groq.com</a></p>
-      </div>
-      <div style="margin-bottom:14px;">
-        <label class="form-label">Chave da API Apify <span style="font-size:10px;color:var(--gray-400);font-weight:400;">(para análise de posts reais)</span></label>
-        <input class="form-input" id="apify-api-key-input" type="password" placeholder="apify_api_..." style="margin-top:4px;font-family:'DM Mono',monospace;font-size:12px;">
-        <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">Obtenha em: <a href="https://console.apify.com/account/integrations" target="_blank" style="color:var(--purple);text-decoration:none;">console.apify.com</a> · Grátis com $5 de crédito</p>
-      </div>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button type="button" class="btn-cancel" onclick="closeGroqConfigModal()">Cancelar</button>
-        <button type="button" class="btn-save" onclick="saveGroqConfig()">SALVAR</button>
-      </div>
-    </div>
-  </div>
+
   `;
 }
 
@@ -5028,4 +4973,64 @@ function _socialSetSnap(idx) {
   const cont = document.getElementById('intel-tab-content');
   if (cont) renderTabSocial(cont);
 }
+
+
+<!-- INTEL MODALS — always in DOM regardless of active tab -->
+<!-- MODAL ADD -->
+  <div class="intel-modal-overlay" id="intel-modal-add" style="display:none;" onclick="if(event.target===this)closeAddConcorrente()">
+    <div class="intel-modal">
+      <div class="intel-modal-header">
+        <span style="font-size:16px;font-weight:700;">Adicionar Perfil</span>
+        <button type="button" onclick="closeAddConcorrente()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray-400);">✕</button>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label class="form-label">@ do Instagram (sem @)</label>
+        <input class="form-input" id="add-intel-username" placeholder="ex: fotussolar" style="margin-top:4px;">
+      </div>
+      <div style="margin-bottom:14px;">
+        <label class="form-label">Nome da empresa</label>
+        <input class="form-input" id="add-intel-nome" placeholder="ex: Fotus Distribuidora Solar" style="margin-top:4px;">
+      </div>
+      <div style="margin-bottom:20px;">
+        <label class="form-label">Categoria</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;" id="add-intel-cats">
+          ${CATEGORIAS_INTEL.map((c,i) => `<button type="button" class="intel-cat-opt${i===0?' sel':''}" data-val="${c.id}" onclick="selectIntelCatOpt(this)" style="border-color:${c.color};${i===0?'background:'+c.color+';color:white;':''}">${c.icon} ${c.label}</button>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" class="btn-cancel" onclick="closeAddConcorrente()">Cancelar</button>
+        <button type="button" class="btn-save" onclick="addIntelConcorrente()">ADICIONAR</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL GROQ CONFIG -->
+  <div class="intel-modal-overlay" id="intel-modal-groq" style="display:none;" onclick="if(event.target===this)closeGroqConfigModal()">
+    <div class="intel-modal">
+      <div class="intel-modal-header">
+        <span style="font-size:16px;font-weight:700;">⚙️ Configurar API Groq</span>
+        <button type="button" onclick="closeGroqConfigModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--gray-400);">✕</button>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label class="form-label">Chave da API Groq</label>
+        <input class="form-input" id="groq-api-key-input" type="password" placeholder="gsk_..." style="margin-top:4px;font-family:'DM Mono',monospace;font-size:12px;">
+      </div>
+      <div class="form-section">
+        <label class="form-label">Chave API Anthropic (PDF mLabs)</label>
+        <p style="font-size:11px;color:var(--gray-400);margin-bottom:6px;">Necessária para extrair dados dos PDFs do mLabs. Obtenha em <a href="https://console.anthropic.com" target="_blank" style="color:var(--purple)">console.anthropic.com</a></p>
+        <input class="form-input" id="anthropic-api-key-input" type="password" placeholder="sk-ant-..." style="margin-top:4px;font-family:'DM Mono',monospace;font-size:12px;">
+        <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">Obtenha em: <a href="https://console.groq.com" target="_blank" style="color:var(--purple);text-decoration:none;">console.groq.com</a></p>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label class="form-label">Chave da API Apify <span style="font-size:10px;color:var(--gray-400);font-weight:400;">(para análise de posts reais)</span></label>
+        <input class="form-input" id="apify-api-key-input" type="password" placeholder="apify_api_..." style="margin-top:4px;font-family:'DM Mono',monospace;font-size:12px;">
+        <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">Obtenha em: <a href="https://console.apify.com/account/integrations" target="_blank" style="color:var(--purple);text-decoration:none;">console.apify.com</a> · Grátis com $5 de crédito</p>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button type="button" class="btn-cancel" onclick="closeGroqConfigModal()">Cancelar</button>
+        <button type="button" class="btn-save" onclick="saveGroqConfig()">SALVAR</button>
+      </div>
+    </div>
+  </div>
+
 </script>
