@@ -987,7 +987,7 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       <button type="button" class="nav-btn" id="nav-res" onclick="showView('resumo')">Campanhas Comerciais</button>
       <div class="nav-dropdown" id="nav-dash-wrap">
         <button type="button" class="nav-btn" id="nav-dash" onclick="toggleNavDashDropdown(event)">
-          Dashboard <span class="nav-dropdown-arrow" id="nav-dash-arrow">▼</span>
+          Dashboard <span class="nav-dropdown-arrow" id="nav-dash-arrow" style="font-size:11px;margin-left:2px;">▼</span>
         </button>
         <div class="nav-dropdown-menu" id="nav-dash-menu">
           <button type="button" class="nav-dropdown-item" id="nav-dash-camp" onclick="selectNavDash('dashboard',event)">📊 Campanhas</button>
@@ -1021,6 +1021,19 @@ body{font-family:'Sora',sans-serif;background:var(--gray-50);color:var(--gray-80
       </div>
       <button type="button" class="btn-nova" id="btn-nova-camp" onclick="openNewModal()">+ Nova Campanha</button>
     </div>
+  </div>
+
+  <div class="config-panel" id="config-panel">
+    <button class="config-close" onclick="toggleConfigPanel()">✕</button>
+    <h2>⚙️ Configuração API</h2>
+    <div id="config-status" class="config-status"></div>
+    <label>Chave API Groq</label>
+    <input type="password" id="groq-key-input" placeholder="gsk_...">
+    <button onclick="saveGroqKey()">Salvar Chave Groq</button>
+    <button onclick="testGroqKey()" style="background:var(--teal);">Testar Chave</button>
+    <button onclick="clearGroqKey()" style="background:var(--red);">Remover Chave</button>
+    <hr style="border:none;border-top:1px solid var(--gray-200);margin:12px 0;">
+    <p style="font-size:11px;color:var(--gray-400);margin-bottom:8px;">Obtenha sua chave em <a href="https://console.groq.com" target="_blank" style="color:var(--purple)">console.groq.com</a></p>
   </div>
 
   <!-- CALENDÁRIO -->
