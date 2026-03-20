@@ -4491,14 +4491,57 @@ async function _socialSaveSnapshot(data) {
 }
 
 // ── Extrai dados do PDF via Claude API ──
+// ── Helpers de parse de texto ──
+function _pNum(s) {
+  // "1.279.859" ou "525.411" ou "1,279,859" → número
+  if (!s) return 0;
+  const clean = String(s).replace(/[^\d,\.]/g,'');
+  // Se tem vírgula e ponto, vírgula é decimal (BR) ou milhar?
+  if (clean.includes(',') && clean.includes('.')) {
+    // "1.279,59" → BR decimal → remove ponto, vírgula→ponto
+    if (clean.lastIndexOf(',') > clean.lastIndexOf('.')) return parseFloat(clean.replace(/\./g,'').replace(',','.')) || 0;
+    // "1,279.59" → EN → remove vírgula
+    return parseFloat(clean.replace(/,/g,'')) || 0;
+  }
+  if (clean.includes(',')) {
+    // Só vírgula: pode ser decimal BR ("0,45") ou milhar ("1,416")
+    const parts = clean.split(',');
+    if (parts[parts.length-1].length === 2 || parts[parts.length-1].length === 1) return parseFloat(clean.replace(',','.')) || 0;
+    return parseFloat(clean.replace(/,/g,'')) || 0;
+  }
+  if (clean.includes('.')) {
+    const parts = clean.split('.');
+    if (parts[parts.length-1].length === 3) return parseInt(clean.replace(/\./g,'')) || 0;
+    return parseFloat(clean) || 0;
+  }
+  return parseInt(clean) || 0;
+}
+function _pK(s) {
+  // "1,1K" ou "3.2k" ou "73,8K" → número
+  if (!s) return 0;
+  const m = String(s).match(/([\d,\.]+)[Kk]/);
+  if (m) return Math.round(_pNum(m[1]) * 1000);
+  return _pNum(s);
+}
+function _pPct(s) {
+  // "0,45%" ou "0.45%" → "0,45%"
+  if (!s) return '0%';
+  return String(s).trim();
+}
+function _find(text, ...patterns) {
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m) return m[1] || m[0];
+  }
+  return null;
+}
+
+// ── Parser direto de PDF do mLabs (sem IA) ──
 async function _parseSocialPDF(base64Data) {
-  const groqKey = currentUser?.groq_api_key;
-  if (!groqKey) throw new Error('Configure a chave API Groq em ⚙️ Configurar para usar esta funcionalidade.');
+  showToast('📄 Lendo PDF...', 'success');
 
-  showToast('📄 Extraindo texto do PDF...', 'success');
-
-  // ── Extrai texto do PDF via pdf.js ──
-  let pdfText = '';
+  // ── Extrai texto via pdf.js ──
+  let pages = [];
   try {
     const pdfjsLib = window['pdfjs-dist/build/pdf'];
     if (!pdfjsLib) throw new Error('pdf.js não carregado');
@@ -4510,87 +4553,215 @@ async function _parseSocialPDF(base64Data) {
     for (let p = 1; p <= pdf.numPages; p++) {
       const page = await pdf.getPage(p);
       const content = await page.getTextContent();
-      pdfText += content.items.map(i => i.str).join(' ') + '\n';
+      pages.push(content.items.map(i => i.str).join(' '));
     }
   } catch(e) {
-    throw new Error('Erro ao ler PDF: ' + e.message + '. Certifique-se de que o arquivo não está protegido por senha.');
+    throw new Error('Erro ao ler PDF: ' + e.message);
   }
 
-  if (!pdfText.trim()) throw new Error('Não foi possível extrair texto do PDF.');
+  const full = pages.join('\n');
+  if (!full.trim()) throw new Error('Não foi possível extrair texto do PDF.');
 
-  showToast('🤖 Analisando dados via Groq...', 'success');
+  showToast('🔍 Extraindo dados...', 'success');
 
-  const prompt = `Você é um especialista em extrair dados de relatórios do mLabs. Analise o texto abaixo e extraia TODOS os números e dados encontrados.
+  // ── Detecta tipo ──
+  const isGestao = /RESUMO GERAL DO PERFIL|RESUMO GERAL|TOP 20 STORIES|TOP 20 REELS|MELHORES HOR/i.test(full);
+  const tipo = isGestao ? 'gestao' : 'concorrentes';
 
-REGRAS IMPORTANTES:
-- Extraia TODOS os números que encontrar, não deixe campos zerados se o dado existir no texto
-- Para percentuais, mantenha o formato original (ex: "0,45%" ou "0.45%")
-- Para números grandes, remova separadores de milhar (ex: "525.411" → 525411, "1,279,859" → 1279859)
-- O texto pode ter espaços extras entre dígitos — junte-os (ex: "5 2 5 4 1 1" → 525411)
+  // ── Período e perfil ──
+  const periodo = _find(full,
+    /Per[ií]odo[:\s]+(\d{2}\/\d{2}\/\d{4}\s*[-–a]\s*\d{2}\/\d{2}\/\d{4})/i,
+    /(\d{2}\/\d{2}\/\d{4}\s*[-–]\s*\d{2}\/\d{2}\/\d{4})/
+  ) || '';
+  const perfilNome = _find(full,
+    /Fotus Distribuidora[^\n]*/i,
+    /instagram\.com\/([^\s\/]+)/i
+  ) || '';
 
-IDENTIFICAÇÃO DO TIPO:
-- Se o texto contém "RESUMO GERAL DO PERFIL" ou "SEGUIDORES" ou "STORIES" ou "REELS" → tipo = "gestao"
-- Se contém "Análise de concorrentes" ou "Engajamento público" com tabela de empresas → tipo = "concorrentes"
+  let result = { tipo, rede:'Instagram', periodo, perfil_nome: perfilNome,
+    resumo_geral:{}, stories:{}, reels:{lista:[]}, posts:{lista:[]},
+    melhores_horarios:[], analise_mercado:{},
+    concorrentes:[], formatos:[], melhores_posts:[], piores_posts:[],
+    hashtags:[], crescimento_ranking:[], dia_horario:{} };
 
-TEXTO DO PDF (${Math.round(pdfText.length/1000)}k chars):
-${pdfText.substring(0, 14000)}
+  if (tipo === 'gestao') {
+    // ── RESUMO GERAL ──
+    // Números aparecem em sequência após os labels no PDF
+    // Tentamos capturar cada campo pelo seu label próximo
+    const alcance = _find(full, /Alcance\s+([\d\.]+)/i);
+    const engaj   = _find(full, /Engajamento\s+([\d\.]+)/i);
+    const taxaEng = _find(full, /Taxa de engajamento\s+([\d,\.]+%)/i);
+    const freq    = _find(full, /Frequ[eê]ncia\s+([\d,\.]+)/i);
+    const views   = _find(full, /Visualiza[çc][õo]es\s+([\d,\.]+)/i);
+    const intera  = _find(full, /Intera[çc][õo]es\s+([\d,\.]+)/i);
+    const curtid  = _find(full, /Curtidas\s+([\d,\.]+)/i);
+    const coment  = _find(full, /Coment[áa]rios\s+([\d,\.]+)/i);
+    const compart = _find(full, /Compartilhamentos\s+([\d,\.]+)/i);
+    const salvos  = _find(full, /Salvos\s+([\d,\.]+)/i);
+    const cliques = _find(full, /Click em links do perfil\s+([\d,\.]+)/i);
+    result.resumo_geral = {
+      alcance:          alcance ? _pNum(alcance) : 0,
+      engajamento:      engaj   ? _pNum(engaj)   : 0,
+      taxa_engajamento: taxaEng || '0%',
+      frequencia:       freq    ? _pNum(freq)    : 0,
+      visualizacoes:    views   ? _pNum(views)   : 0,
+      interacoes:       intera  ? _pNum(intera)  : 0,
+      curtidas:         curtid  ? _pNum(curtid)  : 0,
+      comentarios:      coment  ? _pNum(coment)  : 0,
+      compartilhamentos:compart ? _pNum(compart) : 0,
+      salvos:           salvos  ? _pNum(salvos)  : 0,
+      cliques_link:     cliques ? _pNum(cliques) : 0,
+    };
 
-Retorne SOMENTE o JSON abaixo preenchido com os dados reais encontrados no texto. NÃO use valores zero se o dado existe:
-{
-  "tipo": "",
-  "rede": "Instagram",
-  "periodo": "",
-  "perfil_nome": "",
-  "resumo_geral": {
-    "alcance": 0, "engajamento": 0, "taxa_engajamento": "", "frequencia": 0,
-    "visualizacoes": 0, "interacoes": 0, "curtidas": 0, "comentarios": 0,
-    "compartilhamentos": 0, "salvos": 0, "cliques_link": 0
-  },
-  "stories": { "total": 0, "total_visualizacoes": 0, "media_visualizacoes": 0, "melhor_visualizacoes": 0 },
-  "reels": {
-    "total": 0, "total_visualizacoes": 0, "media_visualizacoes": 0, "melhor_visualizacoes": 0,
-    "lista": []
-  },
-  "posts": {
-    "total": 0, "total_interacoes": 0, "media_interacoes": 0, "media_visualizacoes": 0, "media_engajamento": "",
-    "lista": []
-  },
-  "melhores_horarios": [],
-  "analise_mercado": {
-    "media_reels_views": 0, "media_mercado_reels": 0, "pct_acima_reels": "",
-    "num_posts": 0, "taxa_engajamento": "", "media_mercado_eng": "",
-    "alcance_stories": 0, "crescimento_seguidores": "", "media_mercado_crescimento": ""
-  },
-  "concorrentes": [],
-  "formatos": [],
-  "melhores_posts": [],
-  "piores_posts": [],
-  "hashtags": [],
-  "crescimento_ranking": [],
-  "dia_horario": { "dia_pico_concorrentes": "", "dia_pico_voce": "", "horario_pico_concorrentes": "", "horarios_voce": "" }
-}`;
+    // ── STORIES ──
+    const stTotal = _find(full, /Total de Stories[:\s]+([\d,\.]+)/i);
+    const stViews = _find(full, /Total de Visualiza[çc][õo]es[:\s]+([\d,\.]+)/i);
+    const stMedia = _find(full, /M[eé]dia de Visualiza[çc][õo]es por stories[:\s]+([\d,\.]+)/i);
+    const stBest  = _find(full, /(\d[\d\.,]+)\s*Visualiza[çc][õo]es\s*[\d,\.,]+%\s*Total de Visualiza[çc][õo]es\s*do per[ií]odo/i);
+    result.stories = {
+      total: stTotal ? _pNum(stTotal) : 0,
+      total_visualizacoes: stViews ? _pNum(stViews) : 0,
+      media_visualizacoes: stMedia ? _pNum(stMedia) : 0,
+      melhor_visualizacoes: stBest ? _pNum(stBest) : 0,
+    };
 
-  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + groqKey },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      max_tokens: 4000,
-      temperature: 0.1,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
+    // ── REELS ──
+    const rlTotal = _find(full, /Total de Reels[:\s]+([\d,\.]+)/i);
+    const rlViews = _find(full, /Total de Visualiza[çc][õo]es[:\s]*[^\d]*([\d,\.]+)/i);
+    const rlMedia = _find(full, /M[eé]dia de Visualiza[çc][õo]es por Reels[:\s]+([\d,\.]+)/i);
+    const rlBest  = _find(full, /([\d,\.]+)\s*Visualiza[çc][õo]es\s*[\d,\.]+%\s*Total de Visualiza[çc][õo]es\s*do per[ií]odo/i);
+    result.reels = {
+      total: rlTotal ? _pNum(rlTotal) : 0,
+      total_visualizacoes: rlViews ? _pNum(rlViews) : 0,
+      media_visualizacoes: rlMedia ? _pNum(rlMedia) : 0,
+      melhor_visualizacoes: rlBest ? _pNum(rlBest) : 0,
+      lista: []
+    };
 
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error('API Groq: ' + err.substring(0, 200));
+    // Tabela de reels — padrão: data hora legenda curtidas comentarios salvos compartilh alcance interações engaj views
+    const reelRows = [...full.matchAll(/(\d{2}\/\d{2}\/\d{4})\s+(\d{2}:\d{2})\s+(.{10,80}?)\s+(\d[\d,\.]*)\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d,\.]+)\s+([\d,\.]+)\s+([\d,\.]+%)\s+([\d,\.]+)/g)];
+    result.reels.lista = reelRows.slice(0,20).map(m => ({
+      data: m[1], legenda: m[3].trim(),
+      curtidas: _pNum(m[4]), comentarios: _pNum(m[5]),
+      salvos: _pNum(m[6]), compartilhamentos: _pNum(m[7]),
+      alcance: _pNum(m[8]), interacoes: _pNum(m[9]),
+      engajamento: m[10], visualizacoes: _pNum(m[11])
+    }));
+
+    // ── POSTS ──
+    const poTotal = _find(full, /Total de Posts[:\s]+([\d,\.]+)/i);
+    const poInter = _find(full, /Total de Intera[çc][õo]es\s+([\d,\.]+)/i);
+    const poMedia = _find(full, /M[eé]dia de Intera[çc][õo]es por Post[:\s]+([\d,\.]+)/i);
+    const poViews = _find(full, /M[eé]dia de Visualiza[çc][õo]es por Post[:\s]+([\d,\.]+)/i);
+    const poEng   = _find(full, /M[eé]dia de Engajamento por Post[:\s]+([\d,\.]+%)/i);
+    result.posts = {
+      total: poTotal ? _pNum(poTotal) : 0,
+      total_interacoes: poInter ? _pNum(poInter) : 0,
+      media_interacoes: poMedia ? _pNum(poMedia) : 0,
+      media_visualizacoes: poViews ? _pNum(poViews) : 0,
+      media_engajamento: poEng || '0%',
+      lista: []
+    };
+
+    // Tabela de posts — padrão: data hora curtidas comentários salvos compartilh novos_seg visitas ações interações alcance views
+    const postRows = [...full.matchAll(/(\d{2}\/\d{2}\/\d{2,4})\s+(\d{2}:\d{2})\s+(.{5,80}?)\s+(\d[\d,\.]*)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d,\.]+)\s+([\d,\.]+)\s+([\d,\.]+)/g)];
+    result.posts.lista = postRows.slice(0,20).map(m => ({
+      data: m[1], legenda: m[3].trim(),
+      curtidas: _pNum(m[4]), comentarios: _pNum(m[5]),
+      salvos: _pNum(m[6]), compartilhamentos: _pNum(m[7]),
+      novos_seguidores: _pNum(m[8]), visitas_perfil: _pNum(m[9]),
+      interacoes: _pNum(m[11]), alcance: _pNum(m[12]), visualizacoes: _pNum(m[13])
+    }));
+
+    // ── MELHORES HORÁRIOS ──
+    const dias = ['Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado','Domingo'];
+    result.melhores_horarios = dias.map(dia => {
+      const re = new RegExp(dia + '\\s+([\\d:]+\\s+e\\s+[\\d:]+)\\s+([\\d:]+\\s+e\\s+[\\d:]+)\\s+([\\d:]+\\s+e\\s+[\\d:]+|--)', 'i');
+      const m = full.match(re);
+      return m ? { dia, melhor: m[1], categoria_evite: m[2], concorrentes_evite: m[3] } : { dia, melhor: '', categoria_evite: '', concorrentes_evite: '' };
+    }).filter(h => h.melhor);
+
+    // ── ANÁLISE DE MERCADO ──
+    const amReels  = _find(full, /M[eé]dia de visualiza[çc][õo]es de Reels\s*([\d,\.]+[Kk]?)/i);
+    const amPosts  = _find(full, /N[úu]mero de posts\s*([\d,\.]+)/i);
+    const amEng    = _find(full, /Taxa de engajamento do perfil\s*([\d,\.]+%)/i);
+    const amStories= _find(full, /Alcance nos Stories\s*([\d,\.]+)/i);
+    const amCresc  = _find(full, /Taxa de crescimento dos seguidores\s*\+?([\d,\.]+%)/i);
+    const amMercReels = _find(full, /M[eé]dia do mercado[:\s]+([\d,\.]+[Kk]?)\s*Período.*?Reels/i);
+    const amPctReels  = _find(full, /([\d,\.]+%)\s*Acima.*?Reels/i);
+    const amMercEng   = _find(full, /M[eé]dia do mercado[:\s]+([\d,\.]+%)\s*Período.*?engajamento/i);
+    const amMercCresc = _find(full, /M[eé]dia do mercado[:\s]\+?([\d,\.]+%)\s*Período.*?crescimento/i);
+    result.analise_mercado = {
+      media_reels_views:    amReels  ? _pK(amReels)  : 0,
+      media_mercado_reels:  amMercReels ? _pK(amMercReels) : 0,
+      pct_acima_reels:      amPctReels || '',
+      num_posts:            amPosts  ? _pNum(amPosts) : 0,
+      taxa_engajamento:     amEng    || '',
+      media_mercado_eng:    amMercEng || '',
+      alcance_stories:      amStories ? _pNum(amStories) : 0,
+      crescimento_seguidores: amCresc || '',
+      media_mercado_crescimento: amMercCresc || '',
+    };
+
+  } else {
+    // ── CONCORRENTES ──
+    // Tabela: nome % qtd curtidas comentarios media posts_semanal
+    // Padrão real: "Fotus Distribui... 0,45% 8 1,1K 102 150,25 8"
+    const concRows = [...full.matchAll(/([A-Za-zÀ-ú][^\n]{3,40?}?)\s+([\d,\.]+%)\s+(\d+)\s+([\d,\.]+[Kk]?)\s+([\d,\.]+)\s+([\d,\.]+)\s+(\d+)/g)];
+    result.concorrentes = concRows.slice(0,10).map(m => ({
+      nome: m[1].trim(),
+      engajamento_publico: m[2],
+      qtd_posts: _pNum(m[3]),
+      total_curtidas: _pK(m[4]),
+      total_comentarios: _pNum(m[5]),
+      media_interacao: _pNum(m[6]),
+      posts_semanal: _pNum(m[7])
+    })).filter(c => c.nome.length > 3);
+
+    // ── FORMATOS ──
+    const fmtRows = [...full.matchAll(/(Imagem|Carrossel|Reels?|V[ií]deo)\s+(\d+)\s*%?\s*(\d[\d,\.]*)\s+([\d,\.]+[Kk]?)/gi)];
+    result.formatos = fmtRows.map(m => ({
+      formato: m[1], pct: _pNum(m[2]),
+      comentarios: _pNum(m[3]), curtidas: _pK(m[4])
+    }));
+
+    // ── DIA/HORÁRIO ──
+    const diaPicoConc = _find(full, /([A-Za-záéíóúãõ\-]+feira)\s+foi o dia que seus concorrentes mais publicaram/i);
+    const diaPicoVoce = _find(full, /([A-Za-záéíóúãõ\-]+feira)\s+foi o dia que voc[eê] mais publicou/i);
+    const horConc     = _find(full, /Entre\s+([\dh\s–àe]+)\s+foi o hor[áa]rio que seus concorrentes/i);
+    const horVoce     = _find(full, /Entre\s+([\dh\s–àe,]+)\s+s[aã]o os hor[áa]rios que voc[eê]/i);
+    result.dia_horario = {
+      dia_pico_concorrentes: diaPicoConc || '',
+      dia_pico_voce:         diaPicoVoce || '',
+      horario_pico_concorrentes: horConc || '',
+      horarios_voce:         horVoce || '',
+    };
+
+    // ── MELHORES POSTS ──
+    // Padrão: posição, nome, legenda, curtidas, comentários, engaj%, formato
+    const postSection = full.match(/Melhores[:\s]*([\s\S]*?)(?:Piores:|$)/i)?.[1] || '';
+    const mpRows = [...postSection.matchAll(/(\d+)\.\s*([^\n]{5,50}?)\s+([\d,\.]+)\s+(\d+)\s+([\d,\.]+%)\s+(Imagem|Carrossel|Reels?)/gi)];
+    result.melhores_posts = mpRows.slice(0,5).map((m,i) => ({
+      posicao: i+1, concorrente: m[2].trim(), legenda: '',
+      curtidas: _pNum(m[3]), comentarios: _pNum(m[4]),
+      engajamento: m[5], formato: m[6]
+    }));
+
+    // ── HASHTAGS ──
+    const hashSection = full.match(/Hashtags[\s\S]{0,200}((?:#\w+[\s\S]{0,50}){1,10})/i)?.[1] || '';
+    const hashRows = [...full.matchAll(/#(\w+)/g)];
+    const hashSeen = new Set();
+    result.hashtags = hashRows.filter(m => { if(hashSeen.has(m[1]))return false; hashSeen.add(m[1]); return true; })
+      .slice(0,10).map(m => ({ hashtag: m[1], total_usos: 0 }));
+
+    // ── RANKING CRESCIMENTO ──
+    const crescRows = [...full.matchAll(/(\d+)\s+([A-Za-zÀ-ú][^\n]{3,40?}?)\s+([\d,\.]+%)/g)];
+    result.crescimento_ranking = crescRows.slice(0,6).map(m => ({
+      posicao: parseInt(m[1]), nome: m[2].trim(), crescimento_pct: m[3]
+    })).filter(c => c.nome.length > 3);
   }
 
-  const result = await response.json();
-  const text = result.choices?.[0]?.message?.content || '';
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Groq não retornou JSON válido. Tente novamente.');
-  return JSON.parse(jsonMatch[0]);
+  return result;
 }
 
 // ── Upload handler — suporta múltiplos PDFs ──
@@ -4664,8 +4835,9 @@ async function renderTabSocial(cont) {
         Importe os relatórios PDF do mLabs.<br>
         Suporta: <strong>Gestão do Perfil</strong> e <strong>Análise de Concorrentes</strong>.
       </p>
-      <p style="font-size:12px;color:var(--orange);margin-bottom:24px;font-weight:600">
-        ⚠️ Configure a chave API Groq em ⚙️ Configurar antes de importar.
+      <p style="font-size:12px;color:var(--gray-400);margin-bottom:24px;">
+        Suporta: <strong>Gestão do Perfil</strong> e <strong>Análise de Concorrentes</strong>.<br>
+        Extração direta do PDF — sem necessidade de chave API.
       </p>
       <label class="crm-upload-btn" style="display:inline-flex">
         📄 IMPORTAR PDF mLabs
