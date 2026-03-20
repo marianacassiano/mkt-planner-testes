@@ -1751,8 +1751,9 @@ async function loadGroqConfig() {
   try {
     const rows = await sbFetch('groq_config?userid=eq.' + currentUser.id + '&limit=1');
     if (rows && rows.length > 0) {
-      currentUser.groq_api_key  = rows[0].groqapikey  || null;
-      currentUser.apify_token   = rows[0].apifytoken  || null;
+      currentUser.groq_api_key      = rows[0].groqapikey      || null;
+      currentUser.apify_token       = rows[0].apifytoken       || null;
+      currentUser.anthropic_api_key = rows[0].anthropicapikey  || null;
     }
   } catch(e) {
     console.error('Erro ao carregar config:', e);
@@ -2464,6 +2465,7 @@ function renderIntelView() {
     <button type="button" class="intel-tab active" id="itab-radar"       onclick="setIntelTab('radar')">📡 Radar de Temas</button>
     <button type="button" class="intel-tab"        id="itab-alertas"     onclick="setIntelTab('alertas')">🚨 Alertas</button>
     <button type="button" class="intel-tab"        id="itab-concorrentes" onclick="setIntelTab('concorrentes')">👥 Concorrentes</button>
+    <button type="button" class="intel-tab"        id="itab-social"       onclick="setIntelTab('social')">📱 Redes Sociais</button>
   </div>
 
   <!-- CONTEÚDO DAS TABS -->
@@ -2493,6 +2495,7 @@ function renderIntelTab(tab) {
   if (tab === 'concorrentes') { renderTabConcorrentes(cont); return; }
   if (tab === 'radar')        { renderTabRadar(cont);        return; }
   if (tab === 'alertas')      { renderTabAlertas(cont);      return; }
+  if (tab === 'social')       { renderTabSocial(cont);       return; }
 }
 
 // ── TAB: CONCORRENTES ─────────────────────────────────────────────
@@ -2569,6 +2572,11 @@ function renderTabConcorrentes(cont) {
       <div style="margin-bottom:14px;">
         <label class="form-label">Chave da API Groq</label>
         <input class="form-input" id="groq-api-key-input" type="password" placeholder="gsk_..." style="margin-top:4px;font-family:'DM Mono',monospace;font-size:12px;">
+      </div>
+      <div class="form-section">
+        <label class="form-label">Chave API Anthropic (PDF mLabs)</label>
+        <p style="font-size:11px;color:var(--gray-400);margin-bottom:6px;">Necessária para extrair dados dos PDFs do mLabs. Obtenha em <a href="https://console.anthropic.com" target="_blank" style="color:var(--purple)">console.anthropic.com</a></p>
+        <input class="form-input" id="anthropic-api-key-input" type="password" placeholder="sk-ant-..." style="margin-top:4px;font-family:'DM Mono',monospace;font-size:12px;">
         <p style="font-size:11px;color:var(--gray-400);margin-top:6px;">Obtenha em: <a href="https://console.groq.com" target="_blank" style="color:var(--purple);text-decoration:none;">console.groq.com</a></p>
       </div>
       <div style="margin-bottom:14px;">
@@ -2635,6 +2643,8 @@ function openGroqConfigModal() {
   const apifyInput = document.getElementById('apify-api-key-input');
   if (groqInput  && currentUser?.groq_api_key) groqInput.value  = currentUser.groq_api_key;
   if (apifyInput && currentUser?.apify_token)  apifyInput.value = currentUser.apify_token;
+  const anthropicInput = document.getElementById('anthropic-api-key-input');
+  if (anthropicInput && currentUser?.anthropic_api_key) anthropicInput.value = currentUser.anthropic_api_key;
   modal.style.display = 'flex';
 }
 function closeGroqConfigModal() { document.getElementById('intel-modal-groq').style.display = 'none'; }
@@ -2646,8 +2656,9 @@ async function saveGroqConfig() {
   try {
     const existing = await sbFetch('groq_config?userid=eq.' + currentUser.id);
     const payload = {
-      groqapikey: apiKey,
-      apifytoken: apifyKey || null,
+      groqapikey:      apiKey,
+      apifytoken:      apifyKey || null,
+      anthropicapikey: document.getElementById('anthropic-api-key-input')?.value.trim() || null,
       updatedat:  new Date().toISOString()
     };
     if (existing && existing.length > 0) {
@@ -2660,7 +2671,8 @@ async function saveGroqConfig() {
       });
     }
     currentUser.groq_api_key = apiKey;
-    currentUser.apify_token  = apifyKey || null;
+    currentUser.apify_token      = apifyKey || null;
+    currentUser.anthropic_api_key = document.getElementById('anthropic-api-key-input')?.value.trim() || null;
     showToast('Configurações salvas com sucesso!');
     closeGroqConfigModal();
   } catch(e) {
@@ -3538,7 +3550,7 @@ function _etapaScore(ref){ return CRM_ETAPA_ORDEM.indexOf(ref); }
 function _negociaçãoKey(r){ return [r.nome,r.empresa,r.campanha].map(v=>(v||'').trim()).join('||'); }
 
 // ── Deduplica: se mesma chave, mantém a etapa mais avançada ──
-function _deduplicateNegociações(rows){
+function _deduplicateDeals(rows){
   const map={};
   rows.forEach(r=>{
     const k=r.deal_key;
@@ -4429,7 +4441,7 @@ async function _addCrmSnap(snap) {
 
     const validos = mapped.filter(r=>r.deal_key && r.etapa_ref);
     console.log('CRM import: ' + snap.rows.length + ' raw / ' + validos.length + ' validos');
-    const dedupRows = _deduplicateNegociações(validos);
+    const dedupRows = _deduplicateDeals(validos);
     console.log('CRM import: ' + dedupRows.length + ' apos dedup');
 
     const res = await _crmUpsertHybrid(dedupRows, importedAt, snap.label);
@@ -4493,5 +4505,527 @@ function exportCrmXlsx() {
 
   const d=new Date().toLocaleDateString('pt-BR').replace(/\//g,'-');
   XLSX.writeFile(wb,'CRM_Dashboard_'+d+'.xlsx');
+}
+
+// ══════════════════════════════════════════════════════════
+//  M Ó D U L O   R E D E S   S O C I A I S  (mLabs PDF)
+// ══════════════════════════════════════════════════════════
+
+let _socialSnaps   = [];
+let _socialSnapIdx = 0;
+let _socialLoaded  = false;
+let _socialSubTab  = 'perfil'; // 'perfil' | 'concorrentes'
+
+// ── Carrega snapshots do Supabase ──
+async function _socialLoadFromSupabase() {
+  try {
+    const rows = await sbFetch('social_snapshots?select=*&order=criado_em.desc&limit=50') || [];
+    _socialSnaps = rows;
+  } catch(e) { console.error('social load:', e); }
+}
+
+// ── Salva snapshot ──
+async function _socialSaveSnapshot(data) {
+  const payload = {
+    tipo:            data.tipo || 'concorrentes',
+    rede:            data.rede || 'Instagram',
+    periodo_label:   data.periodo || '',
+    perfil_nome:     data.perfil_nome || '',
+    dados_json:      JSON.stringify(data),
+    importado_por:   currentUser?.nome || currentUser?.email || 'sistema',
+    criado_em:       new Date().toISOString()
+  };
+  await sbFetch('social_snapshots', 'POST', payload);
+}
+
+// ── Extrai dados do PDF via Claude API ──
+async function _parseSocialPDF(base64Data) {
+  const apiKey = currentUser?.anthropic_api_key;
+  if (!apiKey) throw new Error('Configure a chave API Anthropic em ⚙️ Configurar para usar esta funcionalidade.');
+
+  showToast('🤖 Extraindo dados do PDF via Claude...', 'success');
+
+  const prompt = `Analise este relatório do mLabs e extraia TODOS os dados numéricos e textuais visíveis.
+
+Identifique primeiro o TIPO do relatório:
+- "gestao": relatório de gestão do perfil (tem Resumo Geral, Stories, Reels, Posts, Melhores Horários)
+- "concorrentes": relatório de análise de concorrentes (tem tabela de concorrentes, formatos, ranking de posts)
+
+Retorne APENAS JSON válido sem markdown:
+{
+  "tipo": "gestao" ou "concorrentes",
+  "rede": "Instagram",
+  "periodo": "DD/MM/YYYY - DD/MM/YYYY",
+  "perfil_nome": "nome do perfil",
+  
+  "resumo_geral": {
+    "alcance": 0, "engajamento": 0, "taxa_engajamento": "0%", "frequencia": 0,
+    "visualizacoes": 0, "interacoes": 0, "curtidas": 0, "comentarios": 0,
+    "compartilhamentos": 0, "salvos": 0, "cliques_link": 0
+  },
+  
+  "stories": {
+    "total": 0, "total_visualizacoes": 0, "media_visualizacoes": 0,
+    "melhor_visualizacoes": 0, "melhor_pct_total": "0%"
+  },
+  
+  "reels": {
+    "total": 0, "total_visualizacoes": 0, "media_visualizacoes": 0,
+    "melhor_visualizacoes": 0, "melhor_pct_total": "0%",
+    "lista": [{"data": "DD/MM/YYYY", "legenda": "...", "curtidas": 0, "comentarios": 0, "salvos": 0, "compartilhamentos": 0, "alcance": 0, "interacoes": 0, "engajamento": "0%", "visualizacoes": 0}]
+  },
+  
+  "posts": {
+    "total": 0, "total_interacoes": 0, "media_interacoes": 0,
+    "media_visualizacoes": 0, "media_engajamento": "0%",
+    "lista": [{"data": "DD/MM/YYYY", "legenda": "...", "curtidas": 0, "comentarios": 0, "salvos": 0, "compartilhamentos": 0, "novos_seguidores": 0, "visitas_perfil": 0, "interacoes": 0, "alcance": 0, "visualizacoes": 0}]
+  },
+  
+  "melhores_horarios": [
+    {"dia": "Segunda-feira", "melhor": "HH:MM e HH:MM", "categoria_evite": "HH:MM e HH:MM", "concorrentes_evite": "HH:MM e HH:MM"}
+  ],
+  
+  "analise_mercado": {
+    "media_reels_views": 0, "media_mercado_reels": 0, "pct_acima_reels": "0%",
+    "num_posts": 0, "media_mercado_posts": 0,
+    "taxa_engajamento": "0%", "media_mercado_eng": "0%",
+    "alcance_stories": 0, "media_mercado_stories": 0,
+    "crescimento_seguidores": "0%", "media_mercado_crescimento": "0%"
+  },
+  
+  "concorrentes": [
+    {"nome": "", "engajamento_publico": "0%", "qtd_posts": 0, "total_curtidas": 0, "total_comentarios": 0, "media_interacao": 0, "posts_semanal": 0, "seguidores": 0, "crescimento_pct": "0%"}
+  ],
+  
+  "formatos": [
+    {"formato": "Imagem", "pct": 0, "comentarios": 0, "curtidas": 0}
+  ],
+  
+  "melhores_posts": [
+    {"posicao": 1, "concorrente": "", "legenda": "", "curtidas": 0, "comentarios": 0, "engajamento": "0%", "formato": ""}
+  ],
+  
+  "piores_posts": [
+    {"posicao": 1, "concorrente": "", "legenda": "", "curtidas": 0, "comentarios": 0, "engajamento": "0%", "formato": ""}
+  ],
+  
+  "hashtags": [{"hashtag": "", "total_usos": 0}],
+  
+  "crescimento_ranking": [{"posicao": 1, "nome": "", "crescimento_pct": "0%"}],
+  
+  "dia_horario": {
+    "dia_pico_concorrentes": "", "dia_pico_voce": "",
+    "horario_pico_concorrentes": "", "horarios_voce": ""
+  }
+}
+
+Preencha apenas os campos que encontrar no PDF. Deixe arrays vazios [] se não houver dados.`;
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-5',
+      max_tokens: 4000,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64Data } },
+          { type: 'text', text: prompt }
+        ]
+      }]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error('API Anthropic: ' + err.substring(0, 300));
+  }
+
+  const result = await response.json();
+  const text = result.content?.find(c => c.type === 'text')?.text || '';
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error('Não foi possível extrair JSON do PDF.');
+  return JSON.parse(jsonMatch[0]);
+}
+
+// ── Upload handler ──
+async function handleSocialPDF(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  input.value = '';
+  showLoading();
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const data = await _parseSocialPDF(base64);
+    showToast('💾 Salvando no Supabase...', 'success');
+    data.perfil_nome = data.perfil_nome || file.name;
+    await _socialSaveSnapshot(data);
+    await _socialLoadFromSupabase();
+    _socialSnapIdx = 0;
+    showToast('✅ Relatório importado com sucesso!', 'success');
+    const cont = document.getElementById('intel-tab-content');
+    if (cont && document.getElementById('itab-social')?.classList.contains('active')) renderTabSocial(cont);
+  } catch(e) {
+    console.error('Social PDF error:', e);
+    showToast('❌ ' + (e.message || 'Erro ao processar PDF'), 'error');
+  } finally { hideLoading(); }
+}
+
+// ── Helpers ──
+function _sj(snap, field) {
+  try { const v = snap.dados_json ? JSON.parse(snap.dados_json)[field] : snap[field]; return v || (Array.isArray(v)?[]:(typeof v==='object'?{}:'')); }
+  catch { return Array.isArray([])?[]:{}; }
+}
+function _sjFull(snap) {
+  try { return snap.dados_json ? JSON.parse(snap.dados_json) : snap; } catch { return {}; }
+}
+function _n(v){ return (v||0).toLocaleString('pt-BR'); }
+
+// ── KPI card helper ──
+function _skpi(label, value, sub, color) {
+  return `<div class="crm-kpi">
+    <div class="crm-kpi-label">${label}</div>
+    <div class="crm-kpi-val" style="color:${color||'var(--gray-800)'}; font-size:${String(value).length>8?'14px':'18px'}">${value}</div>
+    <div class="crm-kpi-sub">${sub||''}</div>
+  </div>`;
+}
+
+// ── Render principal da tab ──
+async function renderTabSocial(cont) {
+  if (!_socialLoaded) {
+    _socialLoaded = true;
+    cont.innerHTML = `<div style="padding:40px;text-align:center;color:var(--gray-400)">
+      <div style="font-size:28px;margin-bottom:10px">⏳</div>
+      <div style="font-size:13px">Carregando...</div></div>`;
+    await _socialLoadFromSupabase();
+  }
+
+  if (!_socialSnaps.length) {
+    cont.innerHTML = `<div style="max-width:500px;margin:80px auto;text-align:center;">
+      <div style="font-size:48px;margin-bottom:16px">📱</div>
+      <h2 style="font-size:20px;font-weight:700;margin-bottom:8px">Redes Sociais</h2>
+      <p style="font-size:13px;color:var(--gray-400);margin-bottom:10px;line-height:1.6">
+        Importe os relatórios PDF do mLabs.<br>
+        Suporta: <strong>Gestão do Perfil</strong> e <strong>Análise de Concorrentes</strong>.
+      </p>
+      <p style="font-size:12px;color:var(--orange);margin-bottom:24px;font-weight:600">
+        ⚠️ Configure a chave API Anthropic em ⚙️ Configurar antes de importar.
+      </p>
+      <label class="crm-upload-btn" style="display:inline-flex">
+        📄 IMPORTAR PDF mLabs
+        <input type="file" accept=".pdf" style="display:none" onchange="handleSocialPDF(this)">
+      </label>
+    </div>`;
+    return;
+  }
+
+  const snap = _socialSnaps[_socialSnapIdx];
+  const data = _sjFull(snap);
+  const tipo = data.tipo || snap.tipo || 'concorrentes';
+
+  // Sub-tabs disponíveis com base no histórico
+  const tipos = [...new Set(_socialSnaps.map(s => { try{return JSON.parse(s.dados_json).tipo||s.tipo;}catch{return s.tipo;} }))];
+  const subTabsHtml = [
+    {id:'perfil', label:'📊 Gestão do Perfil'},
+    {id:'concorrentes', label:'👥 Análise de Concorrentes'}
+  ].filter(t => tipos.includes(t.id === 'perfil' ? 'gestao' : 'concorrentes') || _socialSnaps.some(s=>{const d=_sjFull(s);return t.id==='perfil'?d.tipo==='gestao':d.tipo==='concorrentes';}))
+  .map(t => `<button type="button" class="intel-tab${_socialSubTab===t.id?' active':''}" onclick="_socialSetSubTab('${t.id}')" style="font-size:12px">${t.label}</button>`).join('');
+
+  // Snap selector — filtra pelo tipo da sub-tab ativa
+  const snapTipoFiltro = _socialSubTab==='perfil' ? 'gestao' : 'concorrentes';
+  const snapsDoTipo = _socialSnaps.filter(s=>{ const d=_sjFull(s); return d.tipo===snapTipoFiltro; });
+  const snapAtual = snapsDoTipo[0] || snap;
+  const dataAtual = _sjFull(snapAtual);
+
+  const snapSelHtml = snapsDoTipo.length > 1 ? `<select onchange="_socialSetSnapByIdx(${snapsDoTipo.map((_,i)=>i).join(',')})" onchange="void(0)" style="padding:7px 12px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:'Sora',sans-serif;font-size:12px;background:white;outline:none;">
+    ${snapsDoTipo.map((s,i)=>`<option value="${_socialSnaps.indexOf(s)}">${s.periodo_label||dataAtual.periodo||'Período '+(i+1)}</option>`).join('')}
+  </select>` : '';
+
+  const headerHtml = `<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
+    <div>
+      <h2 style="font-size:20px;font-weight:700;margin:0 0 3px">Redes Sociais · Instagram</h2>
+      <div style="font-size:11px;color:var(--gray-400)">
+        ${dataAtual.perfil_nome||snapAtual.perfil_nome||''} &nbsp;·&nbsp;
+        ${dataAtual.periodo||snapAtual.periodo_label||''}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      ${snapSelHtml}
+      <label class="btn-nova" style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+        📄 Importar PDF
+        <input type="file" accept=".pdf" style="display:none" onchange="handleSocialPDF(this)">
+      </label>
+    </div>
+  </div>`;
+
+  if (_socialSubTab === 'perfil') {
+    _renderSocialPerfil(cont, dataAtual, headerHtml, subTabsHtml);
+  } else {
+    _renderSocialConcorrentes(cont, dataAtual, headerHtml, subTabsHtml);
+  }
+}
+
+// ── Render: Gestão do Perfil ──
+function _renderSocialPerfil(cont, data, headerHtml, subTabsHtml) {
+  const rg = data.resumo_geral || {};
+  const st = data.stories || {};
+  const re = data.reels || {};
+  const po = data.posts || {};
+  const am = data.analise_mercado || {};
+  const mh = data.melhores_horarios || [];
+  const reelLista = re.lista || [];
+  const postLista = po.lista || [];
+
+  const kpisHtml = `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:20px;">
+    ${_skpi('Alcance', _n(rg.alcance), 'período', '#0D518E')}
+    ${_skpi('Engajamento', _n(rg.engajamento), 'interações', 'var(--purple)')}
+    ${_skpi('Taxa engajamento', rg.taxa_engajamento||'0%', 'do alcance', rg.taxa_engajamento && parseFloat(rg.taxa_engajamento)>=1?'var(--green)':'var(--red)')}
+    ${_skpi('Visualizações', _n(rg.visualizacoes), 'total', 'var(--teal)')}
+    ${_skpi('Frequência', rg.frequencia||0, 'posts/semana', 'var(--orange)')}
+    ${_skpi('Curtidas', _n(rg.curtidas), '', '')}
+    ${_skpi('Comentários', _n(rg.comentarios), '', '')}
+    ${_skpi('Compartilhamentos', _n(rg.compartilhamentos), '', '')}
+    ${_skpi('Salvos', _n(rg.salvos), '', '')}
+    ${_skpi('Cliques no perfil', _n(rg.cliques_link), '', '')}
+  </div>`;
+
+  // Mercado benchmarks
+  const benchHtml = am.media_reels_views ? `<div class="crm-panel" style="margin-bottom:16px;">
+    <div class="crm-panel-title">📊 mLabs Insights — benchmark vs mercado</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">
+      ${[
+        {l:'Média views Reels', v:_n(am.media_reels_views), m:'Mercado: '+_n(am.media_mercado_reels), pct:am.pct_acima_reels, up:true},
+        {l:'Nº de posts', v:am.num_posts, m:'Mercado: '+am.media_mercado_posts, pct:am.pct_acima_posts||'', up:true},
+        {l:'Taxa engajamento', v:am.taxa_engajamento, m:'Mercado: '+am.media_mercado_eng, pct:am.pct_acima_eng||'', up:false},
+        {l:'Alcance Stories', v:_n(am.alcance_stories), m:'Mercado: '+_n(am.media_mercado_stories), pct:'', up:true},
+        {l:'Crescimento seguidores', v:am.crescimento_seguidores, m:'Mercado: '+am.media_mercado_crescimento, pct:'', up:true},
+      ].map(b=>`<div class="crm-kpi">
+        <div class="crm-kpi-label">${b.l}</div>
+        <div class="crm-kpi-val" style="font-size:16px">${b.v}</div>
+        <div class="crm-kpi-sub">${b.m}</div>
+        ${b.pct?`<div style="font-size:10px;font-weight:700;color:${b.up?'var(--green)':'var(--red)'};margin-top:2px">${b.pct}</div>`:''}
+      </div>`).join('')}
+    </div>
+  </div>` : '';
+
+  // Reels
+  const reelsHtml = reelLista.length ? `<div class="crm-panel" style="margin-bottom:16px;overflow-x:auto;">
+    <div class="crm-panel-title">🎬 Reels — Top ${reelLista.length} · Total: ${_n(re.total_visualizacoes)} views · Média: ${_n(re.media_visualizacoes)}</div>
+    <table class="crm-table">
+      <thead><tr>
+        <th style="text-align:left">Data</th><th style="text-align:left">Legenda</th>
+        <th>Views</th><th>Engaj.</th><th>Curtidas</th><th>Coment.</th><th>Alcance</th>
+      </tr></thead>
+      <tbody>
+        ${reelLista.map((r,i)=>`<tr${i===0?' style="background:var(--purple-pale)"':''}>
+          <td style="font-size:11px;white-space:nowrap">${r.data||''}</td>
+          <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${r.legenda||''}">${(r.legenda||'').substring(0,60)}${r.legenda?.length>60?'…':''}</td>
+          <td style="font-weight:${i===0?'700':'400'};color:${i===0?'var(--purple)':'inherit'}">${_n(r.visualizacoes)}</td>
+          <td>${r.engajamento||'-'}</td><td>${_n(r.curtidas)}</td><td>${_n(r.comentarios)}</td><td>${_n(r.alcance)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>` : '';
+
+  // Posts
+  const postsHtml = postLista.length ? `<div class="crm-panel" style="margin-bottom:16px;overflow-x:auto;">
+    <div class="crm-panel-title">📸 Posts — Total: ${_n(po.total_interacoes)} interações · Média engaj.: ${po.media_engajamento||'0%'}</div>
+    <table class="crm-table">
+      <thead><tr>
+        <th style="text-align:left">Data</th><th style="text-align:left">Legenda</th>
+        <th>Interações</th><th>Alcance</th><th>Curtidas</th><th>Coment.</th><th>Compart.</th>
+      </tr></thead>
+      <tbody>
+        ${postLista.map((p,i)=>`<tr${i===0?' style="background:var(--purple-pale)"':''}>
+          <td style="font-size:11px;white-space:nowrap">${p.data||''}</td>
+          <td style="font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.legenda||''}">${(p.legenda||'').substring(0,60)}${p.legenda?.length>60?'…':''}</td>
+          <td style="font-weight:${i===0?'700':'400'};color:${i===0?'var(--purple)':'inherit'}">${_n(p.interacoes)}</td>
+          <td>${_n(p.alcance)}</td><td>${_n(p.curtidas)}</td><td>${_n(p.comentarios)}</td><td>${_n(p.compartilhamentos)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>` : '';
+
+  // Melhores horários
+  const horariosHtml = mh.length ? `<div class="crm-panel" style="margin-bottom:16px;overflow-x:auto;">
+    <div class="crm-panel-title">🕐 Melhores horários para postar</div>
+    <table class="crm-table">
+      <thead><tr>
+        <th style="text-align:left">Dia</th>
+        <th style="color:var(--green)">Melhores horários</th>
+        <th>Categoria (evite)</th>
+        <th>Concorrentes (evite)</th>
+      </tr></thead>
+      <tbody>
+        ${mh.map(h=>`<tr>
+          <td style="font-weight:600">${h.dia}</td>
+          <td style="color:var(--green);font-weight:700;font-family:'DM Mono',monospace">${h.melhor||'-'}</td>
+          <td style="font-size:11px;color:var(--gray-400)">${h.categoria_evite||'-'}</td>
+          <td style="font-size:11px;color:var(--gray-400)">${h.concorrentes_evite||'-'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>` : '';
+
+  cont.innerHTML = `<div style="padding:0 0 24px">${headerHtml}
+    <div style="display:flex;gap:6px;margin-bottom:20px;">${subTabsHtml}</div>
+    ${kpisHtml}
+    ${benchHtml}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <div class="crm-panel"><div class="crm-panel-title">📖 Stories</div>
+        ${[_skpi('Total stories',st.total||0,'publicados',''),_skpi('Total views',_n(st.total_visualizacoes),'','var(--purple)'),_skpi('Média views',_n(st.media_visualizacoes),'por story',''),_skpi('Melhor story',_n(st.melhor_visualizacoes),'views',st.melhor_visualizacoes>0?'var(--green)':'')].map(k=>`<div style="display:inline-block;width:48%;margin:4px 1%">${k}</div>`).join('')}
+      </div>
+      <div class="crm-panel"><div class="crm-panel-title">🎬 Reels resumo</div>
+        ${[_skpi('Total reels',re.total||0,'publicados',''),_skpi('Total views',_n(re.total_visualizacoes),'','var(--purple)'),_skpi('Média views',_n(re.media_visualizacoes),'por reel',''),_skpi('Melhor reel',_n(re.melhor_visualizacoes),'views',re.melhor_visualizacoes>0?'var(--green)':'')].map(k=>`<div style="display:inline-block;width:48%;margin:4px 1%">${k}</div>`).join('')}
+      </div>
+    </div>
+    ${reelsHtml}
+    ${postsHtml}
+    ${horariosHtml}
+  </div>`;
+}
+
+// ── Render: Análise de Concorrentes ──
+function _renderSocialConcorrentes(cont, data, headerHtml, subTabsHtml) {
+  const conc    = data.concorrentes || [];
+  const fmts    = data.formatos || [];
+  const melhores = data.melhores_posts || [];
+  const piores   = data.piores_posts || [];
+  const hashtags = data.hashtags || [];
+  const cresc    = data.crescimento_ranking || [];
+  const dh       = data.dia_horario || {};
+
+  const maxEng = Math.max(...conc.map(c=>parseFloat(c.engajamento_publico)||0), 0.001);
+
+  const concTabHtml = conc.length ? `<div class="crm-panel" style="margin-bottom:16px;overflow-x:auto;">
+    <div class="crm-panel-title">🏆 Ranking de engajamento — concorrentes</div>
+    <table class="crm-table">
+      <thead><tr>
+        <th style="text-align:left">Perfil</th>
+        <th>Engajamento público</th>
+        <th>Posts</th><th>Curtidas</th><th>Comentários</th><th>Média/post</th>
+      </tr></thead>
+      <tbody>
+        ${conc.map((c,i)=>{
+          const eng = parseFloat(c.engajamento_publico)||0;
+          const w = Math.round(eng/maxEng*100);
+          return `<tr${i===0?' style="background:var(--purple-pale)"':''}>
+            <td style="font-weight:600">${c.nome}</td>
+            <td><div style="display:flex;align-items:center;gap:6px">
+              <div style="flex:1;background:var(--gray-100);border-radius:3px;height:8px;overflow:hidden">
+                <div style="width:${w}%;height:100%;background:var(--purple);border-radius:3px"></div>
+              </div>
+              <span style="font-size:11px;font-weight:700;color:var(--purple);min-width:36px">${c.engajamento_publico}</span>
+            </div></td>
+            <td>${c.qtd_posts||'-'}</td>
+            <td>${_n(c.total_curtidas)}</td>
+            <td>${_n(c.total_comentarios)}</td>
+            <td style="font-weight:600">${c.media_interacao||'-'}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>` : '';
+
+  // Formatos
+  const fmtColors = {'Imagem':'#1E88E5','Carrossel':'#FAB515','Reels':'#E91E8C','Vídeo':'#00B2C8'};
+  const fmtsHtml = fmts.length ? `<div class="crm-panel" style="margin-bottom:16px;">
+    <div class="crm-panel-title">📐 Formatos mais usados</div>
+    ${fmts.map(f=>`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:12px;font-weight:600;width:70px;color:var(--gray-700)">${f.formato}</span>
+      <div style="flex:1;background:var(--gray-100);border-radius:4px;height:18px;overflow:hidden">
+        <div style="width:${f.pct||0}%;height:100%;background:${fmtColors[f.formato]||'#9BA3B8'};border-radius:4px;display:flex;align-items:center;padding-left:6px">
+          ${f.pct>15?`<span style="font-size:10px;font-weight:700;color:white">${f.pct}%</span>`:''}
+        </div>
+      </div>
+      ${f.pct<=15?`<span style="font-size:11px;font-weight:700;color:${fmtColors[f.formato]||'#9BA3B8'};width:28px">${f.pct}%</span>`:'<span style="width:28px"></span>'}
+      <span style="font-size:11px;color:var(--gray-400);width:80px;text-align:right">♡ ${_n(f.curtidas)}</span>
+    </div>`).join('')}
+  </div>` : '';
+
+  // Ranking posts
+  const postRankHtml = (melhores.length || piores.length) ? `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    ${melhores.length ? `<div class="crm-panel"><div class="crm-panel-title">🥇 Melhores posts</div>
+      ${melhores.slice(0,5).map((p,i)=>`<div style="border-bottom:1px solid var(--gray-100);padding:8px 0;display:flex;gap:8px;align-items:flex-start">
+        <span style="font-size:11px;font-weight:700;color:var(--gray-400);width:14px">${p.posicao||i+1}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:600;color:var(--purple);margin-bottom:2px">${p.concorrente||''}</div>
+          <div style="font-size:11px;color:var(--gray-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(p.legenda||'').substring(0,60)}</div>
+          <div style="font-size:10px;color:var(--green);font-weight:700;margin-top:2px">♡ ${_n(p.curtidas)} · ${p.engajamento}</div>
+        </div>
+      </div>`).join('')}
+    </div>` : ''}
+    ${piores.length ? `<div class="crm-panel"><div class="crm-panel-title">📉 Piores posts</div>
+      ${piores.slice(0,5).map((p,i)=>`<div style="border-bottom:1px solid var(--gray-100);padding:8px 0;display:flex;gap:8px;align-items:flex-start">
+        <span style="font-size:11px;font-weight:700;color:var(--gray-400);width:14px">${p.posicao||i+1}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:600;color:var(--red);margin-bottom:2px">${p.concorrente||''}</div>
+          <div style="font-size:11px;color:var(--gray-600);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${(p.legenda||'').substring(0,60)}</div>
+          <div style="font-size:10px;color:var(--red);font-weight:700;margin-top:2px">♡ ${_n(p.curtidas)} · ${p.engajamento}</div>
+        </div>
+      </div>`).join('')}
+    </div>` : ''}
+  </div>` : '';
+
+  // Hashtags + crescimento
+  const sideHtml = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+    ${hashtags.length ? `<div class="crm-panel"><div class="crm-panel-title"># Hashtags mais usadas</div>
+      ${hashtags.slice(0,8).map((h,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-100)">
+        <span style="font-size:10px;color:var(--gray-400);width:14px">${i+1}</span>
+        <span style="font-size:12px;font-weight:600;color:var(--purple);flex:1">#${h.hashtag}</span>
+        <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--gray-400)">${h.total_usos||'-'}</span>
+      </div>`).join('')}
+    </div>` : ''}
+    ${cresc.length ? `<div class="crm-panel"><div class="crm-panel-title">📈 Ranking de crescimento</div>
+      ${cresc.slice(0,6).map((c,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-100)">
+        <span style="font-size:10px;color:var(--gray-400);width:14px">${c.posicao||i+1}</span>
+        <span style="font-size:12px;font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.nome}</span>
+        <span style="font-size:12px;font-weight:700;color:var(--green)">${c.crescimento_pct}</span>
+      </div>`).join('')}
+    </div>` : ''}
+  </div>`;
+
+  // Dia/horário insight
+  const dhHtml = (dh.dia_pico_concorrentes||dh.dia_pico_voce) ? `<div class="crm-panel" style="margin-bottom:16px;">
+    <div class="crm-panel-title">📅 Padrão de postagem</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px">
+      ${dh.dia_pico_concorrentes?`<div><span style="color:var(--gray-400)">Dia pico concorrentes:</span> <strong>${dh.dia_pico_concorrentes}</strong></div>`:''}
+      ${dh.dia_pico_voce?`<div><span style="color:var(--gray-400)">Dia que você mais postou:</span> <strong>${dh.dia_pico_voce}</strong></div>`:''}
+      ${dh.horario_pico_concorrentes?`<div><span style="color:var(--gray-400)">Horário pico concorrentes:</span> <strong>${dh.horario_pico_concorrentes}</strong></div>`:''}
+      ${dh.horarios_voce?`<div><span style="color:var(--gray-400)">Seus horários:</span> <strong>${dh.horarios_voce}</strong></div>`:''}
+    </div>
+  </div>` : '';
+
+  cont.innerHTML = `<div style="padding:0 0 24px">${headerHtml}
+    <div style="display:flex;gap:6px;margin-bottom:20px;">${subTabsHtml}</div>
+    ${concTabHtml}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      ${fmtsHtml}
+      ${dhHtml}
+    </div>
+    ${postRankHtml}
+    ${sideHtml}
+  </div>`;
+}
+
+function _socialSetSubTab(tab) {
+  _socialSubTab = tab;
+  const cont = document.getElementById('intel-tab-content');
+  if (cont) renderTabSocial(cont);
+}
+function _socialSetSnap(idx) {
+  _socialSnapIdx = idx;
+  const cont = document.getElementById('intel-tab-content');
+  if (cont) renderTabSocial(cont);
 }
 </script>
